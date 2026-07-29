@@ -1,349 +1,458 @@
 /**
- * Generate a Game Boy Color 3D model (.glb) using @gltf-transform/core.
+ * Generate a faithful Game Boy Color (CGB-001) 3D model (.glb).
+ *
+ * Geometry is built with three.js math (no DOM), exported via @gltf-transform.
+ * Proportions measured from reference photography of the real hardware:
+ *   body 78 x 133.5 x 27.4 mm  ->  1.0 x 1.712 x 0.351 world units (1 unit = 78 mm).
+ *
+ * The portfolio viewer (main.ts) re-materializes every mesh as translucent
+ * glass and draws EdgesGeometry lines with an 8-degree threshold, so:
+ *   - smooth surfaces keep facet angles < 8 deg (no stray lines),
+ *   - deliberate feature edges (caps, rims, insets) read as crisp outlines,
+ *   - the mesh named "screen" receives the dark glossy screen material.
+ *
  * Run: bun scripts/generate-gbc.ts
  */
-import {
-  Document,
-  NodeIO,
-  Format,
-} from '@gltf-transform/core';
+import { Document, NodeIO } from '@gltf-transform/core';
+import * as THREE from 'three';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 
-// ─── Helpers ───────────────────────────────────────────────────────────────────
+// ─── Dimensions (world units, 1 unit = 78 mm) ────────────────────────────────
 
-/** Create box geometry arrays (positions, normals, indices) */
-function createBoxGeometry(w: number, h: number, d: number) {
-  const hw = w / 2, hh = h / 2, hd = d / 2;
+const W = 1.0;
+const H = 1.712;
+const D = 0.351;
+const HW = W / 2;               // 0.5
+const HH = H / 2;               // 0.856
+const HD = D / 2;               // 0.1755
+const FZ = HD;                  // front face z
+const BZ = -HD;                 // back face z
+const SEAM_Z = 0.03;            // shell parting line, slightly front of middle
 
-  // 24 vertices (4 per face × 6 faces)
-  const positions = new Float32Array([
-    // Front (+Z)
-    -hw, -hh, hd,  hw, -hh, hd,  hw, hh, hd,  -hw, hh, hd,
-    // Back (-Z)
-    hw, -hh, -hd,  -hw, -hh, -hd,  -hw, hh, -hd,  hw, hh, -hd,
-    // Top (+Y)
-    -hw, hh, hd,  hw, hh, hd,  hw, hh, -hd,  -hw, hh, -hd,
-    // Bottom (-Y)
-    -hw, -hh, -hd,  hw, -hh, -hd,  hw, -hh, hd,  -hw, -hh, hd,
-    // Right (+X)
-    hw, -hh, hd,  hw, -hh, -hd,  hw, hh, -hd,  hw, hh, hd,
-    // Left (-X)
-    -hw, -hh, -hd,  -hw, -hh, hd,  -hw, hh, hd,  -hw, hh, -hd,
-  ]);
+/** y coordinate from "fraction of body height measured from the top edge" */
+const yTop = (frac: number) => HH - frac * H;
 
-  const normals = new Float32Array([
-    0,0,1, 0,0,1, 0,0,1, 0,0,1,
-    0,0,-1, 0,0,-1, 0,0,-1, 0,0,-1,
-    0,1,0, 0,1,0, 0,1,0, 0,1,0,
-    0,-1,0, 0,-1,0, 0,-1,0, 0,-1,0,
-    1,0,0, 1,0,0, 1,0,0, 1,0,0,
-    -1,0,0, -1,0,0, -1,0,0, -1,0,0,
-  ]);
+// ─── Rounded-rect outline with per-corner radii ──────────────────────────────
 
-  const indices = new Uint16Array([
-    0,1,2, 0,2,3,
-    4,5,6, 4,6,7,
-    8,9,10, 8,10,11,
-    12,13,14, 12,14,15,
-    16,17,18, 16,18,19,
-    20,21,22, 20,22,23,
-  ]);
+interface Corners { tl: number; tr: number; bl: number; br: number }
 
-  return { positions, normals, indices };
+/**
+ * Counter-clockwise rounded-rect outline centered at (cx, cy).
+ * Arc facets stay < 8 deg so corner walls never trigger edge lines.
+ */
+function roundedRectPoints(
+  w: number, h: number, r: Corners, cx = 0, cy = 0, arcSteps = 14,
+): THREE.Vector2[] {
+  const hw = w / 2, hh = h / 2;
+  const pts: THREE.Vector2[] = [];
+  const corner = (ccx: number, ccy: number, from: number, to: number, rad: number) => {
+    for (let i = 0; i <= arcSteps; i++) {
+      const a = from + (to - from) * (i / arcSteps);
+      pts.push(new THREE.Vector2(ccx + Math.cos(a) * rad, ccy + Math.sin(a) * rad));
+    }
+  };
+  // CCW: BR -> TR -> TL -> BL
+  corner(cx + hw - r.br, cy - hh + r.br, -Math.PI / 2, 0, r.br);
+  corner(cx + hw - r.tr, cy + hh - r.tr, 0, Math.PI / 2, r.tr);
+  corner(cx - hw + r.tl, cy + hh - r.tl, Math.PI / 2, Math.PI, r.tl);
+  corner(cx - hw + r.bl, cy - hh + r.bl, Math.PI, Math.PI * 1.5, r.bl);
+  return pts;
 }
 
-/** Create cylinder geometry (along Y axis) */
-function createCylinderGeometry(radius: number, height: number, segments: number = 24) {
+/** Same outline shrunk inward by `inset` (radii shrink too, clamped). */
+function insetCorners(r: Corners, inset: number): Corners {
+  const m = (v: number) => Math.max(v - inset, 0.002);
+  return { tl: m(r.tl), tr: m(r.tr), bl: m(r.bl), br: m(r.br) };
+}
+
+// ─── Shell sweep: wall + one rounded rim + flat caps, analytic normals ───────
+
+/**
+ * Extrudes a rounded-rect outline from zStart to zEnd (zEnd is the "outer"
+ * face). The outer face meets the wall through a quarter-round rim of radius
+ * rimR (rimSteps facets, < 8 deg each). Both ends get flat caps.
+ */
+function shellGeometry(
+  w: number, h: number, corners: Corners,
+  zStart: number, zEnd: number, rimR: number,
+  cx = 0, cy = 0, rimSteps = 13,
+): THREE.BufferGeometry {
+  const dir = Math.sign(zEnd - zStart); // +1 rim faces +z, -1 faces -z
   const positions: number[] = [];
   const normals: number[] = [];
   const indices: number[] = [];
-  const hh = height / 2;
 
-  // Side vertices
-  for (let i = 0; i <= segments; i++) {
-    const theta = (i / segments) * Math.PI * 2;
-    const x = Math.cos(theta) * radius;
-    const z = Math.sin(theta) * radius;
-    const nx = Math.cos(theta);
-    const nz = Math.sin(theta);
-    // Bottom
-    positions.push(x, -hh, z);
-    normals.push(nx, 0, nz);
-    // Top
-    positions.push(x, hh, z);
-    normals.push(nx, 0, nz);
+  // Ring definitions: [inset, z, blend] — blend 0 = wall normal, 1 = face normal
+  const rings: { inset: number; z: number; blend: number }[] = [];
+  rings.push({ inset: 0, z: zStart, blend: 0 });
+  rings.push({ inset: 0, z: zEnd - dir * rimR, blend: 0 });
+  for (let i = 1; i <= rimSteps; i++) {
+    const a = (i / rimSteps) * (Math.PI / 2);
+    rings.push({
+      inset: rimR * (1 - Math.cos(a)),
+      z: zEnd - dir * rimR * (1 - Math.sin(a)),
+      blend: a / (Math.PI / 2),
+    });
   }
 
-  // Side faces
-  for (let i = 0; i < segments; i++) {
-    const a = i * 2, b = a + 1, c = a + 2, d = a + 3;
-    indices.push(a, c, b);
-    indices.push(b, c, d);
-  }
+  const base = roundedRectPoints(w, h, corners, cx, cy);
+  const n = base.length;
+  // Outline normal per point (2D, outward)
+  const outNorm: THREE.Vector2[] = base.map((p, i) => {
+    const prev = base[(i - 1 + n) % n]!, next = base[(i + 1) % n]!;
+    const t = new THREE.Vector2(next.x - prev.x, next.y - prev.y).normalize();
+    return new THREE.Vector2(t.y, -t.x); // rotate -90: outward for CCW outline
+  });
 
-  // Top cap
-  const topCenter = positions.length / 3;
-  positions.push(0, hh, 0);
-  normals.push(0, 1, 0);
-  for (let i = 0; i <= segments; i++) {
-    const theta = (i / segments) * Math.PI * 2;
-    positions.push(Math.cos(theta) * radius, hh, Math.sin(theta) * radius);
-    normals.push(0, 1, 0);
-  }
-  for (let i = 0; i < segments; i++) {
-    indices.push(topCenter, topCenter + 1 + i, topCenter + 2 + i);
-  }
-
-  // Bottom cap
-  const botCenter = positions.length / 3;
-  positions.push(0, -hh, 0);
-  normals.push(0, -1, 0);
-  for (let i = 0; i <= segments; i++) {
-    const theta = (i / segments) * Math.PI * 2;
-    positions.push(Math.cos(theta) * radius, -hh, Math.sin(theta) * radius);
-    normals.push(0, -1, 0);
-  }
-  for (let i = 0; i < segments; i++) {
-    indices.push(botCenter, botCenter + 2 + i, botCenter + 1 + i);
-  }
-
-  return {
-    positions: new Float32Array(positions),
-    normals: new Float32Array(normals),
-    indices: new Uint16Array(indices),
-  };
-}
-
-/** Create a rounded box by beveling edges using ExtrudeGeometry-like approach */
-function createRoundedBoxGeometry(w: number, h: number, d: number, radius: number, segments: number = 4) {
-  // Use a simple box with slightly adjusted geometry for now
-  // (true rounded box would be very complex - the edge lines will give it character)
-  return createBoxGeometry(w, h, d);
-}
-
-// ─── Build GBC Document ────────────────────────────────────────────────────────
-
-function buildGBC(): Document {
-  const doc = new Document();
-
-  // Buffer for all binary data
-  const buffer = doc.createBuffer();
-
-  // Scale: GBC is ~75mm x 133mm x 27mm
-  const W = 1.0;
-  const H = 1.77;
-  const D = 0.36;
-
-  // Color palette (GBC Grape/Purple variant) - sRGB linear approx
-  const colors: Record<string, [number, number, number, number]> = {
-    body:       [0.126, 0.088, 0.392, 1],     // Purple body
-    bodyBack:   [0.098, 0.072, 0.330, 1],     // Darker back
-    bezel:      [0.055, 0.055, 0.085, 1],     // Dark bezel
-    screenGlass:[0.010, 0.010, 0.020, 1],     // Dark glass
-    lcd:        [0.240, 0.410, 0.004, 1],     // Green LCD
-    dpad:       [0.020, 0.020, 0.035, 1],     // Dark d-pad
-    buttonRed:  [0.500, 0.020, 0.010, 1],     // Red buttons
-    startSel:   [0.035, 0.035, 0.055, 1],     // Start/select
-    speaker:    [0.055, 0.055, 0.085, 1],     // Speaker
-    label:      [0.170, 0.170, 0.330, 1],     // Label area
-    led:        [0.900, 0.050, 0.050, 1],     // Red LED
-    batteryCov: [0.108, 0.078, 0.350, 1],     // Battery cover
-    irPort:     [0.020, 0.005, 0.005, 1],     // IR port
-    cartSlot:   [0.035, 0.035, 0.055, 1],     // Cartridge slot
-  };
-
-  function makeMaterial(name: string, colorKey: string, metallic = 0.0, roughness = 0.5) {
-    const c = colors[colorKey];
-    return doc.createMaterial(name)
-      .setBaseColorFactor(c)
-      .setMetallicFactor(metallic)
-      .setRoughnessFactor(roughness);
-  }
-
-  function addMesh(
-    name: string,
-    geo: { positions: Float32Array; normals: Float32Array; indices: Uint16Array },
-    material: ReturnType<typeof makeMaterial>,
-    translation: [number, number, number],
-    rotation?: [number, number, number, number],
-  ) {
-    const posAccessor = doc.createAccessor()
-      .setType('VEC3').setArray(geo.positions).setBuffer(buffer);
-    const normAccessor = doc.createAccessor()
-      .setType('VEC3').setArray(geo.normals).setBuffer(buffer);
-    const idxAccessor = doc.createAccessor()
-      .setType('SCALAR').setArray(geo.indices).setBuffer(buffer);
-
-    const prim = doc.createPrimitive()
-      .setAttribute('POSITION', posAccessor)
-      .setAttribute('NORMAL', normAccessor)
-      .setIndices(idxAccessor)
-      .setMaterial(material);
-
-    const mesh = doc.createMesh(name).addPrimitive(prim);
-
-    const node = doc.createNode(name)
-      .setMesh(mesh)
-      .setTranslation(translation);
-
-    if (rotation) node.setRotation(rotation);
-
-    return node;
-  }
-
-  // ─── Materials ─────────────────────────────────────────────────────────────
-
-  const matBody      = makeMaterial('body',       'body',       0.05, 0.4);
-  const matBodyBack  = makeMaterial('body_back',  'bodyBack',   0.05, 0.45);
-  const matBezel     = makeMaterial('bezel',      'bezel',      0.1,  0.3);
-  const matGlass     = makeMaterial('screen_glass','screenGlass',0.0, 0.05);
-  const matLcd       = makeMaterial('lcd',        'lcd',        0.0,  0.3);
-  const matDpad      = makeMaterial('dpad',       'dpad',       0.05, 0.5);
-  const matBtnRed    = makeMaterial('button_red', 'buttonRed',  0.05, 0.4);
-  const matStartSel  = makeMaterial('start_sel',  'startSel',   0.05, 0.5);
-  const matSpeaker   = makeMaterial('speaker',    'speaker',    0.1,  0.6);
-  const matLabel     = makeMaterial('label',      'label',      0.0,  0.5);
-  const matLed       = makeMaterial('led',        'led',        0.0,  0.2);
-  const matBattery   = makeMaterial('battery',    'batteryCov', 0.05, 0.45);
-  const matIr        = makeMaterial('ir_port',    'irPort',     0.0,  0.7);
-  const matCartSlot  = makeMaterial('cart_slot',  'cartSlot',   0.1,  0.6);
-
-  // ─── Root scene node ──────────────────────────────────────────────────────
-
-  const root = doc.createNode('GameBoyColor');
-
-  // ─── Body shells ──────────────────────────────────────────────────────────
-
-  root.addChild(addMesh('body_front',
-    createBoxGeometry(W, H, D * 0.55), matBody, [0, 0, D * 0.15]));
-
-  root.addChild(addMesh('body_back',
-    createBoxGeometry(W, H, D * 0.5), matBodyBack, [0, 0, -D * 0.15]));
-
-  // Battery cover
-  root.addChild(addMesh('battery_cover',
-    createBoxGeometry(W * 0.65, H * 0.35, 0.03), matBattery, [0, -H * 0.2, -D * 0.41]));
-
-  // ─── Screen area ──────────────────────────────────────────────────────────
-
-  const bezelW = W * 0.72, bezelH = H * 0.38;
-  root.addChild(addMesh('screen_bezel',
-    createBoxGeometry(bezelW, bezelH, 0.04), matBezel, [0, H * 0.22, D * 0.43]));
-
-  const glassW = bezelW * 0.88, glassH = bezelH * 0.82;
-  root.addChild(addMesh('screen',
-    createBoxGeometry(glassW, glassH, 0.015), matGlass, [0, H * 0.22, D * 0.46]));
-
-  const lcdW = glassW * 0.72, lcdH = glassH * 0.72;
-  root.addChild(addMesh('lcd',
-    createBoxGeometry(lcdW, lcdH, 0.005), matLcd, [0, H * 0.22, D * 0.475]));
-
-  // "COLOR" label strip
-  root.addChild(addMesh('color_label',
-    createBoxGeometry(bezelW * 0.5, 0.03, 0.005), matLabel, [0, H * 0.39, D * 0.46]));
-
-  // Power LED
-  const ledGeo = createCylinderGeometry(0.02, 0.015, 12);
-  const qRotX90: [number, number, number, number] = [Math.sin(Math.PI / 4), 0, 0, Math.cos(Math.PI / 4)]; // 90° around X
-  root.addChild(addMesh('power_led',
-    ledGeo, matLed, [-bezelW * 0.38, H * 0.39, D * 0.46], qRotX90));
-
-  // ─── D-Pad ────────────────────────────────────────────────────────────────
-
-  const dpadNode = doc.createNode('dpad').setTranslation([-W * 0.22, -H * 0.05, D * 0.44]);
-
-  // Horizontal bar
-  const dpadHNode = addMesh('dpad_h', createBoxGeometry(0.22, 0.07, 0.04), matDpad, [0, 0, 0]);
-  dpadNode.addChild(dpadHNode);
-
-  // Vertical bar
-  const dpadVNode = addMesh('dpad_v', createBoxGeometry(0.07, 0.22, 0.04), matDpad, [0, 0, 0]);
-  dpadNode.addChild(dpadVNode);
-
-  // Center disc
-  const dpadCenterGeo = createCylinderGeometry(0.04, 0.045, 16);
-  const dpadCenterNode = addMesh('dpad_center', dpadCenterGeo, matDpad, [0, 0, 0], qRotX90);
-  dpadNode.addChild(dpadCenterNode);
-
-  root.addChild(dpadNode);
-
-  // ─── A & B Buttons ────────────────────────────────────────────────────────
-
-  const btnGeo = createCylinderGeometry(0.055, 0.04, 24);
-  root.addChild(addMesh('button_a', btnGeo, matBtnRed, [W * 0.28, -H * 0.02, D * 0.44], qRotX90));
-  root.addChild(addMesh('button_b', btnGeo, matBtnRed, [W * 0.15, -H * 0.08, D * 0.44], qRotX90));
-
-  // ─── START / SELECT ───────────────────────────────────────────────────────
-
-  const startGeo = createBoxGeometry(0.12, 0.04, 0.025);
-  // Slight tilt rotation (around Z axis by -0.3 rad)
-  const sinZ = Math.sin(-0.15), cosZ = Math.cos(-0.15); // half-angle for quaternion
-  const qRotZ: [number, number, number, number] = [0, 0, sinZ, cosZ];
-  root.addChild(addMesh('button_start', startGeo, matStartSel, [W * 0.08, -H * 0.2, D * 0.43], qRotZ));
-  root.addChild(addMesh('button_select', startGeo, matStartSel, [-W * 0.08, -H * 0.2, D * 0.43], qRotZ));
-
-  // ─── Speaker grille ───────────────────────────────────────────────────────
-
-  const speakerNode = doc.createNode('speaker').setTranslation([W * 0.28, -H * 0.32, D * 0.43]);
-  const holeGeo = createCylinderGeometry(0.012, 0.02, 8);
-
-  for (let row = 0; row < 4; row++) {
-    for (let col = 0; col < 4; col++) {
-      const x = col * 0.035 - 0.05;
-      const y = row * 0.035 - 0.05;
-      speakerNode.addChild(addMesh(
-        `speaker_${row}_${col}`, holeGeo, matSpeaker, [x, y, 0], qRotX90
-      ));
+  for (const ring of rings) {
+    const shrunk = roundedRectPoints(
+      w - ring.inset * 2, h - ring.inset * 2, insetCorners(corners, ring.inset), cx, cy,
+    );
+    for (let i = 0; i < n; i++) {
+      const p = shrunk[i]!;
+      positions.push(p.x, p.y, ring.z);
+      const wall = outNorm[i]!;
+      const cosA = Math.cos(ring.blend * Math.PI / 2);
+      const sinA = Math.sin(ring.blend * Math.PI / 2);
+      const nx = wall.x * cosA, ny = wall.y * cosA, nz = dir * sinA;
+      const len = Math.hypot(nx, ny, nz) || 1;
+      normals.push(nx / len, ny / len, nz / len);
     }
   }
-  root.addChild(speakerNode);
 
-  // ─── Top edge features ────────────────────────────────────────────────────
+  for (let r = 0; r < rings.length - 1; r++) {
+    for (let i = 0; i < n; i++) {
+      const a = r * n + i, b = r * n + ((i + 1) % n);
+      const c = (r + 1) * n + i, d = (r + 1) * n + ((i + 1) % n);
+      if (dir > 0) indices.push(a, b, c, b, d, c);
+      else indices.push(a, c, b, b, c, d);
+    }
+  }
 
-  // Power switch
-  root.addChild(addMesh('power_switch',
-    createBoxGeometry(0.08, 0.04, 0.06), matDpad, [-W * 0.28, H * 0.5, 0]));
+  const side = new THREE.BufferGeometry();
+  side.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  side.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
+  side.setIndex(indices);
 
-  // IR port
-  root.addChild(addMesh('ir_port',
-    createBoxGeometry(0.06, 0.02, 0.04), matIr, [0, H * 0.5, 0]));
+  // Flat caps (outer face + start face), triangulated as fans from centroid.
+  const cap = (ringIdx: number, faceDir: number) => {
+    const ring = rings[ringIdx]!;
+    const shrunk = roundedRectPoints(
+      w - ring.inset * 2, h - ring.inset * 2, insetCorners(corners, ring.inset), cx, cy,
+    );
+    const g = new THREE.BufferGeometry();
+    const pos: number[] = [cx, cy, ring.z];
+    const nor: number[] = [0, 0, faceDir];
+    const idx: number[] = [];
+    shrunk.forEach(p => { pos.push(p.x, p.y, ring.z); nor.push(0, 0, faceDir); });
+    for (let i = 0; i < n; i++) {
+      const a = 1 + i, b = 1 + ((i + 1) % n);
+      if (faceDir > 0) idx.push(0, a, b);
+      else idx.push(0, b, a);
+    }
+    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    g.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
+    g.setIndex(idx);
+    return g;
+  };
 
-  // ─── Bottom edge ──────────────────────────────────────────────────────────
+  return mergeGeometries([
+    side,
+    cap(rings.length - 1, dir),   // outer face
+    cap(0, -dir),                 // seam face
+  ], false)!;
+}
 
-  // Link cable port
-  root.addChild(addMesh('link_port',
-    createBoxGeometry(0.12, 0.02, 0.08), matDpad, [0, -H * 0.5, -D * 0.05]));
+// ─── Small-part helpers ──────────────────────────────────────────────────────
 
-  // ─── Side rails ───────────────────────────────────────────────────────────
+/** Thin rounded-rect plate: outer face at zOut, extends `thick` toward body. */
+function plate(
+  w: number, h: number, radius: number, zOut: number, thick: number,
+  opts: { rim?: number; rimSteps?: number; cx?: number; cy?: number } = {},
+): THREE.BufferGeometry {
+  const r = Math.min(radius, Math.min(w, h) / 2 - 0.001);
+  const c = { tl: r, tr: r, bl: r, br: r };
+  const dir = Math.sign(zOut) || 1;
+  return shellGeometry(
+    w, h, c,
+    zOut - dir * thick, zOut,
+    opts.rim ?? Math.min(thick * 0.6, 0.004),
+    opts.cx ?? 0, opts.cy ?? 0,
+    opts.rimSteps ?? 4,
+  );
+}
 
-  root.addChild(addMesh('left_rail',
-    createBoxGeometry(0.02, H * 0.3, D * 0.3), matBodyBack, [-W * 0.51, -H * 0.15, 0]));
+/** Flat disc (single face) — reads as a crisp circle outline. */
+function disc(r: number, segments = 32): THREE.BufferGeometry {
+  return new THREE.CircleGeometry(r, segments);
+}
 
-  root.addChild(addMesh('right_rail',
-    createBoxGeometry(0.02, H * 0.3, D * 0.3), matBodyBack, [W * 0.51, -H * 0.15, 0]));
+/** Axis-aligned box (crisp 90-degree edges everywhere). */
+function box(w: number, h: number, d: number): THREE.BufferGeometry {
+  return new THREE.BoxGeometry(w, h, d);
+}
 
-  // ─── Cartridge slot ───────────────────────────────────────────────────────
+/** Convert sRGB hex to linear-space RGBA factor for glTF. */
+function srgb(hex: number, alpha = 1): [number, number, number, number] {
+  const c = new THREE.Color(hex).convertSRGBToLinear();
+  return [c.r, c.g, c.b, alpha];
+}
 
-  root.addChild(addMesh('cartridge_slot',
-    createBoxGeometry(W * 0.55, 0.04, D * 0.25), matCartSlot, [0, H * 0.42, -D * 0.15]));
+// ─── Part registry ───────────────────────────────────────────────────────────
 
-  // ─── Scene ────────────────────────────────────────────────────────────────
+interface Part {
+  name: string;
+  geometry: THREE.BufferGeometry;
+  material: string;
+  position?: [number, number, number];
+  rotation?: THREE.Quaternion;
+}
 
-  const scene = doc.createScene('Scene').addChild(root);
+const parts: Part[] = [];
+
+function add(
+  name: string, geometry: THREE.BufferGeometry, material: string,
+  position?: [number, number, number], rotation?: THREE.Quaternion,
+) {
+  parts.push({ name, geometry, material, position, rotation });
+}
+
+/** Merge many geometries, each pre-translated, into one named mesh. */
+function mergedAt(
+  geos: { g: THREE.BufferGeometry; at: [number, number, number]; rot?: THREE.Quaternion }[],
+): THREE.BufferGeometry {
+  const list = geos.map(({ g, at, rot }) => {
+    const m = new THREE.Matrix4();
+    if (rot) m.makeRotationFromQuaternion(rot);
+    m.setPosition(at[0], at[1], at[2]);
+    const c = g.clone().applyMatrix4(m);
+    return c.index ? c.toNonIndexed() : c;
+  });
+  return mergeGeometries(list, false)!;
+}
+
+const qX90 = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI / 2);
+const qZ90 = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), Math.PI / 2);
+
+// ─── Parts (positions measured from reference photos, front view fractions) ──
+
+function buildParts() {
+  const bodyCorners: Corners = { tl: 0.052, tr: 0.052, bl: 0.135, br: 0.135 };
+
+  // Body shells — parting seam ring shows as the case split line
+  add('body_front',
+    shellGeometry(W, H, bodyCorners, SEAM_Z, FZ, 0.030), 'body');
+  add('body_back',
+    shellGeometry(W - 0.009, H - 0.009, insetCorners(bodyCorners, 0.0045), SEAM_Z, BZ, 0.052), 'bodyDark');
+
+  // ── Screen area ──
+  // Lens: 87% of body width, top edge 5.4% from body top
+  const lensW = 0.87, lensH = 0.428 * H;
+  const lensCY = yTop(0.054) - lensH / 2;
+  add('screen', plate(lensW, lensH, 0.032, FZ + 0.005, 0.008, { cy: lensCY }), 'screen');
+
+  // LCD active area: 44 x 40 mm real
+  const lcdH = 0.288 * H;
+  add('lcd', plate(0.554, lcdH, 0.010, FZ + 0.009, 0.005, { cy: yTop(0.101) - lcdH / 2 }), 'lcd');
+
+  // "GAME BOY COLOR" logo strip on the lens
+  add('logo_strip', plate(0.46, 0.046, 0.010, FZ + 0.0075, 0.003, { cy: yTop(0.44) }), 'label');
+
+  // Power LED, upper-left inside the lens
+  add('power_led', new THREE.CylinderGeometry(0.0125, 0.0125, 0.008, 48), 'led',
+    [-0.402, yTop(0.187), FZ + 0.009], qX90);
+
+  // ── D-pad (center x -0.281, 64.2% down) ──
+  const dpadX = -0.281, dpadY = yTop(0.642);
+  add('dpad_well', disc(0.138, 64), 'inset', [dpadX, dpadY, FZ + 0.0015]);
+
+  const S = 0.1205, T = 0.040; // cross half-span / half-arm-width
+  const cross = new THREE.Shape([
+    [S, -T], [S, T], [T, T], [T, S], [-T, S], [-T, T],
+    [-S, T], [-S, -T], [-T, -T], [-T, -S], [T, -S], [T, -T],
+  ].map(([x, y]) => new THREE.Vector2(x, y)));
+  add('dpad', new THREE.ExtrudeGeometry(cross, {
+    depth: 0.020, bevelEnabled: true, bevelThickness: 0.006, bevelSize: 0.005, bevelSegments: 4,
+  }), 'dark', [dpadX, dpadY, FZ - 0.004]);
+  add('dpad_dimple', disc(0.030, 48), 'dark', [dpadX, dpadY, FZ + 0.0225]);
+
+  // ── A / B buttons (8 mm domes, axis tilted ~22 deg) ──
+  const btnProfile: THREE.Vector2[] = [new THREE.Vector2(0.049, 0), new THREE.Vector2(0.049, 0.014)];
+  for (let i = 1; i <= 6; i++) {
+    const a = (i / 6) * (Math.PI / 2);
+    btnProfile.push(new THREE.Vector2(0.042 + 0.007 * Math.cos(a), 0.014 + 0.007 * Math.sin(a)));
+  }
+  btnProfile.push(new THREE.Vector2(0, 0.021));
+  const btnGeo = new THREE.LatheGeometry(btnProfile, 48);
+
+  const aPos: [number, number, number] = [0.344, yTop(0.624), FZ - 0.001];
+  const bPos: [number, number, number] = [0.156, yTop(0.668), FZ - 0.001];
+  add('button_a', btnGeo, 'dark', aPos, qX90);
+  add('button_b', btnGeo.clone(), 'dark', bPos, qX90);
+  add('button_wells', mergedAt([
+    { g: disc(0.076, 56), at: [aPos[0], aPos[1], FZ + 0.001] },
+    { g: disc(0.076, 56), at: [bPos[0], bPos[1], FZ + 0.001] },
+  ]), 'inset');
+
+  // ── SELECT / START (horizontal pills in stadium wells) ──
+  const ssY = yTop(0.798);
+  const wellGeo = () => plate(0.129, 0.0668, 0.0324, FZ + 0.0015, 0.003, { rimSteps: 4 });
+  add('sel_start_wells', mergedAt([
+    { g: wellGeo(), at: [-0.080, ssY, 0] },
+    { g: wellGeo(), at: [0.058, ssY, 0] },
+  ]), 'inset');
+  const pillGeo = new THREE.CapsuleGeometry(0.0155, 0.058, 8, 48);
+  add('select_pill', pillGeo, 'dark', [-0.080, ssY, FZ + 0.009], qZ90);
+  add('start_pill', pillGeo.clone(), 'dark', [0.058, ssY, FZ + 0.009], qZ90);
+
+  // ── Speaker: hex-packed hole cluster, bottom right ──
+  const spX = 0.313, spY = yTop(0.855);
+  const holes: { g: THREE.BufferGeometry; at: [number, number, number] }[] = [];
+  const pitch = 0.030, rowH = pitch * Math.sqrt(3) / 2, R = 0.107;
+  for (let j = -4; j <= 4; j++) {
+    const off = (j % 2 !== 0) ? pitch / 2 : 0;
+    for (let i = -4; i <= 4; i++) {
+      const x = i * pitch + off, y = j * rowH;
+      if (Math.hypot(x, y) <= R) {
+        holes.push({ g: disc(0.0075, 16), at: [spX + x, spY + y, FZ + 0.0008] });
+      }
+    }
+  }
+  add('speaker_holes', mergedAt(holes), 'dark');
+
+  // ── Side-wall grip ridges (5 short bars near the top, both sides) ──
+  const ridges: { g: THREE.BufferGeometry; at: [number, number, number] }[] = [];
+  for (let i = 0; i < 5; i++) {
+    const y = yTop(0.20) + (i / 4) * (yTop(0.11) - yTop(0.20));
+    ridges.push({ g: box(0.010, 0.012, 0.130), at: [-HW, y, 0.095] });
+    ridges.push({ g: box(0.010, 0.012, 0.130), at: [HW, y, 0.095] });
+  }
+  add('grip_ridges', mergedAt(ridges), 'body');
+
+  // ── Left side: EXT link port + volume wheel ──
+  const extY = yTop(0.215);
+  add('ext_frame', box(0.014, 0.105, 0.105), 'bodyDark', [-HW, extY, 0]);
+  add('ext_inner', box(0.010, 0.075, 0.075), 'dark', [-0.498, extY, 0]);
+
+  // Thumbwheel spins about Z; only its knurled rim pokes through the slot.
+  const volY = yTop(0.34);
+  add('vol_slot', box(0.012, 0.128, 0.030), 'dark', [-0.499, volY, 0]);
+  add('vol_wheel', new THREE.CylinderGeometry(0.083, 0.083, 0.018, 64), 'dark',
+    [-0.422, volY, 0], qX90);
+
+  // ── Right side: power slide switch ──
+  const powY = yTop(0.30);
+  add('power_slot', box(0.012, 0.128, 0.026), 'dark', [0.499, powY, 0]);
+  add('power_nub', box(0.016, 0.052, 0.020), 'dark', [0.504, powY, 0]);
+
+  // ── Top edge: cartridge slot (back half) + IR window (front half) ──
+  add('cart_slot', box(0.80, 0.024, 0.20), 'inset', [0, HH - 0.0115, -0.070]);
+  add('cart_slit', box(0.70, 0.020, 0.085), 'dark', [0, HH - 0.009, -0.070]);
+  add('ir_window', box(0.080, 0.014, 0.135), 'ir', [0.115, HH - 0.0055, 0.0775]);
+
+  // ── Bottom edge: headphone jack ──
+  add('phone_ring', new THREE.CylinderGeometry(0.045, 0.045, 0.006, 48), 'body',
+    [-0.15, -HH + 0.0005, 0]);
+  add('phone_hole', new THREE.CylinderGeometry(0.028, 0.028, 0.005, 32), 'dark',
+    [-0.15, -HH + 0.0012, 0]);
+
+  // ── Back: cartridge bay recess, battery cover, screws ──
+  const bayH = 0.7575, bayCY = 0.0685 + bayH / 2;
+  add('cart_bay', plate(0.82, bayH, 0.040, BZ - 0.004, 0.008, { cy: bayCY, rimSteps: 4 }), 'shade');
+  add('connector_slit', box(0.70, 0.030, 0.010), 'dark', [0, 0.775, BZ - 0.007]);
+
+  const covH = 0.6506, covCY = -0.0856 - covH / 2;
+  add('battery_cover', plate(0.68, covH, 0.075, BZ - 0.006, 0.007, { cy: covCY, rimSteps: 4 }), 'bodyDark');
+  add('battery_latch', box(0.055, 0.022, 0.010), 'dark', [0, -0.715, BZ - 0.009]);
+
+  const qY180 = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI);
+  add('screws', mergedAt([
+    { g: disc(0.018, 24), at: [-0.37, 0.728, BZ - 0.001], rot: qY180 },
+    { g: disc(0.018, 24), at: [0.37, 0.728, BZ - 0.001], rot: qY180 },
+    { g: disc(0.018, 24), at: [-0.405, -0.034, BZ - 0.001], rot: qY180 },
+    { g: disc(0.018, 24), at: [0.405, -0.034, BZ - 0.001], rot: qY180 },
+  ]), 'dark');
+
+  // ── Embossed Nintendo stadium outline on the front shell ──
+  const ringOuter = roundedRectPoints(0.24, 0.0445, { tl: 0.0222, tr: 0.0222, bl: 0.0222, br: 0.0222 }, 0, 0, 10);
+  const ringInner = roundedRectPoints(0.224, 0.0285, { tl: 0.0142, tr: 0.0142, bl: 0.0142, br: 0.0142 }, 0, 0, 10);
+  const ringShape = new THREE.Shape(ringOuter);
+  ringShape.holes.push(new THREE.Path(ringInner.slice().reverse()));
+  add('nintendo_ring', new THREE.ExtrudeGeometry(ringShape, { depth: 0.003, bevelEnabled: false }),
+    'emboss', [0, yTop(0.549), FZ - 0.0005]);
+}
+
+// ─── Export via gltf-transform ───────────────────────────────────────────────
+
+const MATERIALS: Record<string, { color: [number, number, number, number]; metallic: number; roughness: number }> = {
+  body:     { color: srgb(0x7259ab), metallic: 0.05, roughness: 0.45 }, // grape purple
+  bodyDark: { color: srgb(0x63479a), metallic: 0.05, roughness: 0.50 },
+  shade:    { color: srgb(0x54387f), metallic: 0.05, roughness: 0.55 }, // recessed areas
+  screen:   { color: srgb(0x14141c), metallic: 0.05, roughness: 0.10 },
+  lcd:      { color: srgb(0x8a9490), metallic: 0.00, roughness: 0.35 },
+  dark:     { color: srgb(0x232329), metallic: 0.05, roughness: 0.45 }, // buttons etc.
+  inset:    { color: srgb(0x4a3d6b), metallic: 0.05, roughness: 0.55 }, // wells
+  label:    { color: srgb(0x8f95a3), metallic: 0.00, roughness: 0.40 },
+  emboss:   { color: srgb(0x5a4488), metallic: 0.05, roughness: 0.50 },
+  led:      { color: srgb(0x8a1622), metallic: 0.00, roughness: 0.25 },
+  ir:       { color: srgb(0x4a1018), metallic: 0.00, roughness: 0.15 },
+};
+
+async function exportGLB() {
+  const doc = new Document();
+  const buffer = doc.createBuffer();
+  const scene = doc.createScene('Scene');
+  const root = doc.createNode('GameBoyColor');
+  scene.addChild(root);
   doc.getRoot().setDefaultScene(scene);
 
-  return doc;
-}
+  const mats = new Map<string, ReturnType<Document['createMaterial']>>();
+  for (const [name, def] of Object.entries(MATERIALS)) {
+    mats.set(name, doc.createMaterial(name)
+      .setBaseColorFactor(def.color)
+      .setMetallicFactor(def.metallic)
+      .setRoughnessFactor(def.roughness));
+  }
 
-// ─── Main ──────────────────────────────────────────────────────────────────────
+  let triangles = 0;
+  for (const part of parts) {
+    const geo = part.geometry;
+    const posAttr = geo.getAttribute('position') as THREE.BufferAttribute;
+    const norAttr = geo.getAttribute('normal') as THREE.BufferAttribute;
+    const position = doc.createAccessor().setType('VEC3')
+      .setArray(new Float32Array(posAttr.array)).setBuffer(buffer);
+    const normal = doc.createAccessor().setType('VEC3')
+      .setArray(new Float32Array(norAttr.array)).setBuffer(buffer);
+    const prim = doc.createPrimitive()
+      .setAttribute('POSITION', position)
+      .setAttribute('NORMAL', normal)
+      .setMaterial(mats.get(part.material)!);
+    if (geo.index) {
+      const arr = posAttr.count > 65535
+        ? new Uint32Array(geo.index.array)
+        : new Uint16Array(geo.index.array);
+      prim.setIndices(doc.createAccessor().setType('SCALAR').setArray(arr).setBuffer(buffer));
+      triangles += geo.index.count / 3;
+    } else {
+      triangles += posAttr.count / 3;
+    }
+    const mesh = doc.createMesh(part.name).addPrimitive(prim);
+    const node = doc.createNode(part.name).setMesh(mesh);
+    if (part.position) node.setTranslation(part.position);
+    if (part.rotation) {
+      const q = part.rotation;
+      node.setRotation([q.x, q.y, q.z, q.w]);
+    }
+    root.addChild(node);
+  }
 
-async function main() {
-  const doc = buildGBC();
   const io = new NodeIO();
   const glb = await io.writeBinary(doc);
-
-  const outputPath = './public/gbc.glb';
+  const outputPath = './public/models/gbc.glb';
   await Bun.write(outputPath, glb);
-  console.log(`Generated ${outputPath} (${(glb.byteLength / 1024).toFixed(1)} KB)`);
+  console.log(`Generated ${outputPath}`);
+  console.log(`  meshes: ${parts.length}, triangles: ${triangles}, size: ${(glb.byteLength / 1024).toFixed(1)} KB`);
 }
 
-main().catch(console.error);
+buildParts();
+await exportGLB();
