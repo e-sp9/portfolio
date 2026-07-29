@@ -5,6 +5,7 @@ import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment
 import { LineSegments2 } from 'three/examples/jsm/lines/LineSegments2.js';
 import { LineSegmentsGeometry } from 'three/examples/jsm/lines/LineSegmentsGeometry.js';
 import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
+import { MODELS, type ModelDef } from './models';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // STATE
@@ -17,7 +18,6 @@ let controls: OrbitControls;
 let model: THREE.Object3D | null = null;
 let edgeMat: LineMaterial;
 let screenMesh: THREE.Mesh | null = null;
-let currentModelPath = '/gba.glb';
 let bodyShell: THREE.MeshPhysicalMaterial | null = null;
 let bodyMid: THREE.MeshPhysicalMaterial | null = null;
 let bodyDetail: THREE.MeshPhysicalMaterial | null = null;
@@ -25,6 +25,10 @@ let screenMat: THREE.MeshPhysicalMaterial | null = null;
 let ambientLight: THREE.AmbientLight | null = null;
 let keyLight: THREE.DirectionalLight | null = null;
 let fillLight: THREE.DirectionalLight | null = null;
+
+let currentIndex = Math.floor(Math.random() * MODELS.length);
+let isLoadingModel = false;
+let targetScale = 1;
 
 const clock = new THREE.Clock();
 const MOBILE_BP = 768;
@@ -60,7 +64,8 @@ function initThree() {
     controls.dampingFactor = 0.04;
     controls.enablePan = false;
     controls.enableZoom = false;
-    controls.autoRotate = false;
+    controls.autoRotate = true;
+    controls.autoRotateSpeed = 0.5;
     controls.minPolarAngle = Math.PI * 0.3;
     controls.maxPolarAngle = Math.PI * 0.62;
 
@@ -79,8 +84,7 @@ function initThree() {
     handleResize();
     window.addEventListener('resize', handleResize);
 
-    // Always load GBA model
-    loadModel('/gba.glb');
+    loadModel(MODELS[currentIndex]!, { initial: true });
 
     // Apply theme to Three.js objects (lighting)
     applyTheme();
@@ -90,63 +94,66 @@ function initThree() {
 // MODEL LOADING
 // ═══════════════════════════════════════════════════════════════════════════════
 
-function loadModel(modelPath: string = '/gba.glb') {
-    currentModelPath = modelPath;
+function disposeModel() {
+    if (!model) return;
+    scene.remove(model);
+    model.traverse((child) => {
+        if (child instanceof THREE.Mesh) {
+            child.geometry.dispose();
+            if (Array.isArray(child.material)) {
+                child.material.forEach(m => m.dispose());
+            } else {
+                child.material.dispose();
+            }
+        }
+    });
+    model = null;
+    screenMesh = null;
+}
+
+function loadModel(def: ModelDef, opts: { initial?: boolean } = {}) {
+    if (isLoadingModel) return;
+    isLoadingModel = true;
+    updateModelHud(true);
+
     const loader = new GLTFLoader();
     const fill = document.querySelector('.loader-fill') as HTMLElement | null;
 
-    // Remove existing model from scene
-    if (model) {
-        scene.remove(model);
-        model.traverse((child) => {
-            if (child instanceof THREE.Mesh) {
-                child.geometry.dispose();
-                if (Array.isArray(child.material)) {
-                    child.material.forEach(m => m.dispose());
-                } else {
-                    child.material.dispose();
-                }
-            }
-        });
-        model = null;
-        screenMesh = null;
-    }
-
     loader.load(
-        modelPath,
+        def.path,
         (gltf) => {
+            disposeModel();
             model = gltf.scene;
             const box = new THREE.Box3().setFromObject(model);
             const center = box.getCenter(new THREE.Vector3());
 
             model.position.sub(center);
-            // GBA model needs -90° rotation, GBC faces camera directly
-            if (currentModelPath === '/gba.glb') {
-                model.rotation.y = -Math.PI / 2;
-            }
+            model.rotation.y = def.rotationY ?? 0;
             model.position.y += 0.05;
 
             const size = new THREE.Box3().setFromObject(model).getSize(new THREE.Vector3());
             const maxDim = Math.max(size.x, size.y, size.z);
-            const scaleFactor = 1.5 / maxDim;
-            model.scale.setScalar(scaleFactor);
+            const scaleFactor = (def.fit ?? 1.5) / maxDim;
+            targetScale = scaleFactor;
+            // Pop-in: start slightly small, animate() eases toward targetScale
+            model.scale.setScalar(scaleFactor * 0.85);
 
             // ─────────────────────────────────────────────────────────────────
             // Materials
             // ─────────────────────────────────────────────────────────────────
-            function makeBodyMat(opts: Record<string, any> = {}) {
+            function makeBodyMat(mat: Record<string, any> = {}) {
                 return new THREE.MeshPhysicalMaterial({
-                    color: opts.color ?? 0x494949,
-                    metalness: opts.metalness ?? 0.1,
-                    roughness: opts.roughness ?? 0.35,
+                    color: mat.color ?? 0x494949,
+                    metalness: mat.metalness ?? 0.1,
+                    roughness: mat.roughness ?? 0.35,
                     envMapIntensity: 0.5,
                     transparent: true,
-                    opacity: opts.opacity ?? 0.03,
+                    opacity: mat.opacity ?? 0.03,
                     side: THREE.DoubleSide,
-                    clearcoat: opts.clearcoat ?? 0.3,
+                    clearcoat: mat.clearcoat ?? 0.3,
                     clearcoatRoughness: 0.15,
-                    specularIntensity: opts.specularIntensity ?? 0.3,
-                    specularColor: new THREE.Color(opts.specColor || 0xa0a0a8),
+                    specularIntensity: mat.specularIntensity ?? 0.3,
+                    specularColor: new THREE.Color(mat.specColor || 0xa0a0a8),
                     depthWrite: false,
                 });
             }
@@ -249,25 +256,61 @@ function loadModel(modelPath: string = '/gba.glb') {
             // Apply current theme to newly created materials
             applyTheme();
 
-            // Fade out loader
-            if (fill) fill.style.width = '100%';
-            setTimeout(() => {
-                const loaderEl = document.getElementById('loader');
-                if (loaderEl) loaderEl.classList.add('hidden');
-            }, 600);
+            isLoadingModel = false;
+            updateModelHud();
+
+            // Fade out loader (initial load only)
+            if (opts.initial) {
+                if (fill) fill.style.width = '100%';
+                setTimeout(() => {
+                    const loaderEl = document.getElementById('loader');
+                    if (loaderEl) loaderEl.classList.add('hidden');
+                }, 600);
+            }
         },
         (xhr) => {
-            if (fill && xhr.total > 0) {
+            if (opts.initial && fill && xhr.total > 0) {
                 fill.style.width = (xhr.loaded / xhr.total * 100) + '%';
             }
         },
         (err) => {
             console.error('Model load error:', err);
-            const loaderText = document.querySelector('.loader-text') as HTMLElement | null;
-            if (loaderText) loaderText.textContent = 'LOAD ERROR';
+            isLoadingModel = false;
+            updateModelHud();
+            if (opts.initial) {
+                const loaderText = document.querySelector('.loader-text') as HTMLElement | null;
+                if (loaderText) loaderText.textContent = 'LOAD ERROR';
+            }
         }
     );
 }
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// MODEL SELECTOR
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function updateModelHud(loading = false) {
+    const label = document.getElementById('model-label');
+    const count = document.getElementById('model-count');
+    if (label) {
+        label.textContent = loading ? 'LOADING...' : MODELS[currentIndex]!.label;
+        label.classList.toggle('loading', loading);
+    }
+    if (count) count.textContent = `${currentIndex + 1}/${MODELS.length}`;
+}
+
+function switchModel(dir: 1 | -1) {
+    if (isLoadingModel) return;
+    currentIndex = (currentIndex + dir + MODELS.length) % MODELS.length;
+    loadModel(MODELS[currentIndex]!);
+}
+
+document.getElementById('model-prev')?.addEventListener('click', () => switchModel(-1));
+document.getElementById('model-next')?.addEventListener('click', () => switchModel(1));
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// RESIZE
+// ═══════════════════════════════════════════════════════════════════════════════
 
 function handleResize() {
     const w = window.innerWidth;
@@ -304,6 +347,9 @@ function animate() {
 
     if (model) {
         model.position.y = 0.05 + Math.sin(t * 0.7) * 0.025;
+        // Ease scale toward target (pop-in on model switch)
+        const s = model.scale.x + (targetScale - model.scale.x) * 0.08;
+        model.scale.setScalar(s);
     }
 
     controls.update();

@@ -34,24 +34,6 @@ body.dark-mode {
     --dim: #737373;
 }
 
-body.dark-mode {
-    background: radial-gradient(circle, var(--grid-dot) 1px, transparent 1px) 0 0 / 24px 24px, #0a0a0a !important;
-}
-
-body.dark-mode #loader {
-    background: #0a0a0a;
-}
-
-body.dark-mode #theme-toggle,
-body.dark-mode #blog-btn {
-    background: var(--surface);
-}
-
-body.dark-mode #theme-toggle:hover,
-body.dark-mode #blog-btn:hover {
-    background: var(--border-hi);
-}
-
 * {
     margin: 0;
     padding: 0;
@@ -63,10 +45,15 @@ body {
     width: 100%;
     height: 100%;
     overflow: hidden;
+    font-family: 'Inter', -apple-system, sans-serif;
+}
+
+/* Background lives on body only, so .dark-mode variables restyle it directly */
+body {
     background:
         radial-gradient(circle, var(--grid-dot) 1px, transparent 1px) 0 0 / 24px 24px,
         var(--bg);
-    font-family: 'Inter', -apple-system, sans-serif;
+    transition: background-color 300ms ease-out;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════════
@@ -254,7 +241,7 @@ body {
 
 #theme-toggle.active {
     background: var(--val);
-    color: #fff;
+    color: var(--bg);
     border-color: var(--val);
 }
 
@@ -321,6 +308,83 @@ body {
     letter-spacing: 0.5px;
 }
 
+.ef-copy {
+    font-family: var(--fp);
+    font-size: 13px;
+    color: var(--dim);
+    letter-spacing: 1.5px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   MODEL SELECTOR
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+#model-selector {
+    position: fixed;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    height: var(--vs-bottom);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-family: var(--fp);
+    pointer-events: none;
+    z-index: 10;
+}
+
+.model-btn {
+    pointer-events: auto;
+    font-family: var(--fm);
+    font-size: 11px;
+    color: var(--txt);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    line-height: 1;
+    padding: 0;
+    transition: color 200ms ease-out, border-color 200ms ease-out;
+}
+
+.model-btn:hover {
+    color: var(--accent);
+    border-color: var(--accent);
+}
+
+.model-btn:focus:not(:focus-visible) {
+    outline: none;
+}
+
+.model-info {
+    display: flex;
+    align-items: baseline;
+    justify-content: center;
+    gap: 8px;
+    min-width: 210px;
+}
+
+#model-label {
+    font-size: 15px;
+    letter-spacing: 2px;
+    color: var(--txt-br);
+}
+
+#model-label.loading {
+    color: var(--dim);
+    animation: blink 1.2s step-end infinite;
+}
+
+#model-count {
+    font-size: 12px;
+    color: var(--dim);
+    letter-spacing: 1px;
+}
+
 /* ═══════════════════════════════════════════════════════════════════════════════
    MOBILE CONTENT WRAPPER (transparent on desktop)
    ═══════════════════════════════════════════════════════════════════════════════ */
@@ -338,7 +402,7 @@ body {
     position: fixed;
     top: calc(var(--vs-top) + 6px);
     bottom: calc(var(--vs-bottom) + 6px);
-    width: 210px;
+    width: 230px;
     display: flex;
     flex-direction: column;
     gap: 3px;
@@ -370,14 +434,14 @@ body {
     background: rgba(255, 255, 255, 0.6);
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
-    padding: 6px 8px;
+    padding: 8px 10px;
     overflow: hidden;
     position: relative;
     display: flex;
     flex-direction: column;
     flex-shrink: 0;
     border: 1px solid var(--border);
-    transition: transform 200ms ease-out, box-shadow 200ms ease-out;
+    transition: transform 200ms ease-out, box-shadow 200ms ease-out, background-color 300ms ease-out, border-color 300ms ease-out;
 }
 
 .panel:hover {
@@ -398,8 +462,9 @@ body.dark-mode .panel:hover {
     font-size: 24px;
     color: var(--accent);
     letter-spacing: 0.5px;
-    margin-bottom: 4px;
-    padding-bottom: 3px;
+    margin-bottom: 6px;
+    padding-bottom: 4px;
+    border-bottom: 1px solid var(--border);
     white-space: nowrap;
     overflow: hidden;
     flex-shrink: 0;
@@ -448,20 +513,20 @@ body.dark-mode .panel:hover {
     display: flex;
     align-items: center;
     gap: 6px;
-    margin-bottom: 4px;
+    margin-bottom: 3px;
 }
 
 .skill-name {
     font-size: 16px;
     color: var(--txt);
-    min-width: 72px;
+    min-width: 130px;
     flex-shrink: 0;
 }
 
 .skill-bar {
     flex: 1;
     height: 4px;
-    background: var(--dim);
+    background: var(--border-hi);
 }
 
 .skill-fill {
@@ -475,7 +540,7 @@ body.dark-mode .panel:hover {
    ═══════════════════════════════════════════════════════════════════════════════ */
 
 .career-entry {
-    margin-bottom: 8px;
+    margin-bottom: 6px;
     padding-left: 8px;
     border-left: 2px solid var(--accent);
 }
@@ -517,21 +582,20 @@ body.dark-mode .panel:hover {
 
 .project-name {
     font-family: var(--fp);
-    font-size: 16px;
+    font-size: 15px;
     color: var(--accent);
     letter-spacing: 1px;
     text-decoration: none;
     pointer-events: auto;
     transition: color 200ms ease-out;
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
+    display: inline;
     margin-bottom: 2px;
 }
 
 .project-name::after {
     content: '\2192';
     display: inline-block;
+    margin-left: 4px;
     transition: transform 200ms ease-out;
     font-size: 14px;
 }
@@ -544,8 +608,28 @@ body.dark-mode .panel:hover {
     transform: translateX(3px);
 }
 
+/* Non-link project (work in progress) */
+.project-name.no-link {
+    color: var(--txt-br);
+    cursor: default;
+}
+
+.project-name.no-link::after {
+    content: none;
+}
+
+.tag-wip {
+    font-size: 10px;
+    color: var(--accent-secondary);
+    border: 1px solid currentColor;
+    padding: 1px 4px;
+    margin-left: 6px;
+    letter-spacing: 1px;
+    vertical-align: 2px;
+}
+
 .project-desc {
-    font-size: 16px;
+    font-size: 14px;
     color: var(--txt);
     line-height: 1.4;
     margin-bottom: 2px;
@@ -751,6 +835,20 @@ body.dark-mode .panel:hover {
         display: none;
     }
 
+    /* --- Model selector: sits right below the canvas --- */
+    #model-selector {
+        position: static;
+        transform: none;
+        height: auto;
+        justify-content: center;
+        padding: 14px 0 2px;
+        pointer-events: auto;
+    }
+
+    #model-label {
+        font-size: 13px;
+    }
+
     /* --- Sidebars: use display:contents so children flow into grid --- */
     #sidebar-l,
     #sidebar-r {
@@ -820,8 +918,8 @@ body.dark-mode .panel:hover {
         width: 100%;
         flex: none;
     }
-    /* Hide 6th skill and beyond */
-    #sidebar-l .panel:first-child .skill-row:nth-child(n+6) { display: none; }
+    /* Hide 8th skill and beyond */
+    #sidebar-l .panel:first-child .skill-row:nth-child(n+8) { display: none; }
 
     /* --- LINKS panel compact --- */
     #sidebar-r .panel:last-child .ph {
@@ -893,11 +991,17 @@ body.dark-mode .panel:hover {
         position: static;
         height: auto;
         padding: 16px;
+        flex-direction: column;
         justify-content: center;
+        gap: 4px;
     }
 
     .ef-credit {
         font-size: 12px;
+    }
+
+    .ef-copy {
+        font-size: 11px;
     }
 
     #theme-toggle,

@@ -1,13 +1,16 @@
 {
 	"name": "portfolio",
-  "compatibility_date": "2026-02-13",
-  "compatibility_flags": [
-    "nodejs_compat"
-  ],
+	"compatibility_date": "2026-02-13",
+	"compatibility_flags": [
+		"nodejs_compat"
+	],
 	"assets": {
 		"directory": "./dist"
 	},
 	"observability": {
-    "enabled": true
-  }
+		"enabled": true
+	},
+	"routes": [
+		{ "pattern": "esp-9.dev", "custom_domain": true }
+	]
 }

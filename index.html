@@ -1,15 +1,30 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="en">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>RYOTA KATADA / PORTFOLIO</title>
+    <meta name="description"
+        content="Portfolio of Ryota Katada — product engineer building for the web and hardware. TypeScript, React, Rust, and self-made keyboards.">
+    <meta name="theme-color" content="#f5f5f5">
+    <link rel="icon"
+        href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🕹️</text></svg>">
+    <link rel="canonical" href="https://esp-9.dev">
+
+    <!-- OGP -->
+    <meta property="og:title" content="RYOTA KATADA / PORTFOLIO">
+    <meta property="og:description"
+        content="Product engineer building for the web and hardware. TypeScript, React, Rust, and self-made keyboards.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://esp-9.dev">
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:site" content="@e___sp9">
 
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link
-        href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Share+Tech+Mono&family=Inter:wght@300;400&display=swap"
+        href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Inter:wght@300;400&display=swap"
         rel="stylesheet">
 
     <!-- Styles -->
@@ -42,16 +57,26 @@
             <div class="exp-left">
                 <span class="exp-label">RYOTA KATADA</span>
                 <span class="exp-sep">/</span>
-                <span class="exp-type">PORTFOLIO</span>
+                <span class="exp-type">DEVELOPER</span>
             </div>
             <div class="exp-right">
                 <button id="theme-toggle" aria-label="Toggle dark/light mode">DARK</button>
-                <a id="blog-btn" href="https://low-tier-lab.com" target="_blank">BLOG &#x2197;</a>
+                <a id="blog-btn" href="https://kissakatada.com" target="_blank">BLOG &#x2197;</a>
             </div>
         </div>
 
         <!-- Virtual Screen Border -->
         <div id="virtual-screen"></div>
+
+        <!-- Model Selector -->
+        <div id="model-selector">
+            <button class="model-btn" id="model-prev" aria-label="Previous model">&#9664;</button>
+            <div class="model-info">
+                <span id="model-label">LOADING...</span>
+                <span id="model-count"></span>
+            </div>
+            <button class="model-btn" id="model-next" aria-label="Next model">&#9654;</button>
+        </div>
 
         <!-- Mobile Content Area (wraps sidebars for mobile stacking) -->
         <div class="mobile-content">
@@ -74,15 +99,9 @@
                             </div>
                         </div>
                         <div class="skill-row">
-                            <span class="skill-name">Next.js</span>
+                            <span class="skill-name">Cloudflare</span>
                             <div class="skill-bar">
-                                <div class="skill-fill" style="width:80%"></div>
-                            </div>
-                        </div>
-                        <div class="skill-row">
-                            <span class="skill-name">Node.js</span>
-                            <div class="skill-bar">
-                                <div class="skill-fill" style="width:70%"></div>
+                                <div class="skill-fill" style="width:75%"></div>
                             </div>
                         </div>
                         <div class="skill-row">
@@ -92,15 +111,39 @@
                             </div>
                         </div>
                         <div class="skill-row">
+                            <span class="skill-name">AWS</span>
+                            <div class="skill-bar">
+                                <div class="skill-fill" style="width:65%"></div>
+                            </div>
+                        </div>
+                        <div class="skill-row">
+                            <span class="skill-name">React&nbsp;Native</span>
+                            <div class="skill-bar">
+                                <div class="skill-fill" style="width:60%"></div>
+                            </div>
+                        </div>
+                        <div class="skill-row">
+                            <span class="skill-name">Rust</span>
+                            <div class="skill-bar">
+                                <div class="skill-fill" style="width:60%"></div>
+                            </div>
+                        </div>
+                        <div class="skill-row">
                             <span class="skill-name">Golang</span>
                             <div class="skill-bar">
                                 <div class="skill-fill" style="width:60%"></div>
                             </div>
                         </div>
                         <div class="skill-row">
-                            <span class="skill-name">C++</span>
+                            <span class="skill-name">KiCad</span>
                             <div class="skill-bar">
-                                <div class="skill-fill" style="width:50%"></div>
+                                <div class="skill-fill" style="width:30%"></div>
+                            </div>
+                        </div>
+                        <div class="skill-row">
+                            <span class="skill-name">Autodesk&nbsp;Fusion</span>
+                            <div class="skill-bar">
+                                <div class="skill-fill" style="width:30%"></div>
                             </div>
                         </div>
                     </div>
@@ -146,19 +189,27 @@
                     <div class="ph"><span class="dot b"></span> PROJECTS</div>
                     <div class="pc">
                         <div class="project-entry">
-                            <a class="project-name" href="#" target="_blank">Project Alpha</a>
-                            <div class="project-desc">Full-stack web application built with Next.js and PostgreSQL</div>
-                            <div class="project-tech">TypeScript / React / Next.js</div>
+                            <span class="project-name no-link">BulkTrack AI<span class="tag-wip">IN DEV</span></span>
+                            <div class="project-desc">AI personal coach for muscle hypertrophy</div>
+                            <div class="project-tech">TypeScript / Hono / React&nbsp;Native /
+                                Cloudflare&nbsp;Workers / R2 / D1 / Workers&nbsp;AI / Vectorize</div>
                         </div>
                         <div class="project-entry">
-                            <a class="project-name" href="#" target="_blank">Project Beta</a>
-                            <div class="project-desc">Real-time data processing pipeline on AWS</div>
-                            <div class="project-tech">Go / AWS Lambda / DynamoDB</div>
+                            <a class="project-name" href="https://github.com/e-sp9/wakizashi" target="_blank">Wakizashi</a>
+                            <div class="project-desc">Minimal 36-key BLE wireless keyboard</div>
+                            <div class="project-tech">KiCad / RMK / nRF52840</div>
                         </div>
                         <div class="project-entry">
-                            <a class="project-name" href="#" target="_blank">Project Gamma</a>
-                            <div class="project-desc">CLI tool for developer productivity</div>
-                            <div class="project-tech">Rust / CLI</div>
+                            <a class="project-name" href="https://github.com/e-sp9/build-guide-yokocho"
+                                target="_blank">Build Guide Yokocho</a>
+                            <div class="project-desc">Curated portal for keyboard build guides</div>
+                            <div class="project-tech">Astro / TypeScript</div>
+                        </div>
+                        <div class="project-entry">
+                            <a class="project-name" href="https://github.com/e-sp9/portfolio" target="_blank">This
+                                Portfolio</a>
+                            <div class="project-desc">CRT-style site with self-modeled 3D gadgets</div>
+                            <div class="project-tech">Bun / Three.js / Cloudflare</div>
                         </div>
                     </div>
                 </div>
@@ -167,17 +218,17 @@
                 <div class="panel">
                     <div class="ph"><span class="dot p"></span> LINKS</div>
                     <div class="pc">
-                        <a class="link-row" href="https://github.com/aiirononeko" target="_blank">
+                        <a class="link-row" href="https://github.com/e-sp9" target="_blank">
                             <span class="link-icon">&#9654;</span>
                             <span class="link-label">GitHub</span>
                             <span class="link-arrow">&rarr;</span>
                         </a>
-                        <a class="link-row" href="https://x.com/aiirononeko2" target="_blank">
+                        <a class="link-row" href="https://x.com/e___sp9" target="_blank">
                             <span class="link-icon">&#9654;</span>
                             <span class="link-label">X (Twitter)</span>
                             <span class="link-arrow">&rarr;</span>
                         </a>
-                        <a class="link-row" href="https://low-tier-lab.com" target="_blank">
+                        <a class="link-row" href="https://kissakatada.com" target="_blank">
                             <span class="link-icon">&#9654;</span>
                             <span class="link-label">Blog</span>
                             <span class="link-arrow">&rarr;</span>
@@ -190,6 +241,7 @@
         <!-- Footer -->
         <div id="exp-footer">
             <span class="ef-credit">Built with Bun + Three.js</span>
+            <span class="ef-copy">&copy; 2026 RYOTA KATADA</span>
         </div>
     </div>
 
