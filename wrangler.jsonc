@@ -1,5 +1,6 @@
 {
 	"name": "portfolio",
+	"account_id": "4d88efd255dc165e0b7a8cadbde61d50",
 	"compatibility_date": "2026-02-13",
 	"compatibility_flags": [
 		"nodejs_compat"
