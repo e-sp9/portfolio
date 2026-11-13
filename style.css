@@ -245,7 +245,7 @@ body {
     border-color: var(--val);
 }
 
-#blog-btn {
+.exp-btn {
     font-family: var(--fm);
     font-size: 14px;
     color: var(--val);
@@ -262,7 +262,7 @@ body {
     display: inline-block;
 }
 
-#blog-btn:hover {
+.exp-btn:hover {
     color: var(--accent);
     border-color: var(--accent);
 }
@@ -779,7 +779,7 @@ body.dark-mode .panel:hover {
     }
 
     #theme-toggle,
-    #blog-btn {
+    .exp-btn {
         font-size: 12px;
         padding: 8px 18px;
     }
@@ -1005,7 +1005,7 @@ body.dark-mode .panel:hover {
     }
 
     #theme-toggle,
-    #blog-btn {
+    .exp-btn {
         font-size: 10px;
         padding: 6px 14px;
         letter-spacing: 1px;

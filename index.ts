@@ -1,8 +1,10 @@
 import index from "./index.html";
+import things from "./things.html";
 
 Bun.serve({
   routes: {
     "/": index,
+    "/things": things,
   },
   // Serve everything under ./public (3D models etc.) so adding a model
   // requires no server changes.

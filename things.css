@@ -1,0 +1,308 @@
+/* ═══════════════════════════════════════════════════════════════════════════════
+   /things — a scrolling inventory page in the same CRT-monitor language as the
+   top page. Loaded after style.css; everything here is scoped to body.things-page.
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+html:has(body.things-page),
+body.things-page {
+    height: auto;
+    min-height: 100%;
+    overflow: hidden auto;
+}
+
+body.things-page {
+    font-family: var(--fm);
+    color: var(--txt-br);
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    min-height: 100dvh;
+}
+
+/* Header stays fixed, like the top page; the screen scrolls underneath. */
+body.things-page #exp-header {
+    pointer-events: auto;
+    background: linear-gradient(var(--bg) 70%, transparent);
+}
+
+body.things-page .exp-label {
+    color: var(--val);
+}
+
+body.things-page .exp-label:hover {
+    color: var(--accent);
+}
+
+/* ─── Virtual screen ─────────────────────────────────────────────────────── */
+
+#things-screen {
+    flex: 1;
+    margin: var(--vs-top) var(--vs-right) 0 var(--vs-left);
+    border: 1px solid var(--border);
+    padding: 22px 20px 28px;
+    position: relative;
+    z-index: 2;
+}
+
+/* Corner ticks, like registration marks on a test pattern */
+#things-screen::before,
+#things-screen::after {
+    content: '';
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    border: 1px solid var(--dim);
+    pointer-events: none;
+}
+
+#things-screen::before {
+    top: 6px;
+    left: 6px;
+    border-width: 1px 0 0 1px;
+}
+
+#things-screen::after {
+    bottom: 6px;
+    right: 6px;
+    border-width: 0 1px 1px 0;
+}
+
+.things-head {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 20px;
+}
+
+.things-head .ph {
+    font-size: 28px;
+    letter-spacing: 3px;
+    margin: 0;
+    padding: 0;
+    border: 0;
+}
+
+.things-sub {
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+    font-family: var(--fp);
+    font-size: 12px;
+    letter-spacing: 2px;
+    color: var(--dim);
+    white-space: nowrap;
+}
+
+.things-tag {
+    color: var(--txt);
+}
+
+.things-count::before {
+    content: '[ ';
+}
+
+.things-count::after {
+    content: ' ]';
+}
+
+/* ─── Grid ───────────────────────────────────────────────────────────────── */
+
+.things-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 14px;
+}
+
+@media (min-width: 640px) {
+    .things-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (min-width: 1100px) {
+    .things-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
+/* ─── Card ───────────────────────────────────────────────────────────────── */
+
+.thing {
+    /* inherits .panel: translucent surface, 1px border, blur, hover lift */
+    padding: 0;
+    gap: 0;
+    animation: fadeSlideIn 0.4s ease-out backwards;
+}
+
+.thing-photo {
+    display: block;
+    aspect-ratio: 16 / 10;
+    background: #ffffff;
+    border-bottom: 1px solid var(--border);
+    overflow: hidden;
+    position: relative;
+}
+
+.thing-photo img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
+    transition: transform 400ms ease-out;
+}
+
+.thing:hover .thing-photo img {
+    transform: scale(1.03);
+}
+
+/* A faint scanline pass over the photo so it reads as "on the monitor" */
+.thing-photo::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: repeating-linear-gradient(0deg, transparent, transparent 3px,
+            rgba(0, 0, 0, 0.03) 3px, rgba(0, 0, 0, 0.03) 4px);
+}
+
+.thing-body {
+    padding: 12px 14px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.thing-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-family: var(--fp);
+    font-size: 11px;
+    letter-spacing: 1.5px;
+}
+
+.thing-cat {
+    color: var(--accent-secondary);
+    border: 1px solid currentColor;
+    padding: 2px 6px;
+    line-height: 1;
+}
+
+.thing-id {
+    color: var(--dim);
+}
+
+.thing-name {
+    font-family: var(--fp);
+    font-size: 20px;
+    letter-spacing: 1.5px;
+    color: var(--val);
+    text-decoration: none;
+    transition: color 200ms ease-out;
+    align-self: flex-start;
+}
+
+.thing-name::after {
+    content: '\2192';
+    display: inline-block;
+    margin-left: 6px;
+    font-size: 16px;
+    color: var(--accent);
+    transition: transform 200ms ease-out;
+}
+
+.thing-name:hover {
+    color: var(--accent);
+}
+
+.thing-name:hover::after {
+    transform: translateX(4px);
+}
+
+.thing-note {
+    font-family: 'Inter', -apple-system, sans-serif;
+    font-size: 14px;
+    font-weight: 400;
+    line-height: 1.6;
+    color: var(--txt);
+}
+
+.thing-link {
+    margin-top: 4px;
+    padding-top: 8px;
+    border-top: 1px solid var(--border);
+    font-family: var(--fp);
+}
+
+.thing-link .link-label {
+    font-size: 13px;
+    letter-spacing: 1px;
+}
+
+.thing-link .link-arrow {
+    font-size: 13px;
+}
+
+/* ─── Footer in flow ─────────────────────────────────────────────────────── */
+
+body.things-page #exp-footer {
+    position: static;
+    height: var(--vs-bottom);
+    margin: 0 var(--vs-right) 0 var(--vs-left);
+    pointer-events: auto;
+}
+
+/* ─── Responsive ─────────────────────────────────────────────────────────── */
+
+@media (max-width: 1000px) {
+    #things-screen {
+        padding: 16px 12px 20px;
+    }
+
+    .things-head .ph {
+        font-size: 20px;
+    }
+}
+
+@media (max-width: 768px) {
+    body.things-page #exp-header {
+        position: fixed;
+        left: 16px;
+        right: 16px;
+        top: 0;
+        height: 48px;
+        background: var(--bg);
+        z-index: 100;
+    }
+
+    body.things-page #scanlines,
+    body.things-page #dither {
+        position: fixed;
+        height: auto;
+    }
+
+    #things-screen {
+        margin: 56px 8px 0;
+        padding: 14px 10px 18px;
+    }
+
+    .things-head {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 6px;
+        margin-bottom: 14px;
+    }
+
+    .things-sub {
+        font-size: 11px;
+    }
+
+    body.things-page #exp-footer {
+        height: auto;
+        padding: 16px;
+        flex-direction: column;
+        justify-content: center;
+        gap: 4px;
+    }
+}
