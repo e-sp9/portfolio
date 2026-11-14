@@ -27,6 +27,10 @@ bun run build   # bundle index.html + things.html into dist/ and copy public/
 bun run deploy  # wrangler deploy
 ```
 
+Pushing to `main` deploys automatically via GitHub Actions
+([.github/workflows/deploy.yml](.github/workflows/deploy.yml)). Required secrets and
+token permissions are described in [docs/DEPLOY.md](docs/DEPLOY.md) (Japanese).
+
 ## 3D models
 
 Models are not sculpted in a DCC tool — each one is built in code with three.js math,
