@@ -55,7 +55,7 @@ function renderCard(thing: Thing, index: number): HTMLElement {
                 <span class="thing-cat">${esc(thing.category.toUpperCase())}</span>
                 <span class="thing-id">#${id}</span>
             </div>
-            <a class="thing-name" href="${link}" target="_blank" rel="noopener">${esc(thing.name)}</a>
+            <h2 class="thing-title"><a class="thing-name" href="${link}" target="_blank" rel="noopener">${esc(thing.name)}</a></h2>
             <p class="thing-note">${esc(thing.note)}</p>
             <a class="thing-link link-row" href="${link}" target="_blank" rel="noopener">
                 <span class="link-icon">&#9654;</span>
