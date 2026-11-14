@@ -245,7 +245,7 @@ body {
     border-color: var(--val);
 }
 
-#blog-btn {
+.exp-btn {
     font-family: var(--fm);
     font-size: 14px;
     color: var(--val);
@@ -262,7 +262,7 @@ body {
     display: inline-block;
 }
 
-#blog-btn:hover {
+.exp-btn:hover {
     color: var(--accent);
     border-color: var(--accent);
 }
@@ -779,7 +779,7 @@ body.dark-mode .panel:hover {
     }
 
     #theme-toggle,
-    #blog-btn {
+    .exp-btn {
         font-size: 12px;
         padding: 8px 18px;
     }
@@ -1005,7 +1005,7 @@ body.dark-mode .panel:hover {
     }
 
     #theme-toggle,
-    #blog-btn {
+    .exp-btn {
         font-size: 10px;
         padding: 6px 14px;
         letter-spacing: 1px;
@@ -1014,6 +1014,7 @@ body.dark-mode .panel:hover {
     .exp-label {
         font-size: 18px;
         letter-spacing: 2px;
+        white-space: nowrap;
     }
 
     .exp-sep,
@@ -1023,6 +1024,12 @@ body.dark-mode .panel:hover {
 
     .exp-right {
         gap: 6px;
+        flex-shrink: 0;
+    }
+
+    #theme-toggle,
+    .exp-btn {
+        white-space: nowrap;
     }
 
     /* --- Dark mode for floating panels --- */
@@ -1035,6 +1042,27 @@ body.dark-mode .panel:hover {
 
 /* --- Extra small screens --- */
 @media (max-width: 480px) {
+    /* Header: three buttons + name must fit in one row down to 320px */
+    #exp-header {
+        left: 12px;
+        right: 12px;
+    }
+
+    .exp-label {
+        font-size: 15px;
+        letter-spacing: 1px;
+    }
+
+    .exp-right {
+        gap: 4px;
+    }
+
+    #theme-toggle,
+    .exp-btn {
+        padding: 6px 8px;
+        letter-spacing: 0.5px;
+    }
+
     #sidebar-l .panel:first-child,
     #sidebar-r .panel:last-child {
         padding: 8px;

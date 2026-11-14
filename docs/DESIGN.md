@@ -154,7 +154,18 @@ export const MODELS: ModelDef[] = [
 | 768-1000px | サイドバー120px、マージン16px/40px、フォントサイズ縮小 |
 | < 768px | 縦スクロール。ヘッダー固定 + 3Dキャンバス(60vh)+ モデルセレクタ + パネル群(SKILLS/LINKS 2カラム → CAREER → PROJECTS)+ フッター |
 
-## 11. Tech Stack
+## 11. /things Page
+
+好きなモノを並べる別ページ。トップと同じ CRT モニターの言語(ドットグリッド、スキャンライン、ディザ、`.panel`、Share Tech Mono)を使い、3D シーンは持たない。
+
+- レイアウト: ヘッダー(トップと同じ、右側は DARK / ← HOME / BLOG)、`1px solid var(--border)` の仮想スクリーン枠の中にカードグリッド、フッター。ページ全体が縦スクロール
+- グリッド: 1 カラム(〜640px)/ 2 カラム(640px〜)/ 3 カラム(1100px〜)
+- カード(`.thing`): `.panel` を継承。写真(16:10、白背景、`object-fit: contain`、薄いスキャンライン)→ カテゴリタグ + 連番 → 名前(リンク、→)→ ひとこと(Inter)→ リンク行(`.link-row` 流用、ドメイン表示)
+- データ: `things.ts` のマニフェスト(`THINGS: Thing[]`)に 1 件追加し、写真を `public/things/` に置くだけで増える。描画は `things-page.ts`
+- テーマ: `localStorage` の `portfolio-theme` をトップと共有。初回描画前に `body.dark-mode` を付けてフラッシュを防ぐ
+- 配信: `bun build ./index.html ./things.html` で `dist/things.html` を出力。Cloudflare Workers の assets は `/things` を `things.html` に解決する(`html_handling` 既定)
+
+## 12. Tech Stack
 
 | Layer | Technology |
 |-------|------------|
@@ -162,4 +173,4 @@ export const MODELS: ModelDef[] = [
 | 3D | Three.js (GLTFLoader / LineSegments2 / RoomEnvironment) |
 | Styling | Vanilla CSS (CSS Custom Properties) |
 | Deploy | Cloudflare Workers (static assets via wrangler) |
-| Build | `bun build ./index.html --outdir ./dist && cp -r ./public/* ./dist/` |
+| Build | `bun build ./index.html ./things.html --outdir ./dist && cp -r ./public/* ./dist/` |

@@ -23,7 +23,7 @@ bun run dev     # http://localhost:3000 with HMR
 ## Build & deploy
 
 ```bash
-bun run build   # bundle index.html into dist/ and copy public/
+bun run build   # bundle index.html + things.html into dist/ and copy public/
 bun run deploy  # wrangler deploy
 ```
 
@@ -46,6 +46,13 @@ screen material.
 To add a model to the rotation: drop the `.glb` into `public/models/` and add one
 entry to [models.ts](models.ts) — it automatically joins the random rotation and the
 footer model selector.
+
+## Things
+
+[`/things`](https://esp-9.dev/things) is a grid of stuff I like. Each card shows a photo,
+name, category, a one-liner, and a link. To add one: drop the photo into `public/things/`
+and add one entry to [things.ts](things.ts). The page is `things.html` +
+`things-page.ts` + `things.css`, built alongside the top page.
 
 ## Design
 
