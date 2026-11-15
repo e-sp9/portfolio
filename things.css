@@ -209,6 +209,9 @@ body.things-page .exp-label:hover {
     text-decoration: none;
     transition: color 200ms ease-out;
     display: inline-block;
+    /* Wrap at spaces, not inside a katakana word (14インチ) */
+    word-break: keep-all;
+    overflow-wrap: break-word;
 }
 
 .thing-name::after {
