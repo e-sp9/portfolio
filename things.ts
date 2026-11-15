@@ -23,7 +23,7 @@ export const THINGS: Thing[] = [
     {
         name: 'WALLHACK M-001',
         category: 'GAMING',
-        note: '性能だけじゃなく質感もいいマウス。お気に入り',
+        note: '性能も質感もいいマウス。引き算の哲学が好き。',
         link: 'https://wallhack.com/ja-jp/pages/campaigns/m-001',
         image: '/things/wallhack-m-001.jpg',
         alt: 'WALLHACK M-001 wireless gaming mouse, top view',
@@ -31,7 +31,7 @@ export const THINGS: Thing[] = [
     {
         name: 'MacBook Pro (14インチ, M5)',
         category: 'WORK',
-        note: '仕事道具',
+        note: 'これ1台あればなんでもできる仕事道具。頼れる相棒。',
         link: 'https://www.apple.com/jp/macbook-pro/',
         image: '/things/macbook-pro-14-m5.jpg',
         alt: 'MacBook Pro laptops, open, front view',
@@ -39,7 +39,7 @@ export const THINGS: Thing[] = [
     {
         name: 'Studio Display',
         category: 'WORK',
-        note: '仕事道具',
+        note: 'インテリアとしても気に入ってる仕事道具。実は音もいい。',
         link: 'https://www.apple.com/jp/studio-display/',
         image: '/things/studio-display.jpg',
         alt: 'Apple Studio Display, front view',
@@ -47,7 +47,7 @@ export const THINGS: Thing[] = [
     {
         name: 'Even Realities G2',
         category: 'WEARABLE',
-        note: '散歩のときも、AIエージェントと会話しながら',
+        note: '散歩しながらAIエージェントと会話できる未来のメガネ。',
         link: 'https://www.evenrealities.com/smart-glasses',
         image: '/things/even-realities-g2.jpg',
         alt: 'Even Realities G2 smart glasses, folded, front view',
@@ -55,7 +55,7 @@ export const THINGS: Thing[] = [
     {
         name: 'Isamu Noguchi AKARI',
         category: 'LIGHTING',
-        note: '大好きな空間',
+        note: '大好きな空間を演出してくれるライト。家に大きさ違いでふたつある。',
         link: 'https://akari-ozeki.com/lineup/#pendant',
         image: '/things/isamu-noguchi-akari.jpg',
         alt: 'Isamu Noguchi AKARI pendant light, a round washi paper shade, lit',
@@ -63,7 +63,7 @@ export const THINGS: Thing[] = [
     {
         name: 'ZENAIM KEYBOARD',
         category: 'GAMING',
-        note: 'ミニマルでロープロファイルなゲーミングキーボード。気に入ってる',
+        note: 'ミニマルでロープロファイルなゲーミングキーボード。光らないのが好き。',
         link: 'https://zenaim.com/products/keyboard-tkl-jis',
         image: '/things/zenaim-keyboard.jpg',
         alt: 'ZENAIM KEYBOARD tenkeyless gaming keyboard, carried under an arm',
@@ -71,7 +71,7 @@ export const THINGS: Thing[] = [
     {
         name: 'FiiO K9 Pro ESS',
         category: 'AUDIO',
-        note: '解像度高めの音楽が聴けてお気に入り',
+        note: 'でかいけど、解像感のある音を楽しめる。鳴らしにくいヘッドホンもちゃんと鳴る。',
         link: 'https://www.fiio.com/k9proess',
         image: '/things/fiio-k9-pro-ess.jpg',
         alt: 'FiiO K9 Pro ESS desktop DAC and headphone amplifier, front three-quarter view',
@@ -79,7 +79,7 @@ export const THINGS: Thing[] = [
     {
         name: 'Sennheiser IE 900',
         category: 'AUDIO',
-        note: 'イヤホンなのに、着けているのを忘れて音楽に没頭できちゃう',
+        note: '着け心地のよさと、音場の広いリアルな音が気に入りすぎてる。耳が痛くても着ける。',
         link: 'https://jp.sennheiser-hearing.com/ja/products/ie-900',
         image: '/things/sennheiser-ie-900.jpg',
         alt: 'Sennheiser IE 900 in-ear earphone, side view',
