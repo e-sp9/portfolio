@@ -29,7 +29,7 @@ export const THINGS: Thing[] = [
         alt: 'WALLHACK M-001 wireless gaming mouse, top view',
     },
     {
-        name: 'MacBook Pro (14インチ, M5)',
+        name: '14インチMacBook Pro（M5）',
         category: 'WORK',
         note: 'これ1台あればなんでもできる仕事道具。頼れる相棒。',
         link: 'https://www.apple.com/jp/macbook-pro/',
