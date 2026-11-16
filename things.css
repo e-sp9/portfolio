@@ -205,8 +205,8 @@ body.things-page .exp-label:hover {
 .thing-name {
     font-family: var(--fp);
     /* Scale with the card so the longest name stays on one line (20px on wide cards) */
-    font-size: 14px;
-    font-size: clamp(14px, 6.2cqi, 20px);
+    font-size: 11px;
+    font-size: clamp(11px, 5cqi, 20px);
     letter-spacing: 0.075em;
     color: var(--val);
     text-decoration: none;
