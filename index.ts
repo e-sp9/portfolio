@@ -1,10 +1,16 @@
 import index from "./index.html";
 import things from "./things.html";
+import { serveBlog } from "./blog/dev";
 
 Bun.serve({
   routes: {
     "/": index,
     "/things": things,
+    // The blog comes from microCMS: rendered on request here, written to
+    // dist/ by the build (blog/build.ts).
+    "/blog": serveBlog,
+    "/blog/*": serveBlog,
+    "/blog.css": serveBlog,
   },
   // Serve everything under ./public (3D models etc.) so adding a model
   // requires no server changes.

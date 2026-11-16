@@ -11,6 +11,8 @@ rendered as translucent glass with crisp feature edges, framed by status panels.
 - [Bun](https://bun.com) — runtime, bundler, and dev server (HTML imports, no bundler config)
 - [Three.js](https://threejs.org) — WebGL rendering: AgX tone mapping, fat edge lines via `LineSegments2`
 - [glTF Transform](https://gltf-transform.dev) — `.glb` export in the model generation scripts
+- [microCMS](https://microcms.io) — where the blog posts are written; fetched at build time
+- [Shiki](https://shiki.style) — syntax highlighting of the code blocks in posts, also at build time
 - [Cloudflare Workers](https://workers.cloudflare.com) — static assets plus a tiny Worker that 301-redirects `www.esp-9.dev` to the apex
 
 ## Development
@@ -18,14 +20,20 @@ rendered as translucent glass with crisp feature edges, framed by status panels.
 ```bash
 bun install
 bun run dev     # http://localhost:3000 with HMR
+bun test        # tests of the blog generator
 ```
+
+`/blog` needs the microCMS credentials in `.env` (see [Blog](#blog)); the other pages work without them.
 
 ## Build & deploy
 
 ```bash
-bun run build   # bundle index.html + things.html into dist/ and copy public/
+bun run build   # generate /blog, bundle index.html + things.html into dist/, copy public/
 bun run deploy  # wrangler deploy
 ```
+
+The build starts with the blog. Without the microCMS credentials it stops there with an error that
+names what is missing, except on GitHub Actions, where it skips the blog with a warning (see [Blog](#blog)).
 
 Pushing to `main` deploys automatically via GitHub Actions
 ([.github/workflows/deploy.yml](.github/workflows/deploy.yml)). Required secrets and
@@ -57,6 +65,25 @@ footer model selector.
 name, category, a one-liner, and a link. To add one: drop the photo into `public/things/`
 and add one entry to [things.ts](things.ts). The page is `things.html` +
 `things-page.ts` + `things.css`, built alongside the top page.
+
+## Blog
+
+`/blog` lists the posts I write in microCMS. Each post gets a page at
+`/blog/<content ID>`, and `/blog/feed.xml` is the RSS feed. All of it is static: the build
+([blog/build.ts](blog/build.ts)) fetches every post once, rewrites the body for reading
+([blog/article.ts](blog/article.ts): highlighted code, WebP images sized for the text column)
+and writes plain HTML plus one stylesheet ([blog.css](blog.css)). The only script on these pages
+is the theme toggle.
+
+The microCMS credentials are kept in a local `.env` (git-ignored) and nowhere else:
+
+```bash
+MICROCMS_SERVICE_DOMAIN=...   # the "xxx" of xxx.microcms.io
+MICROCMS_API_KEY=...          # a key that can GET the `blogs` API
+```
+
+They are used at build time only. The GitHub Actions deploy has no keys, so it builds the site
+without `/blog` and prints a warning: for now the blog exists in local builds only.
 
 ## Design
 

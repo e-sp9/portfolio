@@ -150,7 +150,7 @@ export const MODELS: ModelDef[] = [
 
 | Breakpoint | Changes |
 |------------|---------|
-| > 1440px | トップのみ。文字の単位 `--text-u`(通常 1px)を幅に応じて `1 + (100vw - 1440px) × 0.00025`、上限 1.28 まで控えめに拡大する(1920px で 1.12倍、2560px で 1.28倍)。文字が使わなかった高さは余白に回す: 余白の単位 `--space-u`(通常 1px、上限 2.5)がサイドバーの内側の余白、パネルの間隔と内側の余白、項目の間隔、行間を広げる。ヘッダー/フッターの帯は変えない。サイドバー幅は `--sidebar-w`(230 × `--text-u` + パネルの余白が増えたぶん)。枠の幅 `--frame-w` は「モデル用に空ける帯 `--model-clear`(84vh)+ 両サイドバー」を目安に頭打ちにして中央に置く。キャンバスは全面のまま。高さの見積もりは `--fit-fixed` / `--fit-lines` / `--fit-space` で持ち、サイドバーが収まらないときは余白、次に文字の拡大を抑える。/things は基準値のまま |
+| > 1440px | トップのみ。文字の単位 `--text-u`(通常 1px)を幅に応じて `1 + (100vw - 1440px) × 0.00025`、上限 1.28 まで控えめに拡大する(1920px で 1.12倍、2560px で 1.28倍)。文字が使わなかった高さは余白に回す: 余白の単位 `--space-u`(通常 1px、上限 2.5)がサイドバーの内側の余白、パネルの間隔と内側の余白、項目の間隔、行間を広げる。ヘッダー/フッターの帯は変えない。サイドバー幅は `--sidebar-w`(230 × `--text-u` + パネルの余白が増えたぶん)。枠の幅 `--frame-w` は「モデル用に空ける帯 `--model-clear`(84vh)+ 両サイドバー」を目安に頭打ちにして中央に置く。キャンバスは全面のまま。高さの見積もりは `--fit-fixed` / `--fit-lines` / `--fit-space` で持ち、サイドバーが収まらないときは余白、次に文字の拡大を抑える。/things と /blog は基準値のまま |
 | > 1440px かつ横長(15:8 以上) | 高さが足りないぶん横幅を使う。サイドバーを 340 × `--text-u`(+ 余白ぶん)に広げ、SKILLS は2列(名前の下にバー)、CAREER は年を役職の横に置く |
 | 1000-1440px | フルレイアウト。サイドバー230px、マージン64px/72px |
 | 768-1000px | サイドバー120px、マージン16px/40px、フォントサイズ縮小 |
@@ -167,12 +167,30 @@ export const MODELS: ModelDef[] = [
 - テーマ: `localStorage` の `portfolio-theme` をトップと共有。初回描画前に `body.dark-mode` を付けてフラッシュを防ぐ
 - 配信: `bun build ./index.html ./things.html` で `dist/things.html` を出力。Cloudflare Workers の assets は `/things` を `things.html` に解決する(`html_handling` 既定)
 
-## 12. Tech Stack
+## 12. /blog Pages
+
+microCMS で書いた記事の一覧(`/blog`)、記事ページ(`/blog/<記事ID>`)、RSS(`/blog/feed.xml`)。/things と同じ CRT モニターの言語を使い、3D シーンは持たない。記事ページは本文の読みやすさを優先する。
+
+- レイアウト: ヘッダー、仮想スクリーン枠、フッターは /things と同じ。ページ全体が縦スクロール。ヘッダー左の `BLOG` は `/blog` へのリンク。大きい画面でも /things と同じく基準値のまま
+- 一覧: グリッドは /things と同じ 1 / 2 / 3 カラム。カード(`.post`)は `.panel` を継承し、カテゴリタグ + 公開日 → タイトル(→)→ 概要(3 行まで)→ タグ。カード全体が記事へのリンク。アイキャッチ画像は使わない
+- 記事: 枠の中央に最大幅 800px のシート(`.article`)を置き、その中に幅 720px の本文を置く。シートは `.panel` の色を不透明にしたもので、長い本文の背後にドットグリッドが出ない。下に前後の記事へのリンクを置く
+- 文字: タイトルは Share Tech Mono。本文は Inter 16px、行間 1.9 で、1 行は全角 43 文字前後。本文中の見出しは Inter 600 で、h2 に四角のマーカーと下線、h3 に左のアクセント線(CAREER と同じ)を付ける。どちらのフォントにも日本語のグリフがないので、日本語に使うゴシック体を `--font-ja` で指定する
+- コード: ビルド時に Shiki で色を付ける。色は `--code-*` の CSS 変数で持つので、ライト/ダークを切り替えるとコードの色も変わる。ファイル名と言語はブロック上部のバーに出す
+- 画像: microCMS の画像 API で WebP に変換し、本文幅の 1 倍と 2 倍を `srcset` で出し分ける。元の幅より大きくはしない。`loading="lazy"`
+- リンク: 外部サイトは別タブで開く。旧ブログ(kissa-katada.com)の記事へのリンクは `/blog/<記事ID>` に書き換える
+- データ: ビルド時に microCMS の `blogs` API から全記事を取得する(`blog/microcms.ts`)。認証情報は `MICROCMS_SERVICE_DOMAIN` と `MICROCMS_API_KEY` で、手元の `.env` にだけ置く。ブラウザにも Worker にも渡さない。どちらかがないと、手元のビルドは足りない変数名を出してエラーで止まる。GitHub Actions のビルドにはキーがないので、ブログの生成をスキップして警告を出し、ほかのページだけをビルドする
+- 生成: `blog/build.ts` が `dist/blog.html`、`dist/blog/<記事ID>.html`、`dist/blog/feed.xml`、`dist/blog.css` を書き出す。`blog.css` は `style.css` を取り込んだ 1 ファイル。ページは静的 HTML で、スクリプトはテーマ切り替えだけ
+- 開発: `bun run dev` は同じファイルをリクエストのたびに描画する(`blog/dev.ts`)。microCMS から取得した記事は 60 秒間キャッシュする
+- テーマ: `localStorage` の `portfolio-theme` をほかのページと共有する
+- 配信: Cloudflare Workers の assets が `/blog` を `blog.html` に、`/blog/<記事ID>` を `blog/<記事ID>.html` に解決する
+
+## 13. Tech Stack
 
 | Layer | Technology |
 |-------|------------|
 | Runtime | Bun (`Bun.serve()` + HTML imports) |
 | 3D | Three.js (GLTFLoader / LineSegments2 / RoomEnvironment) |
 | Styling | Vanilla CSS (CSS Custom Properties) |
+| Blog | microCMS (記事。ビルド時に取得) / Shiki (コードの色付け) |
 | Deploy | Cloudflare Workers (static assets via wrangler) |
-| Build | `bun build ./index.html ./things.html --outdir ./dist && cp -r ./public/* ./dist/` |
+| Build | `bun ./blog/build.ts && bun build ./index.html ./things.html --outdir ./dist && cp -r ./public/* ./dist/` |

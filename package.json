@@ -5,11 +5,12 @@
   "private": true,
   "scripts": {
     "dev": "bun --hot ./index.ts",
-    "build": "bun build ./index.html ./things.html --outdir ./dist && cp -r ./public/* ./dist/",
+    "build": "bun ./blog/build.ts && bun build ./index.html ./things.html --outdir ./dist && cp -r ./public/* ./dist/",
     "deploy": "bunx wrangler deploy"
   },
   "devDependencies": {
-    "@types/bun": "latest"
+    "@types/bun": "latest",
+    "shiki": "^4.6.0"
   },
   "peerDependencies": {
     "typescript": "^5"
