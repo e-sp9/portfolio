@@ -13,6 +13,9 @@
     --dim: #999999;
     --fp: 'Share Tech Mono', 'Courier New', monospace;
     --fm: 'Share Tech Mono', 'Courier New', monospace;
+    /* Layout unit: every size below is a multiple of --s. 1px up to 1440px wide;
+       the wide-screen block under RESPONSIVE grows it with the viewport. */
+    --s: 1px;
     --vs-top: 72px;
     --vs-left: 64px;
     --vs-right: 64px;
@@ -124,17 +127,17 @@ body {
 
 .loader-title {
     font-family: var(--fp);
-    font-size: 20px;
+    font-size: calc(20 * var(--s));
     color: var(--accent);
-    letter-spacing: 4px;
-    margin-bottom: 24px;
+    letter-spacing: calc(4 * var(--s));
+    margin-bottom: calc(24 * var(--s));
 }
 
 .loader-bar {
-    width: 200px;
-    height: 4px;
+    width: calc(200 * var(--s));
+    height: calc(4 * var(--s));
     background: var(--border);
-    margin: 0 auto 14px;
+    margin: 0 auto calc(14 * var(--s));
 }
 
 .loader-fill {
@@ -146,9 +149,9 @@ body {
 
 .loader-text {
     font-family: var(--fp);
-    font-size: 12px;
+    font-size: calc(12 * var(--s));
     color: var(--txt);
-    letter-spacing: 3px;
+    letter-spacing: calc(3 * var(--s));
     animation: blink 1.2s step-end infinite;
 }
 
@@ -175,7 +178,7 @@ body {
     left: var(--vs-left);
     right: var(--vs-right);
     height: var(--vs-top);
-    padding-top: 4px;
+    padding-top: calc(4 * var(--s));
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -187,42 +190,42 @@ body {
 .exp-left {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: calc(8 * var(--s));
 }
 
 .exp-right {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: calc(12 * var(--s));
     pointer-events: auto;
 }
 
 .exp-label {
-    font-size: 36px;
+    font-size: calc(36 * var(--s));
     color: var(--val);
-    letter-spacing: 5px;
+    letter-spacing: calc(5 * var(--s));
     text-decoration: none;
     pointer-events: auto;
     transition: color 200ms ease-out;
 }
 
 .exp-sep {
-    font-size: 20px;
+    font-size: calc(20 * var(--s));
     color: var(--txt);
 }
 
 .exp-type {
-    font-size: 20px;
+    font-size: calc(20 * var(--s));
     color: var(--txt-br);
-    letter-spacing: 3px;
+    letter-spacing: calc(3 * var(--s));
 }
 
 #theme-toggle {
     font-family: var(--fm);
-    font-size: 14px;
+    font-size: calc(14 * var(--s));
     color: var(--val);
-    letter-spacing: 3px;
-    padding: 10px 28px;
+    letter-spacing: calc(3 * var(--s));
+    padding: calc(10 * var(--s)) calc(28 * var(--s));
     border: 1px solid var(--border);
     cursor: pointer;
     background: var(--surface);
@@ -247,10 +250,10 @@ body {
 
 .exp-btn {
     font-family: var(--fm);
-    font-size: 14px;
+    font-size: calc(14 * var(--s));
     color: var(--val);
-    letter-spacing: 3px;
-    padding: 10px 28px;
+    letter-spacing: calc(3 * var(--s));
+    padding: calc(10 * var(--s)) calc(28 * var(--s));
     border: 1px solid var(--border);
     cursor: pointer;
     background: var(--surface);
@@ -302,17 +305,17 @@ body {
 
 .ef-credit {
     font-family: 'Inter', -apple-system, sans-serif;
-    font-size: 16px;
+    font-size: calc(16 * var(--s));
     font-weight: 300;
     color: var(--dim);
-    letter-spacing: 0.5px;
+    letter-spacing: calc(0.5 * var(--s));
 }
 
 .ef-copy {
     font-family: var(--fp);
-    font-size: 13px;
+    font-size: calc(13 * var(--s));
     color: var(--dim);
-    letter-spacing: 1.5px;
+    letter-spacing: calc(1.5 * var(--s));
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════════
@@ -327,7 +330,7 @@ body {
     height: var(--vs-bottom);
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: calc(12 * var(--s));
     font-family: var(--fp);
     pointer-events: none;
     z-index: 10;
@@ -336,12 +339,12 @@ body {
 .model-btn {
     pointer-events: auto;
     font-family: var(--fm);
-    font-size: 11px;
+    font-size: calc(11 * var(--s));
     color: var(--txt);
     background: var(--surface);
     border: 1px solid var(--border);
-    width: 30px;
-    height: 30px;
+    width: calc(30 * var(--s));
+    height: calc(30 * var(--s));
     display: flex;
     align-items: center;
     justify-content: center;
@@ -364,13 +367,13 @@ body {
     display: flex;
     align-items: baseline;
     justify-content: center;
-    gap: 8px;
-    min-width: 210px;
+    gap: calc(8 * var(--s));
+    min-width: calc(210 * var(--s));
 }
 
 #model-label {
-    font-size: 15px;
-    letter-spacing: 2px;
+    font-size: calc(15 * var(--s));
+    letter-spacing: calc(2 * var(--s));
     color: var(--txt-br);
 }
 
@@ -380,9 +383,9 @@ body {
 }
 
 #model-count {
-    font-size: 12px;
+    font-size: calc(12 * var(--s));
     color: var(--dim);
-    letter-spacing: 1px;
+    letter-spacing: calc(1 * var(--s));
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════════
@@ -400,12 +403,12 @@ body {
 #sidebar-l,
 #sidebar-r {
     position: fixed;
-    top: calc(var(--vs-top) + 6px);
-    bottom: calc(var(--vs-bottom) + 6px);
-    width: 230px;
+    top: calc(var(--vs-top) + 6 * var(--s));
+    bottom: calc(var(--vs-bottom) + 6 * var(--s));
+    width: calc(230 * var(--s));
     display: flex;
     flex-direction: column;
-    gap: 3px;
+    gap: calc(3 * var(--s));
     overflow-y: auto;
     overflow-x: hidden;
     scrollbar-width: none;
@@ -419,11 +422,11 @@ body {
 }
 
 #sidebar-l {
-    left: calc(var(--vs-left) + 6px);
+    left: calc(var(--vs-left) + 6 * var(--s));
 }
 
 #sidebar-r {
-    right: calc(var(--vs-right) + 6px);
+    right: calc(var(--vs-right) + 6 * var(--s));
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════════
@@ -434,7 +437,7 @@ body {
     background: rgba(255, 255, 255, 0.6);
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
-    padding: 8px 10px;
+    padding: calc(8 * var(--s)) calc(10 * var(--s));
     overflow: hidden;
     position: relative;
     display: flex;
@@ -459,23 +462,23 @@ body.dark-mode .panel:hover {
 
 .ph {
     font-family: var(--fp);
-    font-size: 24px;
+    font-size: calc(24 * var(--s));
     color: var(--accent);
-    letter-spacing: 0.5px;
-    margin-bottom: 6px;
-    padding-bottom: 4px;
+    letter-spacing: calc(0.5 * var(--s));
+    margin-bottom: calc(6 * var(--s));
+    padding-bottom: calc(4 * var(--s));
     border-bottom: 1px solid var(--border);
     white-space: nowrap;
     overflow: hidden;
     flex-shrink: 0;
     display: flex;
     align-items: center;
-    gap: 4px;
+    gap: calc(4 * var(--s));
 }
 
 .dot {
-    width: 4px;
-    height: 4px;
+    width: calc(4 * var(--s));
+    height: calc(4 * var(--s));
     border-radius: 50%;
     flex-shrink: 0;
     animation: pulse 2.5s ease-in-out infinite;
@@ -498,7 +501,7 @@ body.dark-mode .panel:hover {
 }
 
 .pc {
-    font-size: 20px;
+    font-size: calc(20 * var(--s));
     line-height: 1.4;
     overflow: hidden;
     flex: 1;
@@ -512,20 +515,20 @@ body.dark-mode .panel:hover {
 .skill-row {
     display: flex;
     align-items: center;
-    gap: 6px;
-    margin-bottom: 3px;
+    gap: calc(6 * var(--s));
+    margin-bottom: calc(3 * var(--s));
 }
 
 .skill-name {
-    font-size: 16px;
+    font-size: calc(16 * var(--s));
     color: var(--txt);
-    min-width: 130px;
+    min-width: calc(130 * var(--s));
     flex-shrink: 0;
 }
 
 .skill-bar {
     flex: 1;
-    height: 4px;
+    height: calc(4 * var(--s));
     background: var(--border-hi);
 }
 
@@ -540,27 +543,27 @@ body.dark-mode .panel:hover {
    ═══════════════════════════════════════════════════════════════════════════════ */
 
 .career-entry {
-    margin-bottom: 6px;
-    padding-left: 8px;
+    margin-bottom: calc(6 * var(--s));
+    padding-left: calc(8 * var(--s));
     border-left: 2px solid var(--accent);
 }
 
 .career-year {
     font-family: var(--fp);
-    font-size: 16px;
+    font-size: calc(16 * var(--s));
     color: var(--accent);
-    letter-spacing: 1px;
-    margin-bottom: 1px;
+    letter-spacing: calc(1 * var(--s));
+    margin-bottom: calc(1 * var(--s));
 }
 
 .career-role {
-    font-size: 16px;
+    font-size: calc(16 * var(--s));
     color: var(--val);
     font-weight: 400;
 }
 
 .career-company {
-    font-size: 16px;
+    font-size: calc(16 * var(--s));
     color: var(--txt);
 }
 
@@ -569,8 +572,8 @@ body.dark-mode .panel:hover {
    ═══════════════════════════════════════════════════════════════════════════════ */
 
 .project-entry {
-    margin-bottom: 8px;
-    padding-bottom: 6px;
+    margin-bottom: calc(8 * var(--s));
+    padding-bottom: calc(6 * var(--s));
     border-bottom: 1px solid var(--border);
 }
 
@@ -582,22 +585,22 @@ body.dark-mode .panel:hover {
 
 .project-name {
     font-family: var(--fp);
-    font-size: 15px;
+    font-size: calc(15 * var(--s));
     color: var(--accent);
-    letter-spacing: 1px;
+    letter-spacing: calc(1 * var(--s));
     text-decoration: none;
     pointer-events: auto;
     transition: color 200ms ease-out;
     display: inline;
-    margin-bottom: 2px;
+    margin-bottom: calc(2 * var(--s));
 }
 
 .project-name::after {
     content: '\2192';
     display: inline-block;
-    margin-left: 4px;
+    margin-left: calc(4 * var(--s));
     transition: transform 200ms ease-out;
-    font-size: 14px;
+    font-size: calc(14 * var(--s));
 }
 
 .project-name:hover {
@@ -619,27 +622,27 @@ body.dark-mode .panel:hover {
 }
 
 .tag-wip {
-    font-size: 10px;
+    font-size: calc(10 * var(--s));
     color: var(--accent-secondary);
     border: 1px solid currentColor;
-    padding: 1px 4px;
-    margin-left: 6px;
-    letter-spacing: 1px;
-    vertical-align: 2px;
+    padding: calc(1 * var(--s)) calc(4 * var(--s));
+    margin-left: calc(6 * var(--s));
+    letter-spacing: calc(1 * var(--s));
+    vertical-align: calc(2 * var(--s));
 }
 
 .project-desc {
-    font-size: 14px;
+    font-size: calc(14 * var(--s));
     color: var(--txt);
     line-height: 1.4;
-    margin-bottom: 2px;
+    margin-bottom: calc(2 * var(--s));
 }
 
 .project-tech {
     font-family: var(--fp);
-    font-size: 12px;
+    font-size: calc(12 * var(--s));
     color: var(--dim);
-    letter-spacing: 0.5px;
+    letter-spacing: calc(0.5 * var(--s));
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════════
@@ -649,8 +652,8 @@ body.dark-mode .panel:hover {
 .link-row {
     display: flex;
     align-items: center;
-    gap: 6px;
-    padding: 4px 0;
+    gap: calc(6 * var(--s));
+    padding: calc(4 * var(--s)) 0;
     text-decoration: none;
     pointer-events: auto;
     transition: color 200ms ease-out;
@@ -662,19 +665,19 @@ body.dark-mode .panel:hover {
 }
 
 .link-icon {
-    font-size: 12px;
+    font-size: calc(12 * var(--s));
     color: var(--accent-secondary);
     flex-shrink: 0;
 }
 
 .link-label {
-    font-size: 16px;
-    letter-spacing: 1px;
+    font-size: calc(16 * var(--s));
+    letter-spacing: calc(1 * var(--s));
 }
 
 .link-arrow {
     margin-left: auto;
-    font-size: 14px;
+    font-size: calc(14 * var(--s));
     opacity: 0;
     transform: translateX(-4px);
     transition: opacity 200ms ease-out, transform 200ms ease-out;
@@ -710,6 +713,21 @@ body.dark-mode .panel:hover {
 /* ═══════════════════════════════════════════════════════════════════════════════
    RESPONSIVE
    ═══════════════════════════════════════════════════════════════════════════════ */
+
+/* --- Wide screens (index only; /things keeps --s: 1px) ---
+   --s scales type, panels and chrome together, limited by height so the
+   sidebars still fit. The frame is capped at --content-w and centred, which
+   pulls the sidebars in from the edges while leaving the model's sweep clear. */
+@media (min-width: 1441px) {
+    body:not(.things-page) {
+        --s: max(1px, min(100vw / 1440, 100vh / 900));
+        --content-w: min(100vw - 128 * var(--s), max(1312px, 146vh));
+        --vs-top: calc(72 * var(--s));
+        --vs-bottom: calc(72 * var(--s));
+        --vs-left: calc((100vw - var(--content-w)) / 2);
+        --vs-right: calc((100vw - var(--content-w)) / 2);
+    }
+}
 
 @media (max-width: 1000px) {
     :root {
