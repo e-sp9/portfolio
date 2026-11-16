@@ -1,0 +1,694 @@
+/* ═══════════════════════════════════════════════════════════════════════════════
+   /blog — the post list and the article pages, in the same CRT-monitor language
+   as /things. Bundled together with style.css into /blog.css (blog/site.ts);
+   everything here is scoped to body.blog-page.
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+@import "./style.css";
+
+html:has(body.blog-page),
+body.blog-page {
+    height: auto;
+    min-height: 100%;
+    overflow: hidden auto;
+}
+
+body.blog-page {
+    /* Width of the text column. blog/article.ts sizes images for it. */
+    --measure: 720px;
+
+    /* Neither web font has Japanese glyphs: name the gothic that fills in, rather
+       than leave it to the generic family (MS Gothic for monospace on Windows). */
+    --font-ja: 'Hiragino Sans', 'Noto Sans JP', 'BIZ UDPGothic', Meiryo, sans-serif;
+    --font-display: 'Share Tech Mono', 'Courier New', var(--font-ja);
+    --font-read: 'Inter', -apple-system, BlinkMacSystemFont, var(--font-ja);
+    /* --font-mono of design-tokens.css */
+    --font-code: ui-monospace, SFMono-Regular, 'SF Mono', Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+
+    /* The .panel surface, but opaque: no dot grid behind long text */
+    --sheet: color-mix(in srgb, var(--surface) 60%, var(--bg));
+
+    /* Code tokens (the --code-* names come from blog/article.ts), in the site palette */
+    --code-foreground: var(--txt-br);
+    --code-background: transparent;
+    --code-token-comment: var(--txt);
+    --code-token-punctuation: var(--txt);
+    --code-token-keyword: var(--accent-hover);
+    --code-token-constant: #4f46e5;
+    --code-token-string: #047857;
+    --code-token-string-expression: #047857;
+    --code-token-function: var(--val);
+    --code-token-parameter: var(--txt-br);
+    --code-token-link: var(--accent-hover);
+
+    font-family: var(--font-display);
+    color: var(--txt-br);
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    min-height: 100dvh;
+}
+
+body.blog-page.dark-mode {
+    --code-token-comment: #8a8a8a;
+    --code-token-keyword: var(--accent);
+    --code-token-constant: var(--accent-secondary);
+    --code-token-string: #34d399;
+    --code-token-string-expression: #34d399;
+    --code-token-link: var(--accent);
+}
+
+/* Header stays fixed, like the top page; the screen scrolls underneath. */
+body.blog-page #exp-header {
+    pointer-events: auto;
+    background: linear-gradient(var(--bg) 70%, transparent);
+}
+
+body.blog-page .exp-type {
+    text-decoration: none;
+    transition: color 200ms ease-out;
+}
+
+body.blog-page .exp-label:hover,
+body.blog-page .exp-type:hover {
+    color: var(--accent);
+}
+
+/* ─── Virtual screen ─────────────────────────────────────────────────────── */
+
+#blog-screen {
+    flex: 1;
+    margin: var(--vs-top) var(--vs-right) 0 var(--vs-left);
+    border: 1px solid var(--border);
+    padding: 22px 20px 28px;
+    position: relative;
+    z-index: 2;
+}
+
+/* Corner ticks, as on /things */
+#blog-screen::before,
+#blog-screen::after {
+    content: '';
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    border: 1px solid var(--dim);
+    pointer-events: none;
+}
+
+#blog-screen::before {
+    top: 6px;
+    left: 6px;
+    border-width: 1px 0 0 1px;
+}
+
+#blog-screen::after {
+    bottom: 6px;
+    right: 6px;
+    border-width: 0 1px 1px 0;
+}
+
+.blog-head {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 20px;
+}
+
+.blog-head .ph {
+    font-size: 28px;
+    font-weight: 400;
+    letter-spacing: 3px;
+    margin: 0;
+    padding: 0;
+    border: 0;
+}
+
+.blog-sub {
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+    font-size: 12px;
+    letter-spacing: 2px;
+    color: var(--txt);
+    white-space: nowrap;
+}
+
+.blog-count::before {
+    content: '[ ';
+}
+
+.blog-count::after {
+    content: ' ]';
+}
+
+.blog-link {
+    /* Taller than its text, for touch */
+    margin: -8px 0;
+    padding: 8px 0;
+    font-size: 12px;
+    letter-spacing: 2px;
+    color: var(--accent);
+    text-decoration: none;
+    transition: color 200ms ease-out;
+}
+
+.blog-link:hover {
+    color: var(--accent-hover);
+}
+
+/* ─── Post list ──────────────────────────────────────────────────────────── */
+
+.posts-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 14px;
+}
+
+@media (min-width: 640px) {
+    .posts-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (min-width: 1100px) {
+    .posts-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
+.post {
+    /* inherits .panel: translucent surface, 1px border, blur, hover lift */
+    padding: 14px 16px 12px;
+    gap: 8px;
+    animation: fadeSlideIn 0.4s ease-out backwards;
+}
+
+.post-meta {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 11px;
+    letter-spacing: 1.5px;
+}
+
+.post-cat {
+    color: var(--accent-secondary);
+    border: 1px solid currentColor;
+    padding: 2px 6px;
+    line-height: 1;
+}
+
+.post-date {
+    margin-left: auto;
+    color: var(--txt);
+}
+
+.post-title {
+    font: inherit;
+    font-weight: 400;
+    margin: 0;
+    /* Lines of even length, broken between phrases rather than inside a word */
+    text-wrap: balance;
+    word-break: auto-phrase;
+}
+
+.post-link {
+    font-size: 17px;
+    line-height: 1.5;
+    letter-spacing: 0.04em;
+    color: var(--val);
+    text-decoration: none;
+    transition: color 200ms ease-out;
+}
+
+/* The whole card is the link */
+.post-link::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+}
+
+/* Arrow glued to the last word by a no-break space, so it never wraps alone */
+.post-link::after {
+    content: '\a0\2192';
+    position: relative;
+    left: 0;
+    font-size: 0.8em;
+    color: var(--accent);
+    transition: left 200ms ease-out;
+}
+
+.post:hover .post-link {
+    color: var(--accent);
+}
+
+.post:hover .post-link::after {
+    left: 4px;
+}
+
+.post-desc {
+    font-family: var(--font-read);
+    font-size: 14px;
+    font-weight: 400;
+    line-height: 1.7;
+    color: var(--txt);
+    text-autospace: normal;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
+    overflow: hidden;
+}
+
+.post-tags {
+    list-style: none;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px 10px;
+    font-size: 11px;
+    letter-spacing: 1px;
+    color: var(--txt);
+}
+
+.post .post-tags {
+    margin-top: auto;
+    padding-top: 2px;
+}
+
+/* ─── Article ────────────────────────────────────────────────────────────── */
+
+.article,
+.article-nav {
+    max-width: calc(var(--measure) + 2 * 40px);
+    margin: 0 auto;
+}
+
+.article {
+    padding: 36px 40px 48px;
+    background: var(--sheet);
+    border: 1px solid var(--border);
+    transition: background-color 300ms ease-out, border-color 300ms ease-out;
+}
+
+.article-head {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding-bottom: 20px;
+    margin-bottom: 32px;
+    border-bottom: 1px solid var(--border);
+}
+
+.article-title {
+    font-size: 28px;
+    font-weight: 400;
+    line-height: 1.5;
+    letter-spacing: 0.04em;
+    color: var(--val);
+    text-wrap: balance;
+    word-break: auto-phrase;
+}
+
+.article-sub {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 4px 16px;
+    font-size: 11px;
+    letter-spacing: 1px;
+    color: var(--txt);
+}
+
+.article-revised {
+    margin-left: auto;
+}
+
+/* Body: the rich-editor HTML from microCMS, after blog/article.ts.
+   Set for reading: Inter, a measure of about 43 characters, generous leading. */
+
+.article-body {
+    font-family: var(--font-read);
+    font-size: 16px;
+    font-weight: 400;
+    line-height: 1.9;
+    letter-spacing: 0.02em;
+    color: var(--txt-br);
+    line-break: strict;
+    overflow-wrap: anywhere;
+    /* A hair of space between Japanese and Latin text, where supported */
+    text-autospace: normal;
+}
+
+.article-body > * + * {
+    margin-top: 1.5em;
+}
+
+.article-body :is(h2, h3, h4, h5, h6) {
+    font-weight: 600;
+    line-height: 1.5;
+    color: var(--val);
+    word-break: auto-phrase;
+    /* Anchors land below the fixed header */
+    scroll-margin-top: calc(var(--vs-top) + 16px);
+}
+
+.article-body :is(h2, h3, h4, h5, h6) + * {
+    margin-top: 1em;
+}
+
+.article-body h2 {
+    margin-top: 3em;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+    font-size: 22px;
+}
+
+/* Square marker, echoing the dot of the panel headers */
+.article-body h2::before {
+    content: '';
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    margin-right: 10px;
+    background: var(--accent);
+    vertical-align: 0.2em;
+}
+
+/* Accent rule, as on the CAREER entries */
+.article-body h3 {
+    margin-top: 2.5em;
+    padding-left: 12px;
+    border-left: 2px solid var(--accent);
+    font-size: 19px;
+}
+
+.article-body :is(h4, h5, h6) {
+    margin-top: 2em;
+    font-size: 16px;
+}
+
+.article-body > :first-child {
+    margin-top: 0;
+}
+
+.article-body a {
+    color: var(--accent);
+    text-decoration: underline;
+    text-decoration-color: color-mix(in srgb, currentColor 35%, transparent);
+    text-decoration-thickness: 1px;
+    text-underline-offset: 0.25em;
+    transition: color 200ms ease-out, text-decoration-color 200ms ease-out;
+}
+
+.article-body a:hover {
+    color: var(--accent-hover);
+    text-decoration-color: currentColor;
+}
+
+.article-body strong {
+    font-weight: 600;
+    color: var(--val);
+}
+
+.article-body :is(ul, ol) {
+    padding-left: 1.5em;
+}
+
+.article-body li + li,
+.article-body li > :is(ul, ol) {
+    margin-top: 0.4em;
+}
+
+.article-body li::marker {
+    color: var(--accent-secondary);
+}
+
+.article-body ol > li::marker {
+    font-family: var(--font-display);
+}
+
+.article-body blockquote {
+    padding-left: 1em;
+    border-left: 2px solid var(--border-hi);
+    color: var(--txt);
+}
+
+.article-body blockquote > * + * {
+    margin-top: 1em;
+}
+
+.article-body hr {
+    margin: 3em 0;
+    border: 0;
+    border-top: 1px solid var(--border);
+}
+
+.article-body figure {
+    margin: 2em 0;
+}
+
+.article-body img {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    margin: 0 auto;
+    border: 1px solid var(--border);
+}
+
+.article-body figcaption {
+    margin-top: 8px;
+    font-family: var(--font-display);
+    font-size: 12px;
+    line-height: 1.6;
+    letter-spacing: 1px;
+    color: var(--txt);
+    text-align: center;
+}
+
+.article-body iframe {
+    display: block;
+    max-width: 100%;
+    margin: 0 auto;
+    border: 0;
+}
+
+.article-body code {
+    font-family: var(--font-code);
+    letter-spacing: 0;
+    text-autospace: no-autospace;
+}
+
+/* Inline code */
+.article-body :not(pre) > code {
+    padding: 0.15em 0.4em;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    font-size: 0.875em;
+}
+
+/* Code block: a well in the page colour, with the file name as its title bar */
+.code-block {
+    margin: 2em 0;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    transition: background-color 300ms ease-out, border-color 300ms ease-out;
+}
+
+.code-head {
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+    padding: 7px 14px 6px;
+    border-bottom: 1px solid var(--border);
+    font-family: var(--font-display);
+    font-size: 12px;
+    line-height: 1.5;
+    letter-spacing: 1px;
+    color: var(--txt);
+}
+
+.code-lang {
+    margin-left: auto;
+    color: var(--dim);
+    text-transform: uppercase;
+}
+
+.article-body pre {
+    overflow-x: auto;
+    padding: 14px 16px;
+    font-family: var(--font-code);
+    font-size: 13.5px;
+    line-height: 1.7;
+    letter-spacing: 0;
+    tab-size: 2;
+    overflow-wrap: normal;
+}
+
+.table-scroll {
+    overflow-x: auto;
+}
+
+.article-body table {
+    border-collapse: collapse;
+    font-size: 15px;
+    line-height: 1.6;
+}
+
+.article-body :is(th, td) {
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    text-align: left;
+    vertical-align: top;
+}
+
+.article-body th {
+    background: var(--bg);
+    font-weight: 600;
+}
+
+/* Older / newer */
+
+.article-nav {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+    margin-top: 14px;
+}
+
+.article-nav-link {
+    padding: 12px 16px;
+    gap: 6px;
+    text-decoration: none;
+}
+
+.article-nav-link[rel='next'] {
+    text-align: right;
+}
+
+.article-nav-label {
+    font-size: 11px;
+    letter-spacing: 1.5px;
+    color: var(--accent);
+}
+
+.article-nav-title {
+    font-family: var(--font-read);
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--txt-br);
+    text-autospace: normal;
+    text-wrap: balance;
+    word-break: auto-phrase;
+    transition: color 200ms ease-out;
+}
+
+.article-nav-link:hover .article-nav-title {
+    color: var(--accent);
+}
+
+/* ─── Footer in flow ─────────────────────────────────────────────────────── */
+
+body.blog-page #exp-footer {
+    position: static;
+    height: var(--vs-bottom);
+    margin: 0 var(--vs-right) 0 var(--vs-left);
+    pointer-events: auto;
+}
+
+/* ─── Responsive ─────────────────────────────────────────────────────────── */
+
+@media (max-width: 1000px) {
+    #blog-screen {
+        padding: 16px 12px 20px;
+    }
+
+    .blog-head .ph {
+        font-size: 20px;
+    }
+}
+
+@media (max-width: 768px) {
+    body.blog-page #exp-header {
+        position: fixed;
+        left: 16px;
+        right: 16px;
+        top: 0;
+        height: 48px;
+        background: var(--bg);
+        z-index: 100;
+    }
+
+    body.blog-page #scanlines,
+    body.blog-page #dither {
+        position: fixed;
+        height: auto;
+    }
+
+    #blog-screen {
+        margin: 56px 8px 0;
+        padding: 14px 10px 18px;
+    }
+
+    .blog-head {
+        margin-bottom: 14px;
+    }
+
+    /* The list's heading stacks over its sub line */
+    .blog-head:has(.ph) {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 6px;
+    }
+
+    .blog-sub,
+    .blog-link {
+        font-size: 11px;
+    }
+
+    .article {
+        padding: 22px 16px 32px;
+    }
+
+    .article-head {
+        margin-bottom: 24px;
+    }
+
+    .article-title {
+        font-size: 22px;
+    }
+
+    .article-body {
+        line-height: 1.85;
+    }
+
+    .article-body :is(h2, h3, h4, h5, h6) {
+        scroll-margin-top: 64px;
+    }
+
+    .article-body h2 {
+        font-size: 20px;
+    }
+
+    .article-body h3 {
+        font-size: 18px;
+    }
+
+    .article-body pre {
+        padding: 12px;
+        font-size: 12.5px;
+    }
+
+    .article-nav {
+        grid-template-columns: 1fr;
+    }
+
+    body.blog-page #exp-footer {
+        height: auto;
+        padding: 16px;
+        flex-direction: column;
+        justify-content: center;
+        gap: 4px;
+    }
+}
