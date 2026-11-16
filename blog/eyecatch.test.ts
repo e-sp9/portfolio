@@ -121,11 +121,20 @@ interface Call {
     redirect: unknown;
 }
 
+/** A post as the stand-in keeps it */
+interface Stored {
+    id: string;
+    eyecatch?: { url: string; width: number; height: number };
+}
+
 /**
- * Answers `fetch` as microCMS would: lists `contents`, takes uploads and PATCHes.
- * Returns the requests it was sent. `refuse` can answer one of them differently, or throw.
+ * Answers `fetch` as microCMS would. It lists its posts (those named in `ids`, when the request
+ * names any), takes uploads, and a PATCH sets the eyecatch of the post it names.
+ * Returns the requests it was sent. `on` sees each request first: it can change the posts, as an
+ * editor would in the meantime, answer in microCMS's place, or throw.
  */
-function microcms(contents: object[], refuse: (call: Call) => Response | undefined = () => undefined): Call[] {
+function microcms(contents: object[], on: (call: Call, posts: Stored[]) => Response | void = () => {}): Call[] {
+    const posts = structuredClone(contents) as Stored[];
     const calls: Call[] = [];
     spyOn(globalThis, 'fetch').mockImplementation((async (url: string, init: RequestInit = {}) => {
         const call: Call = {
@@ -136,21 +145,34 @@ function microcms(contents: object[], refuse: (call: Call) => Response | undefin
             redirect: init.redirect,
         };
         calls.push(call);
-        const refusal = refuse(call);
-        if (refusal) return refusal;
-        if (call.method === 'GET') return Response.json({ contents, totalCount: contents.length });
+        const instead = on(call, posts);
+        if (instead) return instead;
+        if (call.method === 'GET') {
+            const ids = call.url.searchParams.get('ids')?.split(',');
+            const listed = ids ? posts.filter((post) => ids.includes(post.id)) : posts;
+            return Response.json({ contents: listed, totalCount: listed.length });
+        }
         if (call.method === 'POST') {
             const file = (call.body as FormData).get('file') as File;
             return Response.json({ url: `${MEDIA}/${file.name}` }, { status: 201 });
         }
-        return Response.json({ id: call.url.pathname.split('/').pop() });
+        const post = posts.find((stored) => stored.id === call.url.pathname.split('/').pop())!;
+        post.eyecatch = picture((JSON.parse(call.body as string) as { eyecatch: string }).eyecatch);
+        return Response.json({ id: post.id });
     }) as unknown as typeof fetch);
     return calls;
 }
 
+const BLOGS = 'hidden-domain.microcms.io/api/v1/blogs';
+const UPLOADS = 'hidden-domain.microcms-management.io/api/v1/media';
 const MEDIA = 'https://images.microcms-assets.io/assets/service/media';
+/** An eyecatch an editor sets by hand */
+const BY_HAND = `${MEDIA}/by-hand.jpg`;
 const readEnv = { MICROCMS_SERVICE_DOMAIN: 'hidden-domain', MICROCMS_API_KEY: 'hidden-read-key' };
 const writeEnv = { ...readEnv, MICROCMS_WRITE_API_KEY: 'hidden-write-key' };
+
+/** An image field as microCMS returns it */
+const picture = (url: string) => ({ url, width: 1200, height: 630 });
 
 function apiPost(id: string, eyecatch?: string): object {
     return {
@@ -158,20 +180,28 @@ function apiPost(id: string, eyecatch?: string): object {
         title: `Post ${id}`,
         content: '<p>c</p>',
         publishedAt: '2024-08-22T15:00:00.000Z',
-        ...(eyecatch && { eyecatch: { url: eyecatch, width: 1200, height: 630 } }),
+        ...(eyecatch && { eyecatch: picture(eyecatch) }),
     };
 }
 
 /** Two posts without an eyecatch around one that has its own */
 const contents = [apiPost('bare-1'), apiPost('dressed', `${MEDIA}/photo.jpg`), apiPost('bare-2')];
 
-const sent = (calls: Call[]) => calls.map((call) => `${call.method} ${call.url.host}${call.url.pathname}`);
+/** The requests in short: method, host and path, and the post a read asks about */
+const sent = (calls: Call[]) =>
+    calls.map((call) => {
+        const ids = call.url.searchParams.get('ids');
+        return `${call.method} ${call.url.host}${call.url.pathname}${ids ? `?ids=${ids}` : ''}`;
+    });
+
+/** The eyecatches the posts have in the end, as the next build would read them */
+const eyecatches = async () => (await fetchPosts(readEnv)).map((post) => post.eyecatch);
 
 describe('microCMS', () => {
     let slept: Mock<typeof Bun.sleep>;
 
     beforeEach(() => {
-        // The pauses before a write is tried again are not waited out here
+        // The pauses before a request is tried again are not waited out here
         slept = spyOn(Bun, 'sleep').mockResolvedValue(undefined as never);
     });
 
@@ -189,7 +219,7 @@ describe('microCMS', () => {
         const png = eyecatchPng('abc123');
         expect(await uploadImage(writeEnv, 'eyecatch-abc123.png', png)).toBe(`${MEDIA}/eyecatch-abc123.png`);
 
-        expect(sent(calls)).toEqual(['POST hidden-domain.microcms-management.io/api/v1/media']);
+        expect(sent(calls)).toEqual([`POST ${UPLOADS}`]);
         // No Content-Type of its own: fetch writes the multipart one, with its boundary
         expect(calls[0]!.headers).toEqual({ 'X-MICROCMS-API-KEY': 'hidden-write-key' });
         const file = (calls[0]!.body as FormData).get('file') as File;
@@ -197,18 +227,60 @@ describe('microCMS', () => {
         expect(new Uint8Array(await file.arrayBuffer())).toEqual(png);
     });
 
-    test('sets the eyecatch of a post and no other field', async () => {
-        const calls = microcms([]);
-        await setEyecatch(writeEnv, 'abc123', `${MEDIA}/eyecatch-abc123.png`);
+    test('sets the eyecatch of a post that has none, and no other field', async () => {
+        const calls = microcms([apiPost('abc123')]);
+        expect(await setEyecatch(writeEnv, 'abc123', `${MEDIA}/eyecatch-abc123.png`)).toBe(true);
 
-        expect(sent(calls)).toEqual(['PATCH hidden-domain.microcms.io/api/v1/blogs/abc123']);
-        expect(calls[0]!.url.search).toBe('');
-        expect(calls[0]!.headers).toEqual({ 'Content-Type': 'application/json', 'X-MICROCMS-API-KEY': 'hidden-write-key' });
-        expect(JSON.parse(calls[0]!.body as string)).toEqual({ eyecatch: `${MEDIA}/eyecatch-abc123.png` });
+        // It looks at the post as it is now, with the read key, and then writes
+        expect(sent(calls)).toEqual([`GET ${BLOGS}?ids=abc123`, `PATCH ${BLOGS}/abc123`]);
+        expect(calls[0]!.headers).toEqual({ 'X-MICROCMS-API-KEY': 'hidden-read-key' });
+        expect(calls[0]!.url.searchParams.get('fields')!.split(',')).toContain('eyecatch');
+        expect(calls[1]!.url.search).toBe('');
+        expect(calls[1]!.headers).toEqual({ 'Content-Type': 'application/json', 'X-MICROCMS-API-KEY': 'hidden-write-key' });
+        expect(JSON.parse(calls[1]!.body as string)).toEqual({ eyecatch: `${MEDIA}/eyecatch-abc123.png` });
+    });
+
+    test('does not overwrite an eyecatch the post has been given in the meantime', async () => {
+        const calls = microcms([apiPost('abc123', BY_HAND)]);
+        expect(await setEyecatch(writeEnv, 'abc123', `${MEDIA}/eyecatch-abc123.png`)).toBe(false);
+
+        expect(sent(calls)).toEqual([`GET ${BLOGS}?ids=abc123`]);
+        expect(await eyecatches()).toEqual([BY_HAND]);
+    });
+
+    test('does not write to a post that is no longer published', async () => {
+        const calls = microcms([apiPost('another')]);
+        expect(await setEyecatch(writeEnv, 'abc123', `${MEDIA}/eyecatch-abc123.png`)).toBe(false);
+        expect(sent(calls)).toEqual([`GET ${BLOGS}?ids=abc123`]);
+    });
+
+    test('looks at the post again before every attempt of the PATCH', async () => {
+        // The first PATCH is answered 503. Before the second, an editor sets an eyecatch.
+        const calls = microcms([apiPost('abc123')], (call, posts) => {
+            if (call.method !== 'PATCH') return;
+            posts[0]!.eyecatch = picture(BY_HAND);
+            return new Response('{}', { status: 503 });
+        });
+        expect(await setEyecatch(writeEnv, 'abc123', `${MEDIA}/eyecatch-abc123.png`)).toBe(false);
+
+        expect(sent(calls)).toEqual([`GET ${BLOGS}?ids=abc123`, `PATCH ${BLOGS}/abc123`, `GET ${BLOGS}?ids=abc123`]);
+        // The second look is a URL of its own: the CDN cannot answer it with what it kept from the first
+        expect(calls[2]!.url.href).not.toBe(calls[0]!.url.href);
+        expect(await eyecatches()).toEqual([BY_HAND]);
+    });
+
+    test('takes a PATCH that went through despite the error it was answered with as done', async () => {
+        const calls = microcms([apiPost('abc123')], (call, posts) => {
+            if (call.method !== 'PATCH') return;
+            posts[0]!.eyecatch = picture(`${MEDIA}/eyecatch-abc123.png`);
+            return new Response('{}', { status: 503 });
+        });
+        expect(await setEyecatch(writeEnv, 'abc123', `${MEDIA}/eyecatch-abc123.png`)).toBe(true);
+        expect(sent(calls)).toEqual([`GET ${BLOGS}?ids=abc123`, `PATCH ${BLOGS}/abc123`, `GET ${BLOGS}?ids=abc123`]);
     });
 
     test('writes nothing without the write key, and nowhere but to microCMS', async () => {
-        const calls = microcms([]);
+        const calls = microcms([apiPost('abc123')]);
         const png = eyecatchPng('abc123');
         const elsewhere = { ...writeEnv, MICROCMS_SERVICE_DOMAIN: 'example.com/#' };
         await expect(uploadImage(readEnv, 'a.png', png)).rejects.toThrow('Missing MICROCMS_WRITE_API_KEY.');
@@ -220,7 +292,7 @@ describe('microCMS', () => {
     });
 
     test('keeps the domain and the keys out of the errors of a refused write', async () => {
-        microcms([], () => new Response('{}', { status: 403 }));
+        microcms([apiPost('abc123')], (call) => (call.method === 'GET' ? undefined : new Response('{}', { status: 403 })));
         const upload = await uploadImage(writeEnv, 'a.png', eyecatchPng('abc123')).catch((error) => error);
         const patch = await setEyecatch(writeEnv, 'abc123', `${MEDIA}/a.png`).catch((error) => error);
 
@@ -236,7 +308,7 @@ describe('microCMS', () => {
 
     test('quotes what microCMS says is wrong, as one line without the domain or the key', async () => {
         const message = "'eyecatch' is unexpected key\n  for hidden-domain (hidden-write-key)";
-        microcms([], () => Response.json({ message }, { status: 400 }));
+        microcms([apiPost('abc123')], (call) => (call.method === 'PATCH' ? Response.json({ message }, { status: 400 }) : undefined));
         const error = await setEyecatch(writeEnv, 'abc123', `${MEDIA}/a.png`).catch((reason) => reason);
 
         expect(error).toBeInstanceOf(BlogSourceError);
@@ -256,19 +328,33 @@ describe('microCMS', () => {
         expect(slept.mock.calls).toEqual([[2000]]);
 
         slept.mockClear();
-        calls = microcms([], busy(2));
-        await setEyecatch(writeEnv, 'abc123', `${MEDIA}/a.png`);
-        expect(calls).toHaveLength(3);
+        calls = microcms([apiPost('abc123')], busy(2));
+        expect(await setEyecatch(writeEnv, 'abc123', `${MEDIA}/a.png`)).toBe(true);
+        // A look before each attempt
+        expect(calls.map((call) => call.method)).toEqual(['GET', 'PATCH', 'GET', 'PATCH', 'GET', 'PATCH']);
         // The second pause outlasts the 10-second window of the Management API
         expect(slept.mock.calls).toEqual([[2000], [10000]]);
 
         slept.mockClear();
-        calls = microcms([], busy(3));
+        calls = microcms([apiPost('abc123')], busy(3));
         await expect(setEyecatch(writeEnv, 'abc123', `${MEDIA}/a.png`)).rejects.toThrow(/^microCMS answered (429|503) for PATCH \/blogs\/abc123\.$/);
-        expect(calls).toHaveLength(3);
+        expect(calls.filter((call) => call.method === 'PATCH')).toHaveLength(3);
     });
 
-    test('reads once, as before', async () => {
+    test('is as patient with the look before a write as with the write', async () => {
+        let refused = false;
+        const calls = microcms([apiPost('abc123')], (call) => {
+            if (call.method !== 'GET' || refused) return;
+            refused = true;
+            return new Response('{}', { status: 503 });
+        });
+        expect(await setEyecatch(writeEnv, 'abc123', `${MEDIA}/a.png`)).toBe(true);
+
+        expect(calls.map((call) => call.method)).toEqual(['GET', 'GET', 'PATCH']);
+        expect(slept.mock.calls).toEqual([[2000]]);
+    });
+
+    test('reads the list once, as before', async () => {
         const calls = microcms([], () => new Response('{}', { status: 503 }));
         await expect(fetchPosts(readEnv)).rejects.toThrow('microCMS answered 503 for /blogs.');
         expect(calls).toHaveLength(1);
@@ -287,11 +373,11 @@ describe('microCMS', () => {
     });
 
     test('follows no redirect: it would take the key to another host', async () => {
-        const calls = microcms(contents);
+        const calls = microcms([apiPost('abc123')]);
         await fetchPosts(readEnv);
         await uploadImage(writeEnv, 'a.png', eyecatchPng('abc123'));
         await setEyecatch(writeEnv, 'abc123', `${MEDIA}/a.png`);
-        expect(calls.map((call) => call.redirect)).toEqual(['error', 'error', 'error']);
+        expect(calls.map((call) => `${call.method} ${call.redirect}`)).toEqual(['GET error', 'POST error', 'GET error', 'PATCH error']);
     });
 
     test('takes an upload as failed unless it comes back with the URL of the image', async () => {
@@ -304,8 +390,8 @@ describe('microCMS', () => {
     });
 
     test('takes a PATCH as done on the status alone', async () => {
-        microcms([], () => new Response(null, { status: 200 }));
-        await setEyecatch(writeEnv, 'abc123', `${MEDIA}/a.png`);
+        microcms([apiPost('abc123')], (call) => (call.method === 'PATCH' ? new Response(null, { status: 200 }) : undefined));
+        expect(await setEyecatch(writeEnv, 'abc123', `${MEDIA}/a.png`)).toBe(true);
     });
 });
 
@@ -332,7 +418,7 @@ describe('build', () => {
         const drawn = spyOn(art, 'eyecatchPng');
         await buildBlog(readEnv, dist);
 
-        expect(sent(calls)).toEqual(['GET hidden-domain.microcms.io/api/v1/blogs']);
+        expect(sent(calls)).toEqual([`GET ${BLOGS}`]);
         expect(drawn).not.toHaveBeenCalled();
         expect(logged).toContain('Posts without an eyecatch: 2. MICROCMS_WRITE_API_KEY is not set, so none is generated.');
         expect((await readdir(join(dist, 'blog'))).sort()).toEqual(['bare-1.html', 'bare-2.html', 'dressed.html', 'feed.xml']);
@@ -342,18 +428,26 @@ describe('build', () => {
         const calls = microcms(contents);
         await buildBlog(writeEnv, dist);
 
+        // After the list, each post is looked at again before its upload and before its PATCH
         expect(sent(calls)).toEqual([
-            'GET hidden-domain.microcms.io/api/v1/blogs',
-            'POST hidden-domain.microcms-management.io/api/v1/media',
-            'PATCH hidden-domain.microcms.io/api/v1/blogs/bare-1',
-            'POST hidden-domain.microcms-management.io/api/v1/media',
-            'PATCH hidden-domain.microcms.io/api/v1/blogs/bare-2',
+            `GET ${BLOGS}`,
+            `GET ${BLOGS}?ids=bare-1`,
+            `POST ${UPLOADS}`,
+            `GET ${BLOGS}?ids=bare-1`,
+            `PATCH ${BLOGS}/bare-1`,
+            `GET ${BLOGS}?ids=bare-2`,
+            `POST ${UPLOADS}`,
+            `GET ${BLOGS}?ids=bare-2`,
+            `PATCH ${BLOGS}/bare-2`,
         ]);
         // The read key reads, the write key writes
-        expect(calls.map((call) => call.headers['X-MICROCMS-API-KEY'])).toEqual(['hidden-read-key', ...Array(4).fill('hidden-write-key')]);
+        for (const call of calls) expect(call.headers['X-MICROCMS-API-KEY']).toBe(call.method === 'GET' ? 'hidden-read-key' : 'hidden-write-key');
+        // No two reads share a URL, so none can be answered from the CDN's cache of an earlier one
+        const reads = calls.filter((call) => call.method === 'GET').map((call) => call.url.href);
+        expect(new Set(reads).size).toBe(reads.length);
 
         // Each post gets the picture of its own ID, at the URL the upload came back with
-        for (const [upload, patch, id] of [[calls[1]!, calls[2]!, 'bare-1'], [calls[3]!, calls[4]!, 'bare-2']] as const) {
+        for (const [upload, patch, id] of [[calls[2]!, calls[4]!, 'bare-1'], [calls[6]!, calls[8]!, 'bare-2']] as const) {
             const file = (upload.body as FormData).get('file') as File;
             expect(file.name).toBe(`eyecatch-${id}.png`);
             expect(new Uint8Array(await file.arrayBuffer())).toEqual(eyecatchPng(id));
@@ -365,6 +459,7 @@ describe('build', () => {
         expect(logged).toContain('Generated an eyecatch for bare-1');
         expect(logged).toContain('Generated an eyecatch for bare-2');
         expect((await readdir(join(dist, 'blog'))).sort()).toEqual(['bare-1.html', 'bare-2.html', 'dressed.html', 'feed.xml']);
+        expect(await eyecatches()).toEqual([`${MEDIA}/eyecatch-bare-1.png`, `${MEDIA}/photo.jpg`, `${MEDIA}/eyecatch-bare-2.png`]);
     });
 
     test('sends nothing when every post has an eyecatch', async () => {
@@ -372,8 +467,74 @@ describe('build', () => {
         const drawn = spyOn(art, 'eyecatchPng');
         await buildBlog(writeEnv, dist);
 
-        expect(sent(calls)).toEqual(['GET hidden-domain.microcms.io/api/v1/blogs']);
+        expect(sent(calls)).toEqual([`GET ${BLOGS}`]);
         expect(drawn).not.toHaveBeenCalled();
+    });
+
+    test('leaves alone a post that is given an eyecatch by hand after the list was read', async () => {
+        // An editor sets an eyecatch on bare-2 while the build is busy with bare-1
+        const calls = microcms(contents, (call, posts) => {
+            if (call.method === 'POST') posts.find((post) => post.id === 'bare-2')!.eyecatch = picture(BY_HAND);
+        });
+        const drawn = spyOn(art, 'eyecatchPng');
+        await buildBlog(writeEnv, dist);
+
+        expect(sent(calls)).toEqual([
+            `GET ${BLOGS}`,
+            `GET ${BLOGS}?ids=bare-1`,
+            `POST ${UPLOADS}`,
+            `GET ${BLOGS}?ids=bare-1`,
+            `PATCH ${BLOGS}/bare-1`,
+            // By its turn bare-2 has an eyecatch: nothing is drawn, uploaded or written for it
+            `GET ${BLOGS}?ids=bare-2`,
+        ]);
+        expect(drawn.mock.calls).toEqual([['bare-1']]);
+        expect(logged).toContain('Left bare-2 alone: it has an eyecatch by now.');
+        expect(await eyecatches()).toEqual([`${MEDIA}/eyecatch-bare-1.png`, `${MEDIA}/photo.jpg`, BY_HAND]);
+    });
+
+    test('leaves alone a post that is given an eyecatch by hand while its picture is uploading', async () => {
+        // The editor's eyecatch arrives after the look before the upload, and before the PATCH
+        const calls = microcms(contents, (call, posts) => {
+            const uploading = call.method === 'POST' && ((call.body as FormData).get('file') as File).name;
+            if (uploading === 'eyecatch-bare-1.png') posts.find((post) => post.id === 'bare-1')!.eyecatch = picture(BY_HAND);
+        });
+        await buildBlog(writeEnv, dist);
+
+        expect(sent(calls)).toEqual([
+            `GET ${BLOGS}`,
+            `GET ${BLOGS}?ids=bare-1`,
+            `POST ${UPLOADS}`,
+            // The look before the PATCH finds the eyecatch: there is no PATCH for bare-1
+            `GET ${BLOGS}?ids=bare-1`,
+            `GET ${BLOGS}?ids=bare-2`,
+            `POST ${UPLOADS}`,
+            `GET ${BLOGS}?ids=bare-2`,
+            `PATCH ${BLOGS}/bare-2`,
+        ]);
+        expect(logged).toContain(
+            'Left bare-1 alone: it was given an eyecatch, or taken down, before the picture could be set. ' +
+            'The picture stays in the media library as eyecatch-bare-1.png.',
+        );
+        expect(await eyecatches()).toEqual([BY_HAND, `${MEDIA}/photo.jpg`, `${MEDIA}/eyecatch-bare-2.png`]);
+    });
+
+    test('leaves alone a post that is taken down after the list was read', async () => {
+        const calls = microcms(contents, (call, posts) => {
+            // bare-1 is unpublished before its turn comes
+            if (call.url.searchParams.get('ids') === 'bare-1') posts.splice(posts.findIndex((post) => post.id === 'bare-1'), 1);
+        });
+        await buildBlog(writeEnv, dist);
+
+        expect(sent(calls)).toEqual([
+            `GET ${BLOGS}`,
+            `GET ${BLOGS}?ids=bare-1`,
+            `GET ${BLOGS}?ids=bare-2`,
+            `POST ${UPLOADS}`,
+            `GET ${BLOGS}?ids=bare-2`,
+            `PATCH ${BLOGS}/bare-2`,
+        ]);
+        expect(logged).toContain('Left bare-1 alone: it is no longer published.');
     });
 
     test('stops at the first write that fails, and says what it left in the media library', async () => {
@@ -386,7 +547,7 @@ describe('build', () => {
             'The picture was uploaded and stays in the media library as eyecatch-bare-1.png.',
         );
         // bare-2 is not started
-        expect(sent(calls)).toHaveLength(3);
+        expect(sent(calls)).toEqual([`GET ${BLOGS}`, `GET ${BLOGS}?ids=bare-1`, `POST ${UPLOADS}`, `GET ${BLOGS}?ids=bare-1`, `PATCH ${BLOGS}/bare-1`]);
         expect(await readdir(dist)).toEqual([]);
     });
 });
@@ -422,7 +583,7 @@ describe('dry run', () => {
 
         expect(paths).toEqual([join(dir, 'bare-1.png'), join(dir, 'bare-2.png')]);
         expect((await readdir(dir)).sort()).toEqual(['bare-1.png', 'bare-2.png']);
-        expect(sent(calls)).toEqual(['GET hidden-domain.microcms.io/api/v1/blogs']);
+        expect(sent(calls)).toEqual([`GET ${BLOGS}`]);
         expect(calls[0]!.headers).toEqual({ 'X-MICROCMS-API-KEY': 'hidden-read-key' });
     });
 

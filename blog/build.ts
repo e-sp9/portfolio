@@ -5,7 +5,7 @@
 import { rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { eyecatchPng } from './eyecatch';
-import { BlogSourceError, fetchPosts, missingCredentials, type Post, setEyecatch, uploadImage, withoutEyecatch } from './microcms';
+import { BlogSourceError, currentEyecatch, fetchPosts, missingCredentials, type Post, setEyecatch, uploadImage, withoutEyecatch } from './microcms';
 import { blogFiles } from './site';
 
 type Env = Record<string, string | undefined>;
@@ -15,7 +15,9 @@ const UPLOAD_INTERVAL = 1_100;
 
 /**
  * Gives every post that has no eyecatch a generated one: draws it, uploads it to the media
- * library and sets it on the post. A post that has an eyecatch is left alone.
+ * library and sets it on the post. A post that has an eyecatch is left alone, and so is one
+ * that is given an eyecatch by hand while this runs: the list read at the start is not what
+ * decides, each post is looked at again right before anything is written for it.
  *
  * This is the one place where the build writes to microCMS, and it takes a key of its own.
  * Without MICROCMS_WRITE_API_KEY nothing is drawn or sent, and the build goes on.
@@ -32,15 +34,28 @@ async function registerEyecatches(posts: Post[], env: Env): Promise<void> {
 
     for (const [index, post] of bare.entries()) {
         if (index > 0) await Bun.sleep(UPLOAD_INTERVAL);
+        // By its turn a post may have been given an eyecatch, or taken down. Seen before the upload,
+        // that leaves no picture behind.
+        const current = await currentEyecatch(env, post.id);
+        if (current !== null) {
+            console.log(`Left ${post.id} alone: ${current === undefined ? 'it is no longer published' : 'it has an eyecatch by now'}.`);
+            continue;
+        }
         const name = `eyecatch-${post.id}.png`;
         const url = await uploadImage(env, name, eyecatchPng(post.id));
+        let set: boolean;
         try {
-            await setEyecatch(env, post.id, url);
+            // setEyecatch looks once more, right before the PATCH
+            set = await setEyecatch(env, post.id, url);
         } catch (error) {
             if (!(error instanceof BlogSourceError)) throw error;
             throw new BlogSourceError(`${error.message} The picture was uploaded and stays in the media library as ${name}.`);
         }
-        console.log(`Generated an eyecatch for ${post.id}`);
+        console.log(
+            set
+                ? `Generated an eyecatch for ${post.id}`
+                : `Left ${post.id} alone: it was given an eyecatch, or taken down, before the picture could be set. The picture stays in the media library as ${name}.`,
+        );
     }
 }
 

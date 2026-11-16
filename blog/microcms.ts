@@ -111,36 +111,56 @@ interface Sent {
     body: BodyInit;
 }
 
-/** Pauses before a write is tried again, in ms. The second outlasts the 10-second window of the Management API. */
+/** Pauses before a request is tried again, in ms. The second outlasts the 10-second window of the Management API. */
 const RETRY_PAUSES = [2_000, 10_000];
 
 /**
- * Sends a request and returns the answer once microCMS has accepted it.
+ * One exchange with microCMS. Returns its answer, whatever the status.
  * Errors name the request (`what`) and never the URL, so the service domain and the keys stay out of logs.
  */
-async function request(access: Access, what: string, url: string, sent?: Sent): Promise<Response> {
+async function send({ apiKey }: Access, what: string, url: string, sent?: Sent): Promise<Response> {
+    try {
+        return await fetch(url, {
+            ...sent,
+            headers: { ...sent?.headers, 'X-MICROCMS-API-KEY': apiKey },
+            // A redirect would take the key to another host
+            redirect: 'error',
+            // microCMS can take about 29 seconds to answer. A write is given that long:
+            // giving up on one that then goes through would leave it half done.
+            signal: AbortSignal.timeout(sent ? 30_000 : 15_000),
+        });
+    } catch (error) {
+        const code = (error as { code?: unknown }).code;
+        const reason = typeof code === 'string' ? code : (error as Error).name;
+        throw new BlogSourceError(`No answer from microCMS for ${what} (${reason}).${sent ? ' The request may still have gone through.' : ''}`);
+    }
+}
+
+/**
+ * Whether a request that microCMS did not accept is worth another try; when it is, the pause is waited out here.
+ * microCMS says a 429 or a 5xx can come back now and then even within its limits.
+ */
+async function worthAnotherTry(response: Response, attempt: number): Promise<boolean> {
+    const pause = response.status === 429 || response.status >= 500 ? RETRY_PAUSES[attempt] : undefined;
+    if (pause === undefined) return false;
+    await Bun.sleep(pause);
+    return true;
+}
+
+/**
+ * Sends a request and returns the answer once microCMS has accepted it; a refusal is an error.
+ * A write is `patient`, and so is a read that a write waits for: those are tried again.
+ */
+async function request(
+    access: Access,
+    what: string,
+    url: string,
+    { sent, patient = sent !== undefined }: { sent?: Sent; patient?: boolean } = {},
+): Promise<Response> {
     for (let attempt = 0; ; attempt++) {
-        let response: Response;
-        try {
-            response = await fetch(url, {
-                ...sent,
-                headers: { ...sent?.headers, 'X-MICROCMS-API-KEY': access.apiKey },
-                // A redirect would take the key to another host
-                redirect: 'error',
-                // microCMS can take about 29 seconds to answer. A write is given that long:
-                // giving up on one that then goes through would leave it half done.
-                signal: AbortSignal.timeout(sent ? 30_000 : 15_000),
-            });
-        } catch (error) {
-            const code = (error as { code?: unknown }).code;
-            const reason = typeof code === 'string' ? code : (error as Error).name;
-            throw new BlogSourceError(`No answer from microCMS for ${what} (${reason}).${sent ? ' The request may still have gone through.' : ''}`);
-        }
+        const response = await send(access, what, url, sent);
         if (response.ok) return response;
-        // microCMS says a 429 or a 5xx can come back now and then even within its limits: a write is tried again
-        const pause = sent && (response.status === 429 || response.status >= 500) ? RETRY_PAUSES[attempt] : undefined;
-        if (pause === undefined) throw await refusal(response, access, what);
-        await Bun.sleep(pause);
+        if (!patient || !(await worthAnotherTry(response, attempt))) throw await refusal(response, access, what);
     }
 }
 
@@ -157,6 +177,11 @@ async function refusal(response: Response, { domain, apiKey, keyName }: Access, 
     return new BlogSourceError(`microCMS answered ${response.status} for ${what}.${said}${check}`);
 }
 
+/** URL of the eyecatch of a post as microCMS returns it; null when the field is empty */
+function eyecatchOf(post: Pick<ApiPost, 'eyecatch'>): string | null {
+    return post.eyecatch?.url || null;
+}
+
 function toPost(post: ApiPost): Post {
     if (!POST_ID.test(post.id)) {
         throw new BlogSourceError(`Unexpected content ID in /${ENDPOINT}: ${JSON.stringify(post.id)}`);
@@ -170,13 +195,32 @@ function toPost(post: ApiPost): Post {
         revisedAt: post.revisedAt ?? post.publishedAt,
         category: post.category?.slug ?? post.category?.name ?? null,
         tags: (post.tags ?? []).map((tag) => tag.name),
-        eyecatch: post.eyecatch?.url || null,
+        eyecatch: eyecatchOf(post),
     };
 }
 
 /** The posts the build generates an eyecatch for: those that have none. */
 export function withoutEyecatch(posts: Post[]): Post[] {
     return posts.filter((post) => post.eyecatch === null);
+}
+
+/**
+ * The eyecatch a post has at this moment: its URL, or null when it has none.
+ * Undefined when the post is not published (any more).
+ *
+ * `look` says which look at the post this is. Reads come through a CDN that answers a URL it has
+ * seen from its cache; microCMS drops that cache when the post changes, but does not say how fast.
+ * So every look is a URL of its own (`limit` makes no other difference with one ID) and is answered
+ * by microCMS itself.
+ */
+export async function currentEyecatch(env: Env, id: string, look = 1): Promise<string | null | undefined> {
+    const reader = access(env, 'MICROCMS_API_KEY');
+    const query = new URLSearchParams({ ids: id, fields: 'id,eyecatch', limit: String(look) });
+    const what = `/${ENDPOINT}?ids=${id}`;
+    const response = await request(reader, what, `https://${reader.domain}.microcms.io/api/v1/${ENDPOINT}?${query}`, { patient: true });
+    const { contents } = (await response.json()) as { contents: Pick<ApiPost, 'id' | 'eyecatch'>[] };
+    const post = contents.find((content) => content.id === id);
+    return post && eyecatchOf(post);
 }
 
 // ─── Writing ─────────────────────────────────────────────────────────────────
@@ -189,8 +233,7 @@ export async function uploadImage(env: Env, name: string, png: Uint8Array<ArrayB
     const form = new FormData();
     form.append('file', new Blob([png], { type: 'image/png' }), name);
     const response = await request(writer, `the upload of ${name}`, `https://${writer.domain}.microcms-management.io/api/v1/media`, {
-        method: 'POST',
-        body: form,
+        sent: { method: 'POST', body: form },
     });
     const answer = (await response.json().catch(() => null)) as { url?: unknown } | null;
     const url = answer?.url;
@@ -201,15 +244,30 @@ export async function uploadImage(env: Env, name: string, png: Uint8Array<ArrayB
 }
 
 /**
- * Sets the eyecatch of a post to an image in the media library. The post stays published.
+ * Sets the eyecatch of a post that has none to an image in the media library. The post stays published.
  * microCMS counts this as a revision of the post, so its revisedAt moves to now.
+ *
+ * A PATCH replaces whatever the field holds, and microCMS has no way to ask for "only if it is still
+ * empty". So the post is looked at once more right before every attempt. When it has an eyecatch by
+ * then, or is no longer published, nothing is sent and the answer is false: an eyecatch set by hand
+ * while the build runs stays. One set in the instant between that look and the PATCH can still be lost.
  */
-export async function setEyecatch(env: Env, id: string, imageUrl: string): Promise<void> {
+export async function setEyecatch(env: Env, id: string, imageUrl: string): Promise<boolean> {
     const writer = access(env, 'MICROCMS_WRITE_API_KEY');
     if (!POST_ID.test(id)) throw new BlogSourceError(`Not a content ID: ${JSON.stringify(id)}`);
-    await request(writer, `PATCH /${ENDPOINT}/${id}`, `https://${writer.domain}.microcms.io/api/v1/${ENDPOINT}/${id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ eyecatch: imageUrl }),
-    });
+    const what = `PATCH /${ENDPOINT}/${id}`;
+    for (let attempt = 0; ; attempt++) {
+        // The build has had its own first look before the upload
+        const current = await currentEyecatch(env, id, attempt + 2);
+        // An attempt that microCMS answered with an error can have gone through all the same
+        if (current === imageUrl) return true;
+        if (current !== null) return false;
+        const response = await send(writer, what, `https://${writer.domain}.microcms.io/api/v1/${ENDPOINT}/${id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ eyecatch: imageUrl }),
+        });
+        if (response.ok) return true;
+        if (!(await worthAnotherTry(response, attempt))) throw await refusal(response, writer, what);
+    }
 }
