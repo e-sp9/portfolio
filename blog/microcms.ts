@@ -47,7 +47,7 @@ const PAGE_SIZE = 100;
 
 type Env = Record<string, string | undefined>;
 
-/** Names of the credentials that are not set. Both are kept in the local .env only. */
+/** Names of the credentials that are not set. Both are kept in the local .env and in GitHub Secrets. */
 export function missingCredentials(env: Env): string[] {
     return ['MICROCMS_SERVICE_DOMAIN', 'MICROCMS_API_KEY'].filter((name) => !env[name]);
 }
@@ -58,7 +58,8 @@ export async function fetchPosts(env: Env = process.env): Promise<Post[]> {
     const apiKey = env.MICROCMS_API_KEY;
     if (!domain || !apiKey) {
         throw new BlogSourceError(
-            `Missing ${missingCredentials(env).join(' and ')}. The blog is built from microCMS: set both variables in .env.`,
+            `Missing ${missingCredentials(env).join(' and ')}. The blog is built from microCMS: ` +
+            'set both variables in .env, or as GitHub Secrets for the deploy workflow.',
         );
     }
     // The key is only ever sent to <domain>.microcms.io
