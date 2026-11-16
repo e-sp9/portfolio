@@ -199,23 +199,29 @@ body.things-page .exp-label:hover {
     font-weight: 400;
     line-height: inherit;
     margin: 0;
+    container-type: inline-size;
 }
 
 .thing-name {
     font-family: var(--fp);
-    font-size: 20px;
-    letter-spacing: 1.5px;
+    /* Scale with the card so the longest name stays on one line (20px on wide cards) */
+    font-size: 14px;
+    font-size: clamp(14px, 6.2cqi, 20px);
+    letter-spacing: 0.075em;
     color: var(--val);
     text-decoration: none;
     transition: color 200ms ease-out;
     display: inline-block;
+    /* Wrap at spaces, not inside a katakana word (14インチ) */
+    word-break: keep-all;
+    overflow-wrap: break-word;
 }
 
 .thing-name::after {
     content: '\2192';
     display: inline-block;
-    margin-left: 6px;
-    font-size: 16px;
+    margin-left: 0.3em;
+    font-size: 0.8em;
     color: var(--accent);
     transition: transform 200ms ease-out;
 }
