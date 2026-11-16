@@ -204,23 +204,54 @@ export function withoutEyecatch(posts: Post[]): Post[] {
     return posts.filter((post) => post.eyecatch === null);
 }
 
+/** An instant between the starts of two years, drawn at random and written to the second, the way microCMS shows dates in a filter. */
+function instantBetween(fromYear: number, toYear: number): string {
+    const [high, low] = crypto.getRandomValues(new Uint32Array(2));
+    const from = Date.UTC(fromYear, 0);
+    const span = Date.UTC(toYear, 0) - from;
+    const instant = new Date(from + (((high! % 2 ** 20) * 2 ** 32 + low!) % span));
+    return instant.toISOString().replace(/\.\d+Z$/, 'Z');
+}
+
+/**
+ * A filter that leaves no post out and is never the same twice: created after some instant from
+ * before microCMS existed and before some instant centuries away, both drawn at random (2^64 pairs).
+ */
+function everyPostAnew(): string {
+    return `createdAt[greater_than]${instantBetween(1971, 2000)}[and]createdAt[less_than]${instantBetween(2100, 3000)}`;
+}
+
 /**
  * The eyecatch a post has at this moment: its URL, or null when it has none.
  * Undefined when the post is not published (any more).
  *
- * `look` says which look at the post this is. Reads come through a CDN that answers a URL it has
- * seen from its cache; microCMS drops that cache when the post changes, but does not say how fast.
- * So every look is a URL of its own (`limit` makes no other difference with one ID) and is answered
- * by microCMS itself.
+ * It has to be what microCMS holds now, never an older answer. Reads come through a CDN, which
+ * answers a URL it has been asked before from its cache. microCMS drops that cache when a post
+ * changes but does not say how fast, and the URL of an earlier look can be asked again by a later
+ * build or by one running alongside. So the posts are read with a filter that is true of every one
+ * of them and that is new each time: a URL that nobody has asked before, which only microCMS itself
+ * can answer.
  */
-export async function currentEyecatch(env: Env, id: string, look = 1): Promise<string | null | undefined> {
+export async function currentEyecatch(env: Env, id: string): Promise<string | null | undefined> {
     const reader = access(env, 'MICROCMS_API_KEY');
-    const query = new URLSearchParams({ ids: id, fields: 'id,eyecatch', limit: String(look) });
-    const what = `/${ENDPOINT}?ids=${id}`;
-    const response = await request(reader, what, `https://${reader.domain}.microcms.io/api/v1/${ENDPOINT}?${query}`, { patient: true });
-    const { contents } = (await response.json()) as { contents: Pick<ApiPost, 'id' | 'eyecatch'>[] };
-    const post = contents.find((content) => content.id === id);
-    return post && eyecatchOf(post);
+    const filters = everyPostAnew();
+    for (let offset = 0; ; ) {
+        const query = new URLSearchParams({
+            fields: 'id,eyecatch',
+            filters,
+            orders: '-publishedAt',
+            limit: String(PAGE_SIZE),
+            offset: String(offset),
+        });
+        const response = await request(reader, `the look at ${id}`, `https://${reader.domain}.microcms.io/api/v1/${ENDPOINT}?${query}`, {
+            patient: true,
+        });
+        const page = (await response.json()) as { contents: Pick<ApiPost, 'id' | 'eyecatch'>[]; totalCount: number };
+        const post = page.contents.find((content) => content.id === id);
+        if (post) return eyecatchOf(post);
+        offset += page.contents.length;
+        if (page.contents.length === 0 || offset >= page.totalCount) return undefined;
+    }
 }
 
 // ─── Writing ─────────────────────────────────────────────────────────────────
@@ -257,8 +288,7 @@ export async function setEyecatch(env: Env, id: string, imageUrl: string): Promi
     if (!POST_ID.test(id)) throw new BlogSourceError(`Not a content ID: ${JSON.stringify(id)}`);
     const what = `PATCH /${ENDPOINT}/${id}`;
     for (let attempt = 0; ; attempt++) {
-        // The build has had its own first look before the upload
-        const current = await currentEyecatch(env, id, attempt + 2);
+        const current = await currentEyecatch(env, id);
         // An attempt that microCMS answered with an error can have gone through all the same
         if (current === imageUrl) return true;
         if (current !== null) return false;
