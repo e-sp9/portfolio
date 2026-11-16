@@ -178,7 +178,7 @@ microCMS で書いた記事の一覧(`/blog`)、記事ページ(`/blog/<記事ID
 - コード: ビルド時に Shiki で色を付ける。色は `--code-*` の CSS 変数で持つので、ライト/ダークを切り替えるとコードの色も変わる。ファイル名と言語はブロック上部のバーに出す
 - 画像: microCMS の画像 API で WebP に変換し、本文幅の 1 倍と 2 倍を `srcset` で出し分ける。元の幅より大きくはしない。`loading="lazy"`
 - リンク: 外部サイトは別タブで開く。旧ブログ(kissa-katada.com)の記事へのリンクは `/blog/<記事ID>` に書き換える
-- データ: ビルド時に microCMS の `blogs` API から全記事を取得する(`blog/microcms.ts`)。認証情報は環境変数 `MICROCMS_SERVICE_DOMAIN` と `MICROCMS_API_KEY` で渡す。ブラウザにも Worker にも渡さない。どちらかがないとビルドはエラーで止まる
+- データ: ビルド時に microCMS の `blogs` API から全記事を取得する(`blog/microcms.ts`)。認証情報は `MICROCMS_SERVICE_DOMAIN` と `MICROCMS_API_KEY` で、手元の `.env` にだけ置く。ブラウザにも Worker にも渡さない。どちらかがないと、手元のビルドは足りない変数名を出してエラーで止まる。GitHub Actions のビルドにはキーがないので、ブログの生成をスキップして警告を出し、ほかのページだけをビルドする
 - 生成: `blog/build.ts` が `dist/blog.html`、`dist/blog/<記事ID>.html`、`dist/blog/feed.xml`、`dist/blog.css` を書き出す。`blog.css` は `style.css` を取り込んだ 1 ファイル。ページは静的 HTML で、スクリプトはテーマ切り替えだけ
 - 開発: `bun run dev` は同じファイルをリクエストのたびに描画する(`blog/dev.ts`)。microCMS から取得した記事は 60 秒間キャッシュする
 - テーマ: `localStorage` の `portfolio-theme` をほかのページと共有する

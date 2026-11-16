@@ -32,7 +32,8 @@ bun run build   # generate /blog, bundle index.html + things.html into dist/, co
 bun run deploy  # wrangler deploy
 ```
 
-The build starts with the blog and stops there with an error when the microCMS credentials are missing.
+The build starts with the blog. Without the microCMS credentials it stops there with an error that
+names what is missing, except on GitHub Actions, where it skips the blog with a warning (see [Blog](#blog)).
 
 Pushing to `main` deploys automatically via GitHub Actions
 ([.github/workflows/deploy.yml](.github/workflows/deploy.yml)). Required secrets and
@@ -67,22 +68,22 @@ and add one entry to [things.ts](things.ts). The page is `things.html` +
 
 ## Blog
 
-[`/blog`](https://esp-9.dev/blog) lists the posts I write in microCMS. Each post gets a page at
+`/blog` lists the posts I write in microCMS. Each post gets a page at
 `/blog/<content ID>`, and `/blog/feed.xml` is the RSS feed. All of it is static: the build
 ([blog/build.ts](blog/build.ts)) fetches every post once, rewrites the body for reading
 ([blog/article.ts](blog/article.ts): highlighted code, WebP images sized for the text column)
 and writes plain HTML plus one stylesheet ([blog.css](blog.css)). The only script on these pages
 is the theme toggle.
 
-The API key is read from the environment and used at build time only:
+The microCMS credentials are kept in a local `.env` (git-ignored) and nowhere else:
 
 ```bash
 MICROCMS_SERVICE_DOMAIN=...   # the "xxx" of xxx.microcms.io
 MICROCMS_API_KEY=...          # a key that can GET the `blogs` API
 ```
 
-Locally both go in `.env` (git-ignored); the deploy workflow reads them from repository secrets.
-Publishing in microCMS does not rebuild the site: a new or edited post appears with the next deploy.
+They are used at build time only. The GitHub Actions deploy has no keys, so it builds the site
+without `/blog` and prints a warning: for now the blog exists in local builds only.
 
 ## Design
 

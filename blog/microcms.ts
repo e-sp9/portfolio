@@ -45,15 +45,20 @@ const ENDPOINT = 'blogs';
 const FIELDS = 'id,title,description,content,publishedAt,revisedAt,category.name,category.slug,tags.name';
 const PAGE_SIZE = 100;
 
+type Env = Record<string, string | undefined>;
+
+/** Names of the credentials that are not set. Both are kept in the local .env only. */
+export function missingCredentials(env: Env): string[] {
+    return ['MICROCMS_SERVICE_DOMAIN', 'MICROCMS_API_KEY'].filter((name) => !env[name]);
+}
+
 /** Fetches every published post, newest first. */
-export async function fetchPosts(env: Record<string, string | undefined> = process.env): Promise<Post[]> {
+export async function fetchPosts(env: Env = process.env): Promise<Post[]> {
     const domain = env.MICROCMS_SERVICE_DOMAIN;
     const apiKey = env.MICROCMS_API_KEY;
     if (!domain || !apiKey) {
-        const missing = [!domain && 'MICROCMS_SERVICE_DOMAIN', !apiKey && 'MICROCMS_API_KEY'].filter(Boolean);
         throw new BlogSourceError(
-            `Missing ${missing.join(' and ')}. The blog is built from microCMS: ` +
-            'set both variables in .env, or in the environment of the build.',
+            `Missing ${missingCredentials(env).join(' and ')}. The blog is built from microCMS: set both variables in .env.`,
         );
     }
     // The key is only ever sent to <domain>.microcms.io

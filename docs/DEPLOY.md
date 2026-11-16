@@ -10,20 +10,18 @@
 3. `bun run deploy`（`wrangler deploy`。手元で実行するのと同じコマンド）
 
 - 手動で実行したいときは、GitHub の **Actions → Deploy → Run workflow** から起動できます。
-- ブログの記事は、`bun run build` の中で microCMS から取得します。microCMS で記事を公開・更新しただけではサイトは変わらず、次のデプロイで反映されます。
 - 同時に走るデプロイは1本だけです。実行中に次の push が来た場合、実行中のものは最後まで走り、新しいものはその後に実行されます。
 - ビルドが失敗した場合はデプロイされません。
+- ブログ（`/blog`）は、`bun run build` の中で microCMS の記事から生成します。microCMS のキーは手元の `.env` にだけあり、このワークフローには渡していません。そのため、このワークフローのビルドはブログの生成をスキップし、警告を出します。公開されるサイトに `/blog` は含まれません。
 
 ## Secret の登録
 
-リポジトリに次の4つの Secret が必要です。Cloudflare の2つが未登録のままだと、デプロイのステップが認証エラーで失敗します。microCMS の2つが未登録のままだと、ビルドのステップがエラーで止まります。
+リポジトリに次の2つの Secret が必要です。未登録のままだとデプロイのステップが認証エラーで失敗します。
 
-| Secret 名 | 内容 | 使うステップ |
-| --- | --- | --- |
-| `CLOUDFLARE_API_TOKEN` | 下記の権限で作成した API トークン | デプロイ |
-| `CLOUDFLARE_ACCOUNT_ID` | Cloudflare のアカウント ID | デプロイ |
-| `MICROCMS_SERVICE_DOMAIN` | microCMS のサービスドメイン（`xxx.microcms.io` の `xxx`） | ビルド |
-| `MICROCMS_API_KEY` | microCMS の API キー | ビルド |
+| Secret 名 | 内容 |
+| --- | --- |
+| `CLOUDFLARE_API_TOKEN` | 下記の権限で作成した API トークン |
+| `CLOUDFLARE_ACCOUNT_ID` | Cloudflare のアカウント ID |
 
 ### 1. API トークンを作成する
 
@@ -47,29 +45,19 @@
 
 Cloudflare ダッシュボードの **Workers & Pages** の右側に表示される **Account ID** をコピーします。
 
-### 3. microCMS の API キーを用意する
-
-ブログのページは、ビルド時に microCMS の `blogs` API から取得した記事で作ります。
-
-- API キーは、`blogs` API の GET を許可したものを使います。ビルドは記事を読むだけなので、ほかの権限は不要です。
-- サービスドメインは、microCMS の管理画面の URL（`https://xxx.microcms.io`）の `xxx` です。
-
-### 4. GitHub に登録する
+### 3. GitHub に登録する
 
 1. リポジトリの **Settings → Secrets and variables → Actions** を開く。
-2. **New repository secret** で、上の表の4つをそれぞれ登録する。
+2. **New repository secret** で `CLOUDFLARE_API_TOKEN` と `CLOUDFLARE_ACCOUNT_ID` をそれぞれ登録する。
 
 `gh` CLI を使う場合は、次のコマンドを実行すると値の入力を求められます（値がシェルの履歴に残りません）。
 
 ```bash
 gh secret set CLOUDFLARE_API_TOKEN
 gh secret set CLOUDFLARE_ACCOUNT_ID
-gh secret set MICROCMS_SERVICE_DOMAIN
-gh secret set MICROCMS_API_KEY
 ```
 
 ## 注意
 
-- Cloudflare のトークンの値をリポジトリ、ワークフロー、`.env` に書かないでください。ワークフローは Secret を参照するだけです。
-- microCMS の2つの値は、手元では Git の管理外の `.env` に書きます。リポジトリとワークフローには書かないでください。
+- トークンの値をリポジトリ、ワークフロー、`.env` に書かないでください。ワークフローは Secret を参照するだけです。
 - トークンを作り直したときは、GitHub の Secret を上書きし、古いトークンを Cloudflare 側で削除してください。

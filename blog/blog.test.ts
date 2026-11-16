@@ -1,5 +1,9 @@
-import { afterEach, describe, expect, mock, spyOn, test } from 'bun:test';
+import { afterEach, beforeEach, describe, expect, mock, spyOn, test } from 'bun:test';
+import { mkdtemp, readdir, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { renderArticle } from './article';
+import { buildBlog } from './build';
 import { renderFeed } from './feed';
 import { unesc } from './html';
 import { BlogSourceError, fetchPosts, type Post } from './microcms';
@@ -138,10 +142,10 @@ describe('pages', () => {
     });
 });
 
-describe('microCMS', () => {
-    const env = { MICROCMS_SERVICE_DOMAIN: 'hidden-domain', MICROCMS_API_KEY: 'hidden-key' };
-    const apiPost = { id: 'abc123', title: 'T', content: '<p>c</p>', publishedAt: '2024-08-22T15:00:00.000Z', category: { name: 'テクノロジー', slug: 'technology' }, tags: [{ name: 'Remix' }] };
+const env = { MICROCMS_SERVICE_DOMAIN: 'hidden-domain', MICROCMS_API_KEY: 'hidden-key' };
+const apiPost = { id: 'abc123', title: 'T', content: '<p>c</p>', publishedAt: '2024-08-22T15:00:00.000Z', category: { name: 'テクノロジー', slug: 'technology' }, tags: [{ name: 'Remix' }] };
 
+describe('microCMS', () => {
     afterEach(() => mock.restore());
 
     test('says which variables are missing', async () => {
@@ -193,5 +197,50 @@ describe('microCMS', () => {
         const [url, init] = fetched.mock.calls[0] as unknown as [string, RequestInit];
         expect(new URL(url).origin).toBe('https://hidden-domain.microcms.io');
         expect(init.headers).toEqual({ 'X-MICROCMS-API-KEY': 'hidden-key' });
+    });
+});
+
+describe('build', () => {
+    let dist: string;
+
+    beforeEach(async () => {
+        dist = await mkdtemp(join(tmpdir(), 'blog-build-'));
+    });
+
+    afterEach(async () => {
+        mock.restore();
+        await rm(dist, { recursive: true, force: true });
+    });
+
+    test('without the credentials, a local build stops and names them', async () => {
+        const fetched = spyOn(globalThis, 'fetch');
+        await expect(buildBlog({}, dist)).rejects.toThrow('Missing MICROCMS_SERVICE_DOMAIN and MICROCMS_API_KEY.');
+        await expect(buildBlog({ ...env, MICROCMS_API_KEY: '' }, dist)).rejects.toThrow('Missing MICROCMS_API_KEY.');
+        expect(fetched).not.toHaveBeenCalled();
+        expect(await readdir(dist)).toEqual([]);
+    });
+
+    test('without the credentials, a build on GitHub Actions leaves the blog out with a warning', async () => {
+        const fetched = spyOn(globalThis, 'fetch');
+        const warned = spyOn(console, 'warn').mockImplementation(() => {});
+        await buildBlog({ GITHUB_ACTIONS: 'true' }, dist);
+        await buildBlog({ ...env, MICROCMS_API_KEY: '', GITHUB_ACTIONS: 'true' }, dist);
+
+        expect(warned.mock.calls.map(([line]) => line)).toEqual([
+            '::warning title=Blog not generated::MICROCMS_SERVICE_DOMAIN and MICROCMS_API_KEY not set, so the site is built without /blog.',
+            '::warning title=Blog not generated::MICROCMS_API_KEY not set, so the site is built without /blog.',
+        ]);
+        expect(fetched).not.toHaveBeenCalled();
+        expect(await readdir(dist)).toEqual([]);
+    });
+
+    test('with the credentials, writes the list, the articles, the feed and the stylesheet', async () => {
+        spyOn(globalThis, 'fetch').mockResolvedValue(Response.json({ contents: [apiPost], totalCount: 1 }));
+        spyOn(console, 'log').mockImplementation(() => {});
+        await Bun.write(join(dist, 'blog/unpublished.html'), 'left by an earlier build');
+
+        // The keys decide, not the place: with them, GitHub Actions builds the blog too
+        await buildBlog({ ...env, GITHUB_ACTIONS: 'true' }, dist);
+        expect((await readdir(dist, { recursive: true })).sort()).toEqual(['blog', 'blog.css', 'blog.html', 'blog/abc123.html', 'blog/feed.xml']);
     });
 });

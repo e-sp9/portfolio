@@ -24,11 +24,7 @@ jobs:
 
       - run: bun install --frozen-lockfile
 
-      # The blog pages are generated from microCMS during the build
       - run: bun run build
-        env:
-          MICROCMS_SERVICE_DOMAIN: ${{ secrets.MICROCMS_SERVICE_DOMAIN }}
-          MICROCMS_API_KEY: ${{ secrets.MICROCMS_API_KEY }}
 
       - run: bun run deploy
         env:
