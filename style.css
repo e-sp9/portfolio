@@ -13,13 +13,14 @@
     --dim: #999999;
     --fp: 'Share Tech Mono', 'Courier New', monospace;
     --fm: 'Share Tech Mono', 'Courier New', monospace;
-    /* Layout unit: every size below is a multiple of --s. 1px up to 1440px wide;
-       the wide-screen block under RESPONSIVE grows it with the viewport. */
-    --s: 1px;
     --vs-top: 72px;
     --vs-left: 64px;
     --vs-right: 64px;
     --vs-bottom: 72px;
+    /* Text unit: font sizes and letter-spacing are multiples of it.
+       Stays 1px up to 1440px wide; see "Wide screens" under RESPONSIVE. */
+    --text-u: 1px;
+    --sidebar-w: 230px;
 }
 
 body.dark-mode {
@@ -127,17 +128,17 @@ body {
 
 .loader-title {
     font-family: var(--fp);
-    font-size: calc(20 * var(--s));
+    font-size: 20px;
     color: var(--accent);
-    letter-spacing: calc(4 * var(--s));
-    margin-bottom: calc(24 * var(--s));
+    letter-spacing: 4px;
+    margin-bottom: 24px;
 }
 
 .loader-bar {
-    width: calc(200 * var(--s));
-    height: calc(4 * var(--s));
+    width: 200px;
+    height: 4px;
     background: var(--border);
-    margin: 0 auto calc(14 * var(--s));
+    margin: 0 auto 14px;
 }
 
 .loader-fill {
@@ -149,9 +150,9 @@ body {
 
 .loader-text {
     font-family: var(--fp);
-    font-size: calc(12 * var(--s));
+    font-size: 12px;
     color: var(--txt);
-    letter-spacing: calc(3 * var(--s));
+    letter-spacing: 3px;
     animation: blink 1.2s step-end infinite;
 }
 
@@ -178,7 +179,7 @@ body {
     left: var(--vs-left);
     right: var(--vs-right);
     height: var(--vs-top);
-    padding-top: calc(4 * var(--s));
+    padding-top: 4px;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -190,42 +191,42 @@ body {
 .exp-left {
     display: flex;
     align-items: center;
-    gap: calc(8 * var(--s));
+    gap: 8px;
 }
 
 .exp-right {
     display: flex;
     align-items: center;
-    gap: calc(12 * var(--s));
+    gap: 12px;
     pointer-events: auto;
 }
 
 .exp-label {
-    font-size: calc(36 * var(--s));
+    font-size: calc(36 * var(--text-u));
     color: var(--val);
-    letter-spacing: calc(5 * var(--s));
+    letter-spacing: calc(5 * var(--text-u));
     text-decoration: none;
     pointer-events: auto;
     transition: color 200ms ease-out;
 }
 
 .exp-sep {
-    font-size: calc(20 * var(--s));
+    font-size: calc(20 * var(--text-u));
     color: var(--txt);
 }
 
 .exp-type {
-    font-size: calc(20 * var(--s));
+    font-size: calc(20 * var(--text-u));
     color: var(--txt-br);
-    letter-spacing: calc(3 * var(--s));
+    letter-spacing: calc(3 * var(--text-u));
 }
 
 #theme-toggle {
     font-family: var(--fm);
-    font-size: calc(14 * var(--s));
+    font-size: calc(14 * var(--text-u));
     color: var(--val);
-    letter-spacing: calc(3 * var(--s));
-    padding: calc(10 * var(--s)) calc(28 * var(--s));
+    letter-spacing: calc(3 * var(--text-u));
+    padding: 10px 28px;
     border: 1px solid var(--border);
     cursor: pointer;
     background: var(--surface);
@@ -250,10 +251,10 @@ body {
 
 .exp-btn {
     font-family: var(--fm);
-    font-size: calc(14 * var(--s));
+    font-size: calc(14 * var(--text-u));
     color: var(--val);
-    letter-spacing: calc(3 * var(--s));
-    padding: calc(10 * var(--s)) calc(28 * var(--s));
+    letter-spacing: calc(3 * var(--text-u));
+    padding: 10px 28px;
     border: 1px solid var(--border);
     cursor: pointer;
     background: var(--surface);
@@ -305,17 +306,17 @@ body {
 
 .ef-credit {
     font-family: 'Inter', -apple-system, sans-serif;
-    font-size: calc(16 * var(--s));
+    font-size: calc(16 * var(--text-u));
     font-weight: 300;
     color: var(--dim);
-    letter-spacing: calc(0.5 * var(--s));
+    letter-spacing: calc(0.5 * var(--text-u));
 }
 
 .ef-copy {
     font-family: var(--fp);
-    font-size: calc(13 * var(--s));
+    font-size: calc(13 * var(--text-u));
     color: var(--dim);
-    letter-spacing: calc(1.5 * var(--s));
+    letter-spacing: calc(1.5 * var(--text-u));
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════════
@@ -330,7 +331,7 @@ body {
     height: var(--vs-bottom);
     display: flex;
     align-items: center;
-    gap: calc(12 * var(--s));
+    gap: 12px;
     font-family: var(--fp);
     pointer-events: none;
     z-index: 10;
@@ -339,12 +340,12 @@ body {
 .model-btn {
     pointer-events: auto;
     font-family: var(--fm);
-    font-size: calc(11 * var(--s));
+    font-size: calc(11 * var(--text-u));
     color: var(--txt);
     background: var(--surface);
     border: 1px solid var(--border);
-    width: calc(30 * var(--s));
-    height: calc(30 * var(--s));
+    width: 30px;
+    height: 30px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -367,13 +368,13 @@ body {
     display: flex;
     align-items: baseline;
     justify-content: center;
-    gap: calc(8 * var(--s));
-    min-width: calc(210 * var(--s));
+    gap: 8px;
+    min-width: calc(210 * var(--text-u));
 }
 
 #model-label {
-    font-size: calc(15 * var(--s));
-    letter-spacing: calc(2 * var(--s));
+    font-size: calc(15 * var(--text-u));
+    letter-spacing: calc(2 * var(--text-u));
     color: var(--txt-br);
 }
 
@@ -383,9 +384,9 @@ body {
 }
 
 #model-count {
-    font-size: calc(12 * var(--s));
+    font-size: calc(12 * var(--text-u));
     color: var(--dim);
-    letter-spacing: calc(1 * var(--s));
+    letter-spacing: calc(1 * var(--text-u));
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════════
@@ -403,12 +404,12 @@ body {
 #sidebar-l,
 #sidebar-r {
     position: fixed;
-    top: calc(var(--vs-top) + 6 * var(--s));
-    bottom: calc(var(--vs-bottom) + 6 * var(--s));
-    width: calc(230 * var(--s));
+    top: calc(var(--vs-top) + 6px);
+    bottom: calc(var(--vs-bottom) + 6px);
+    width: var(--sidebar-w);
     display: flex;
     flex-direction: column;
-    gap: calc(3 * var(--s));
+    gap: 3px;
     overflow-y: auto;
     overflow-x: hidden;
     scrollbar-width: none;
@@ -422,11 +423,11 @@ body {
 }
 
 #sidebar-l {
-    left: calc(var(--vs-left) + 6 * var(--s));
+    left: calc(var(--vs-left) + 6px);
 }
 
 #sidebar-r {
-    right: calc(var(--vs-right) + 6 * var(--s));
+    right: calc(var(--vs-right) + 6px);
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════════
@@ -437,7 +438,7 @@ body {
     background: rgba(255, 255, 255, 0.6);
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
-    padding: calc(8 * var(--s)) calc(10 * var(--s));
+    padding: 8px 10px;
     overflow: hidden;
     position: relative;
     display: flex;
@@ -462,23 +463,23 @@ body.dark-mode .panel:hover {
 
 .ph {
     font-family: var(--fp);
-    font-size: calc(24 * var(--s));
+    font-size: calc(24 * var(--text-u));
     color: var(--accent);
-    letter-spacing: calc(0.5 * var(--s));
-    margin-bottom: calc(6 * var(--s));
-    padding-bottom: calc(4 * var(--s));
+    letter-spacing: calc(0.5 * var(--text-u));
+    margin-bottom: 6px;
+    padding-bottom: 4px;
     border-bottom: 1px solid var(--border);
     white-space: nowrap;
     overflow: hidden;
     flex-shrink: 0;
     display: flex;
     align-items: center;
-    gap: calc(4 * var(--s));
+    gap: 4px;
 }
 
 .dot {
-    width: calc(4 * var(--s));
-    height: calc(4 * var(--s));
+    width: 4px;
+    height: 4px;
     border-radius: 50%;
     flex-shrink: 0;
     animation: pulse 2.5s ease-in-out infinite;
@@ -501,7 +502,7 @@ body.dark-mode .panel:hover {
 }
 
 .pc {
-    font-size: calc(20 * var(--s));
+    font-size: calc(20 * var(--text-u));
     line-height: 1.4;
     overflow: hidden;
     flex: 1;
@@ -515,20 +516,20 @@ body.dark-mode .panel:hover {
 .skill-row {
     display: flex;
     align-items: center;
-    gap: calc(6 * var(--s));
-    margin-bottom: calc(3 * var(--s));
+    gap: 6px;
+    margin-bottom: 3px;
 }
 
 .skill-name {
-    font-size: calc(16 * var(--s));
+    font-size: calc(16 * var(--text-u));
     color: var(--txt);
-    min-width: calc(130 * var(--s));
+    min-width: 8.125em;
     flex-shrink: 0;
 }
 
 .skill-bar {
     flex: 1;
-    height: calc(4 * var(--s));
+    height: 4px;
     background: var(--border-hi);
 }
 
@@ -543,27 +544,27 @@ body.dark-mode .panel:hover {
    ═══════════════════════════════════════════════════════════════════════════════ */
 
 .career-entry {
-    margin-bottom: calc(6 * var(--s));
-    padding-left: calc(8 * var(--s));
+    margin-bottom: 6px;
+    padding-left: 8px;
     border-left: 2px solid var(--accent);
 }
 
 .career-year {
     font-family: var(--fp);
-    font-size: calc(16 * var(--s));
+    font-size: calc(16 * var(--text-u));
     color: var(--accent);
-    letter-spacing: calc(1 * var(--s));
-    margin-bottom: calc(1 * var(--s));
+    letter-spacing: calc(1 * var(--text-u));
+    margin-bottom: 1px;
 }
 
 .career-role {
-    font-size: calc(16 * var(--s));
+    font-size: calc(16 * var(--text-u));
     color: var(--val);
     font-weight: 400;
 }
 
 .career-company {
-    font-size: calc(16 * var(--s));
+    font-size: calc(16 * var(--text-u));
     color: var(--txt);
 }
 
@@ -572,8 +573,8 @@ body.dark-mode .panel:hover {
    ═══════════════════════════════════════════════════════════════════════════════ */
 
 .project-entry {
-    margin-bottom: calc(8 * var(--s));
-    padding-bottom: calc(6 * var(--s));
+    margin-bottom: 8px;
+    padding-bottom: 6px;
     border-bottom: 1px solid var(--border);
 }
 
@@ -585,22 +586,22 @@ body.dark-mode .panel:hover {
 
 .project-name {
     font-family: var(--fp);
-    font-size: calc(15 * var(--s));
+    font-size: calc(15 * var(--text-u));
     color: var(--accent);
-    letter-spacing: calc(1 * var(--s));
+    letter-spacing: calc(1 * var(--text-u));
     text-decoration: none;
     pointer-events: auto;
     transition: color 200ms ease-out;
     display: inline;
-    margin-bottom: calc(2 * var(--s));
+    margin-bottom: 2px;
 }
 
 .project-name::after {
     content: '\2192';
     display: inline-block;
-    margin-left: calc(4 * var(--s));
+    margin-left: 4px;
     transition: transform 200ms ease-out;
-    font-size: calc(14 * var(--s));
+    font-size: calc(14 * var(--text-u));
 }
 
 .project-name:hover {
@@ -622,27 +623,27 @@ body.dark-mode .panel:hover {
 }
 
 .tag-wip {
-    font-size: calc(10 * var(--s));
+    font-size: calc(10 * var(--text-u));
     color: var(--accent-secondary);
     border: 1px solid currentColor;
-    padding: calc(1 * var(--s)) calc(4 * var(--s));
-    margin-left: calc(6 * var(--s));
-    letter-spacing: calc(1 * var(--s));
-    vertical-align: calc(2 * var(--s));
+    padding: 1px 4px;
+    margin-left: 6px;
+    letter-spacing: calc(1 * var(--text-u));
+    vertical-align: 2px;
 }
 
 .project-desc {
-    font-size: calc(14 * var(--s));
+    font-size: calc(14 * var(--text-u));
     color: var(--txt);
     line-height: 1.4;
-    margin-bottom: calc(2 * var(--s));
+    margin-bottom: 2px;
 }
 
 .project-tech {
     font-family: var(--fp);
-    font-size: calc(12 * var(--s));
+    font-size: calc(12 * var(--text-u));
     color: var(--dim);
-    letter-spacing: calc(0.5 * var(--s));
+    letter-spacing: calc(0.5 * var(--text-u));
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════════
@@ -652,8 +653,8 @@ body.dark-mode .panel:hover {
 .link-row {
     display: flex;
     align-items: center;
-    gap: calc(6 * var(--s));
-    padding: calc(4 * var(--s)) 0;
+    gap: 6px;
+    padding: 4px 0;
     text-decoration: none;
     pointer-events: auto;
     transition: color 200ms ease-out;
@@ -665,19 +666,19 @@ body.dark-mode .panel:hover {
 }
 
 .link-icon {
-    font-size: calc(12 * var(--s));
+    font-size: calc(12 * var(--text-u));
     color: var(--accent-secondary);
     flex-shrink: 0;
 }
 
 .link-label {
-    font-size: calc(16 * var(--s));
-    letter-spacing: calc(1 * var(--s));
+    font-size: calc(16 * var(--text-u));
+    letter-spacing: calc(1 * var(--text-u));
 }
 
 .link-arrow {
     margin-left: auto;
-    font-size: calc(14 * var(--s));
+    font-size: calc(14 * var(--text-u));
     opacity: 0;
     transform: translateX(-4px);
     transition: opacity 200ms ease-out, transform 200ms ease-out;
@@ -714,18 +715,77 @@ body.dark-mode .panel:hover {
    RESPONSIVE
    ═══════════════════════════════════════════════════════════════════════════════ */
 
-/* --- Wide screens (index only; /things keeps --s: 1px) ---
-   --s scales type, panels and chrome together, limited by height so the
-   sidebars still fit. The frame is capped at --content-w and centred, which
-   pulls the sidebars in from the edges while leaving the model's sweep clear. */
+/* --- Wide screens (index only; /things keeps the base tokens) ---
+   Text grows with the width; spacing and the header/footer bands stay as they are.
+   The frame (--vs-left/right) is capped and centred so the sidebars sit just
+   outside the strip kept clear for the model instead of at the screen edges. */
 @media (min-width: 1441px) {
     body:not(.things-page) {
-        --s: max(1px, min(100vw / 1440, 100vh / 900));
-        --content-w: min(100vw - 128 * var(--s), max(1312px, 146vh));
-        --vs-top: calc(72 * var(--s));
-        --vs-bottom: calc(72 * var(--s));
-        --vs-left: calc((100vw - var(--content-w)) / 2);
-        --vs-right: calc((100vw - var(--content-w)) / 2);
+        /* Text: follows the width, capped; the height term only bites when
+           the sidebars would no longer fit (fixed px + text-sized lines). */
+        --text-u-max: 1.6px;
+        --fit-fixed: 286px;
+        --fit-lines: 614;
+        --text-u: max(1px, min(100vw / 1440, var(--text-u-max),
+                    (100vh - var(--fit-fixed)) / var(--fit-lines)));
+        --sidebar-w: calc(230 * var(--text-u));
+
+        /* Frame: at least its width on a 1440px screen, at most the screen
+           minus the gutters, otherwise model strip + both sidebars. */
+        --frame-gutter: 64px;
+        --frame-w-base: 1312px;
+        --model-clear: 84vh;
+        --sidebar-inset: 6px;
+        --frame-w: min(100vw - 2 * var(--frame-gutter),
+                max(var(--frame-w-base),
+                    var(--model-clear) + 2 * (var(--sidebar-w) + var(--sidebar-inset))));
+        --vs-left: calc((100vw - var(--frame-w)) / 2);
+        --vs-right: calc((100vw - var(--frame-w)) / 2);
+    }
+}
+
+/* --- Wide and short: the text would outgrow the sidebar height, so spend the
+   spare width instead. Wider sidebars, SKILLS in two columns (name over bar,
+   as on mobile), CAREER with the year beside the role. --- */
+@media (min-width: 1441px) and (min-aspect-ratio: 15/8) {
+    body:not(.things-page) {
+        --sidebar-w: calc(340 * var(--text-u));
+        --fit-fixed: 362px;
+        --fit-lines: 380;
+    }
+
+    #sidebar-l .panel:first-child .pc {
+        display: grid;
+        grid-template-rows: repeat(5, auto);
+        grid-auto-flow: column;
+        grid-auto-columns: 1fr;
+        column-gap: 16px;
+    }
+
+    .skill-row {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 2px;
+        margin-bottom: 6px;
+    }
+
+    .skill-name {
+        min-width: 0;
+    }
+
+    .skill-bar {
+        flex: none;
+        width: 100%;
+    }
+
+    .career-entry {
+        display: grid;
+        grid-template-columns: 6em 1fr;
+        column-gap: 12px;
+    }
+
+    .career-year {
+        grid-row: 1 / span 2;
     }
 }
 
