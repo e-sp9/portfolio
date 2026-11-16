@@ -85,6 +85,35 @@ MICROCMS_API_KEY=...          # a key that can GET the `blogs` API
 They are used at build time only. The GitHub Actions deploy has no keys, so it builds the site
 without `/blog` and prints a warning: for now the blog exists in local builds only.
 
+### Eyecatches
+
+A post that has no eyecatch image in microCMS is given one by the build. The picture
+([blog/eyecatch.ts](blog/eyecatch.ts)) is 1200×630 and has no text: a marbled current in the
+site's blues with veins of accent colour, drawn on a 10px pixel grid and dithered. The content ID
+seeds it, so a post always gets the same picture. The build uploads the picture to the media
+library and sets it as the post's `eyecatch`. A post that already has an eyecatch is never touched.
+
+This is the only thing the build writes to microCMS, and it takes a key of its own, also in `.env`:
+
+```bash
+MICROCMS_WRITE_API_KEY=...    # a key that can PATCH the `blogs` API and upload media (Management API)
+```
+
+Without that key the build generates nothing and goes on as before. With it, a write that
+microCMS refuses stops the build with an error that names the request; the next build carries on
+with the posts that are still without an eyecatch. To look at the pictures without writing
+anything to microCMS:
+
+```bash
+bun run eyecatch:dry-run              # every post without an eyecatch -> out/eyecatch/<content ID>.png
+bun run eyecatch:dry-run <id> <id>    # these posts; needs no credentials
+```
+
+Two things to know before the key goes in. microCMS counts setting the eyecatch as a revision of
+the post, so from the next build on the article page shows that day as its update date. And the
+pages of this site do not show eyecatches yet (no image on the cards, no `og:image`): the picture
+is only stored with the post.
+
 ## Design
 
 Layout, layer stack, and visual language are documented in [docs/DESIGN.md](docs/DESIGN.md).
