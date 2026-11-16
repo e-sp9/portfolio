@@ -20,6 +20,8 @@
     /* Text unit: font sizes and letter-spacing are multiples of it.
        Stays 1px up to 1440px wide; see "Wide screens" under RESPONSIVE. */
     --text-u: 1px;
+    /* Space unit: sidebar and panel spacing are multiples of it. Same rule. */
+    --space-u: 1px;
     --sidebar-w: 230px;
 }
 
@@ -404,12 +406,12 @@ body {
 #sidebar-l,
 #sidebar-r {
     position: fixed;
-    top: calc(var(--vs-top) + 6px);
-    bottom: calc(var(--vs-bottom) + 6px);
+    top: calc(var(--vs-top) + 6 * var(--space-u));
+    bottom: calc(var(--vs-bottom) + 6 * var(--space-u));
     width: var(--sidebar-w);
     display: flex;
     flex-direction: column;
-    gap: 3px;
+    gap: calc(4 * var(--space-u) - 1px);
     overflow-y: auto;
     overflow-x: hidden;
     scrollbar-width: none;
@@ -423,11 +425,11 @@ body {
 }
 
 #sidebar-l {
-    left: calc(var(--vs-left) + 6px);
+    left: calc(var(--vs-left) + 6 * var(--space-u));
 }
 
 #sidebar-r {
-    right: calc(var(--vs-right) + 6px);
+    right: calc(var(--vs-right) + 6 * var(--space-u));
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════════
@@ -438,7 +440,7 @@ body {
     background: rgba(255, 255, 255, 0.6);
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
-    padding: 8px 10px;
+    padding: calc(8 * var(--space-u)) calc(10 * var(--space-u));
     overflow: hidden;
     position: relative;
     display: flex;
@@ -466,8 +468,8 @@ body.dark-mode .panel:hover {
     font-size: calc(24 * var(--text-u));
     color: var(--accent);
     letter-spacing: calc(0.5 * var(--text-u));
-    margin-bottom: 6px;
-    padding-bottom: 4px;
+    margin-bottom: calc(6 * var(--space-u));
+    padding-bottom: calc(4 * var(--space-u));
     border-bottom: 1px solid var(--border);
     white-space: nowrap;
     overflow: hidden;
@@ -517,7 +519,7 @@ body.dark-mode .panel:hover {
     display: flex;
     align-items: center;
     gap: 6px;
-    margin-bottom: 3px;
+    margin-bottom: calc(3 * var(--space-u));
 }
 
 .skill-name {
@@ -544,8 +546,8 @@ body.dark-mode .panel:hover {
    ═══════════════════════════════════════════════════════════════════════════════ */
 
 .career-entry {
-    margin-bottom: 6px;
-    padding-left: 8px;
+    margin-bottom: calc(6 * var(--space-u));
+    padding-left: calc(8 * var(--space-u));
     border-left: 2px solid var(--accent);
 }
 
@@ -554,7 +556,7 @@ body.dark-mode .panel:hover {
     font-size: calc(16 * var(--text-u));
     color: var(--accent);
     letter-spacing: calc(1 * var(--text-u));
-    margin-bottom: 1px;
+    margin-bottom: calc(1 * var(--space-u));
 }
 
 .career-role {
@@ -573,8 +575,8 @@ body.dark-mode .panel:hover {
    ═══════════════════════════════════════════════════════════════════════════════ */
 
 .project-entry {
-    margin-bottom: 8px;
-    padding-bottom: 6px;
+    margin-bottom: calc(8 * var(--space-u));
+    padding-bottom: calc(6 * var(--space-u));
     border-bottom: 1px solid var(--border);
 }
 
@@ -636,7 +638,7 @@ body.dark-mode .panel:hover {
     font-size: calc(14 * var(--text-u));
     color: var(--txt);
     line-height: 1.4;
-    margin-bottom: 2px;
+    margin-bottom: calc(2 * var(--space-u));
 }
 
 .project-tech {
@@ -654,7 +656,7 @@ body.dark-mode .panel:hover {
     display: flex;
     align-items: center;
     gap: 6px;
-    padding: 4px 0;
+    padding: calc(4 * var(--space-u)) 0;
     text-decoration: none;
     pointer-events: auto;
     transition: color 200ms ease-out;
@@ -716,31 +718,46 @@ body.dark-mode .panel:hover {
    ═══════════════════════════════════════════════════════════════════════════════ */
 
 /* --- Wide screens (index only; /things keeps the base tokens) ---
-   Text grows with the width; spacing and the header/footer bands stay as they are.
+   Text grows gently with the width; the height left over goes to spacing.
+   The header/footer bands stay as they are.
    The frame (--vs-left/right) is capped and centred so the sidebars sit just
    outside the strip kept clear for the model instead of at the screen edges. */
 @media (min-width: 1441px) {
     body:not(.things-page) {
         /* Text: follows the width, capped; the height term only bites when
            the sidebars would no longer fit (fixed px + text-sized lines). */
-        --text-u-max: 1.6px;
+        --text-u-max: 1.28px;
         --fit-fixed: 286px;
         --fit-lines: 614;
-        --text-u: max(1px, min(100vw / 1440, var(--text-u-max),
+        --text-u: max(1px, min(1px + (100vw - 1440px) * 0.00025, var(--text-u-max),
                     (100vh - var(--fit-fixed)) / var(--fit-lines)));
-        --sidebar-w: calc(230 * var(--text-u));
+
+        /* Space: whatever height the text leaves free, spread over the
+           sidebar's spacing (--fit-space px per unit), capped. */
+        --space-u-max: 2.5px;
+        --fit-space: 190;
+        --space-u: clamp(1px, 1px + (100vh - var(--fit-fixed)
+                    - var(--fit-lines) * var(--text-u)) / var(--fit-space), var(--space-u-max));
+        /* Wider by the extra panel padding, so the text column keeps its measure */
+        --sidebar-w: calc(230 * var(--text-u) + 20 * (var(--space-u) - 1px));
 
         /* Frame: at least its width on a 1440px screen, at most the screen
            minus the gutters, otherwise model strip + both sidebars. */
         --frame-gutter: 64px;
         --frame-w-base: 1312px;
         --model-clear: 84vh;
-        --sidebar-inset: 6px;
+        --sidebar-inset: calc(6 * var(--space-u));
         --frame-w: min(100vw - 2 * var(--frame-gutter),
                 max(var(--frame-w-base),
                     var(--model-clear) + 2 * (var(--sidebar-w) + var(--sidebar-inset))));
         --vs-left: calc((100vw - var(--frame-w)) / 2);
         --vs-right: calc((100vw - var(--frame-w)) / 2);
+    }
+
+    /* Line spacing opens up with the space unit (1.4 at the base) */
+    body:not(.things-page) :is(.skill-name, .career-year, .career-role, .career-company,
+        .project-desc, .project-tech, .link-label) {
+        line-height: calc(1.4em + 2 * (var(--space-u) - 1px));
     }
 }
 
@@ -749,9 +766,10 @@ body.dark-mode .panel:hover {
    as on mobile), CAREER with the year beside the role. --- */
 @media (min-width: 1441px) and (min-aspect-ratio: 15/8) {
     body:not(.things-page) {
-        --sidebar-w: calc(340 * var(--text-u));
+        --sidebar-w: calc(340 * var(--text-u) + 20 * (var(--space-u) - 1px));
         --fit-fixed: 362px;
         --fit-lines: 380;
+        --fit-space: 175;
     }
 
     #sidebar-l .panel:first-child .pc {
@@ -765,8 +783,8 @@ body.dark-mode .panel:hover {
     .skill-row {
         flex-direction: column;
         align-items: stretch;
-        gap: 2px;
-        margin-bottom: 6px;
+        gap: calc(2 * var(--space-u));
+        margin-bottom: calc(6 * var(--space-u));
     }
 
     .skill-name {
