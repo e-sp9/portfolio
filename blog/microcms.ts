@@ -53,7 +53,7 @@ export async function fetchPosts(env: Record<string, string | undefined> = proce
         const missing = [!domain && 'MICROCMS_SERVICE_DOMAIN', !apiKey && 'MICROCMS_API_KEY'].filter(Boolean);
         throw new BlogSourceError(
             `Missing ${missing.join(' and ')}. The blog is built from microCMS: ` +
-            'set both variables in .env (see .env.example), or in the environment of the build.',
+            'set both variables in .env, or in the environment of the build.',
         );
     }
     // The key is only ever sent to <domain>.microcms.io

@@ -266,8 +266,11 @@ body.blog-page .exp-type:hover {
     list-style: none;
     display: flex;
     flex-wrap: wrap;
+    /* Latin and Japanese tags come from different fonts: share a baseline and a line height */
+    align-items: baseline;
     gap: 2px 10px;
     font-size: 11px;
+    line-height: 1.6;
     letter-spacing: 1px;
     color: var(--txt);
 }

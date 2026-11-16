@@ -6,11 +6,11 @@
 ## 動作
 
 1. `bun install --frozen-lockfile`
-2. `bun run build`（`dist/` を生成。ブログの記事はここで microCMS から取得します）
+2. `bun run build`（`dist/` を生成）
 3. `bun run deploy`（`wrangler deploy`。手元で実行するのと同じコマンド）
 
 - 手動で実行したいときは、GitHub の **Actions → Deploy → Run workflow** から起動できます。
-- microCMS で記事を公開・更新しただけでは、サイトは変わりません。次のデプロイで反映されます。
+- ブログの記事は、`bun run build` の中で microCMS から取得します。microCMS で記事を公開・更新しただけではサイトは変わらず、次のデプロイで反映されます。
 - 同時に走るデプロイは1本だけです。実行中に次の push が来た場合、実行中のものは最後まで走り、新しいものはその後に実行されます。
 - ビルドが失敗した場合はデプロイされません。
 
@@ -71,5 +71,5 @@ gh secret set MICROCMS_API_KEY
 ## 注意
 
 - Cloudflare のトークンの値をリポジトリ、ワークフロー、`.env` に書かないでください。ワークフローは Secret を参照するだけです。
-- microCMS の2つの値は、手元では `.env` に書きます。`.env` は Git の管理外で、書き方は `.env.example` にあります。リポジトリとワークフローには書かないでください。
+- microCMS の2つの値は、手元では Git の管理外の `.env` に書きます。リポジトリとワークフローには書かないでください。
 - トークンを作り直したときは、GitHub の Secret を上書きし、古いトークンを Cloudflare 側で削除してください。

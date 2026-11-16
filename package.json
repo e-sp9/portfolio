@@ -5,7 +5,7 @@
   "private": true,
   "scripts": {
     "dev": "bun --hot ./index.ts",
-    "build": "bun build ./index.html ./things.html --outdir ./dist && cp -r ./public/* ./dist/ && bun ./blog/build.ts",
+    "build": "bun ./blog/build.ts && bun build ./index.html ./things.html --outdir ./dist && cp -r ./public/* ./dist/",
     "deploy": "bunx wrangler deploy"
   },
   "devDependencies": {

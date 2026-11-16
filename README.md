@@ -19,19 +19,20 @@ rendered as translucent glass with crisp feature edges, framed by status panels.
 
 ```bash
 bun install
-cp .env.example .env   # microCMS credentials, needed for /blog
-bun run dev            # http://localhost:3000 with HMR
-bun test               # tests of the blog generator
+bun run dev     # http://localhost:3000 with HMR
+bun test        # tests of the blog generator
 ```
+
+`/blog` needs the microCMS credentials in `.env` (see [Blog](#blog)); the other pages work without them.
 
 ## Build & deploy
 
 ```bash
-bun run build   # bundle index.html + things.html into dist/, copy public/, generate /blog
+bun run build   # generate /blog, bundle index.html + things.html into dist/, copy public/
 bun run deploy  # wrangler deploy
 ```
 
-The build stops with an error when the microCMS credentials are missing.
+The build starts with the blog and stops there with an error when the microCMS credentials are missing.
 
 Pushing to `main` deploys automatically via GitHub Actions
 ([.github/workflows/deploy.yml](.github/workflows/deploy.yml)). Required secrets and

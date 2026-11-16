@@ -193,4 +193,4 @@ microCMS で書いた記事の一覧(`/blog`)、記事ページ(`/blog/<記事ID
 | Styling | Vanilla CSS (CSS Custom Properties) |
 | Blog | microCMS (記事。ビルド時に取得) / Shiki (コードの色付け) |
 | Deploy | Cloudflare Workers (static assets via wrangler) |
-| Build | `bun build ./index.html ./things.html --outdir ./dist && cp -r ./public/* ./dist/ && bun ./blog/build.ts` |
+| Build | `bun ./blog/build.ts && bun build ./index.html ./things.html --outdir ./dist && cp -r ./public/* ./dist/` |

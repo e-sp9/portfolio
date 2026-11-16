@@ -1,4 +1,5 @@
-// Writes the blog into dist/ as static files. Last step of `bun run build`.
+// Writes the blog into dist/ as static files. First step of `bun run build`,
+// so a build without the microCMS credentials stops before anything else runs.
 
 import { rm } from 'node:fs/promises';
 import { join } from 'node:path';
