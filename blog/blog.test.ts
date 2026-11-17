@@ -19,6 +19,7 @@ function post(fields: Partial<Post> = {}): Post {
         revisedAt: '2024-08-22T18:40:36.470Z',
         category: 'technology',
         tags: ['Remix'],
+        eyecatch: null,
         ...fields,
     };
 }
@@ -62,17 +63,24 @@ describe('article body', () => {
         expect(text(html)).toBe('<b> stays text\non two lines');
     });
 
-    test('asks microCMS for WebP images at the widths of the column', async () => {
-        const html = await renderArticle('<img src="https://images.microcms-assets.io/assets/a/b/shot.png" alt="" width="2000" height="1000">', titles);
-        expect(html).toContain('src="https://images.microcms-assets.io/assets/a/b/shot.png?fm=webp&amp;w=1440"');
-        expect(html).toContain('shot.png?fm=webp&amp;w=720 720w, https://images.microcms-assets.io/assets/a/b/shot.png?fm=webp&amp;w=1440 1440w"');
-        expect(html).toContain('loading="lazy"');
+    test('asks microCMS for AVIF and WebP images at the widths of the column', async () => {
+        const html = await renderArticle('<figure><img src="https://images.microcms-assets.io/assets/a/b/shot.png" alt="" width="2000" height="1000"></figure>', titles);
+        const at = (format: string, w: number) => `https://images.microcms-assets.io/assets/a/b/shot.png?fm=${format}&amp;w=${w}`;
+        const sizes = 'sizes="(min-width: 860px) 720px, (min-width: 769px) calc(100vw - 140px), calc(100vw - 72px)"';
+        expect(html).toBe(
+            '<figure><picture>' +
+            `<source type="image/avif" srcset="${at('avif', 720)} 720w, ${at('avif', 1080)} 1080w, ${at('avif', 1440)} 1440w" ${sizes}>` +
+            `<img src="${at('webp', 1440)}" alt="" width="2000" height="1000" loading="lazy" decoding="async" ` +
+            `srcset="${at('webp', 720)} 720w, ${at('webp', 1080)} 1080w, ${at('webp', 1440)} 1440w" ${sizes}>` +
+            '</picture></figure>',
+        );
     });
 
     test('never upscales an image', async () => {
         const html = await renderArticle('<img src="https://images.microcms-assets.io/assets/a/b/small.webp" width="330" height="180">', titles);
-        expect(html).toContain('small.webp?fm=webp&amp;w=330"');
-        expect(html).not.toContain('srcset');
+        expect(html).toContain('<source type="image/avif" srcset="https://images.microcms-assets.io/assets/a/b/small.webp?fm=avif&amp;w=330">');
+        expect(html).toContain('src="https://images.microcms-assets.io/assets/a/b/small.webp?fm=webp&amp;w=330"');
+        expect(html).not.toContain(' sizes=');
     });
 
     test('leaves GIFs and images from elsewhere as they are', async () => {
@@ -82,6 +90,29 @@ describe('article body', () => {
         );
         expect(html).toContain('src="https://images.microcms-assets.io/assets/a/b/anim.gif"');
         expect(html).toContain('src="https://example.com/a.png"');
+        expect(html).not.toContain('<picture>');
+    });
+
+    test('loads images lazily, all but the first when asked, which goes first', async () => {
+        const images = '<img src="https://example.com/a.png"><img src="https://example.com/b.png">';
+        const lazy = await renderArticle(images, titles);
+        expect(lazy.match(/loading="lazy"/g)).toHaveLength(2);
+        expect(lazy).not.toContain('fetchpriority');
+        const eager = await renderArticle(images, titles, { eagerFirstImage: true });
+        expect(eager).toBe(
+            '<img src="https://example.com/a.png" fetchpriority="high" decoding="async">' +
+            '<img src="https://example.com/b.png" loading="lazy" decoding="async">',
+        );
+    });
+
+    test('the first image goes first even when the editor marked it lazy', async () => {
+        const images = '<img src="https://example.com/a.png" loading="lazy" alt="A"><img src="https://example.com/b.png" loading="lazy" alt="B">';
+        expect(await renderArticle(images, titles, { eagerFirstImage: true })).toBe(
+            '<img src="https://example.com/a.png" alt="A" fetchpriority="high" decoding="async">' +
+            '<img src="https://example.com/b.png" loading="lazy" alt="B" decoding="async">',
+        );
+        // Not asked: the editor's lazy stays
+        expect((await renderArticle(images, titles)).match(/loading="lazy"/g)).toHaveLength(2);
     });
 
     test('brings links to posts on the old blog along', async () => {
@@ -131,6 +162,94 @@ describe('pages', () => {
         expect(html).toContain('POST 01 / 02');
         expect(html).toContain('href="/blog/newer" rel="next"');
         expect(html).not.toContain('rel="prev"');
+    });
+
+    const IMAGES = 'https://images.microcms-assets.io/assets/a/b';
+    const generated = { url: `${IMAGES}/eyecatch-newer.png`, width: 1200, height: 630 };
+
+    test('a card shows the eyecatch small, as AVIF or WebP, and keeps the frame when there is none', () => {
+        const html = renderIndex([
+            post({ id: 'newer', title: 'Newer <b>&</b>', eyecatch: generated }),
+            post({ eyecatch: { url: `${IMAGES}/small.webp`, width: 330, height: 180 } }),
+            post({ id: 'bare' }),
+        ]);
+        const at = (format: string, w: number) => `${IMAGES}/eyecatch-newer.png?fm=${format}&amp;w=${w}`;
+        const srcset = (format: string) => [400, 600, 800].map((w) => `${at(format, w)} ${w}w`).join(', ');
+        const sizes = 'sizes="(min-width: 1100px) calc((100vw - 204px) / 3), (min-width: 640px) calc(50vw - 28px), calc(100vw - 40px)"';
+        expect(html).toContain(
+            `<div class="post-eyecatch"><picture><source type="image/avif" srcset="${srcset('avif')}" ${sizes}>` +
+            `<img src="${at('webp', 800)}" srcset="${srcset('webp')}" ${sizes} width="1200" height="630" ` +
+            'alt="Newer &lt;b&gt;&amp;&lt;/b&gt;" fetchpriority="high" decoding="async"></picture></div>',
+        );
+        // Never wider than the picture itself
+        expect(html).toContain(
+            `<picture><source type="image/avif" srcset="${IMAGES}/small.webp?fm=avif&amp;w=330">` +
+            `<img src="${IMAGES}/small.webp?fm=webp&amp;w=330" width="330" height="180" alt="Another post" decoding="async"></picture>`,
+        );
+        expect(html).toContain('<div class="post-eyecatch post-eyecatch-none" aria-hidden="true">NO SIGNAL</div>');
+        expect(html.match(/class="post-eyecatch/g)).toHaveLength(3);
+    });
+
+    test('the cards of the first screen load at once, the first one first, and the rest lazily', () => {
+        const html = renderIndex(Array.from({ length: 8 }, (_, i) => post({ id: `p${i}`, eyecatch: generated })));
+        const loading = [...html.matchAll(/<img [^>]*>/g)].map(([img]) => /fetchpriority="high"|loading="lazy"/.exec(img)?.[0] ?? 'eager');
+        expect(loading).toEqual(['fetchpriority="high"', 'eager', 'eager', 'eager', 'eager', 'eager', 'loading="lazy"', 'loading="lazy"']);
+    });
+
+    test('an article shows its eyecatch above the title, and nothing when it has none', async () => {
+        const html = await renderPost([post({ eyecatch: generated })], 0);
+        const at = (format: string, w: number) => `${IMAGES}/eyecatch-newer.png?fm=${format}&amp;w=${w}`;
+        const sizes = 'sizes="(min-width: 860px) 800px, (min-width: 769px) calc(100vw - 60px), calc(100vw - 40px)"';
+        expect(html).toContain(
+            `<div class="article-eyecatch"><picture><source type="image/avif" srcset="${at('avif', 800)} 800w, ${at('avif', 1200)} 1200w" ${sizes}>` +
+            `<img src="${at('webp', 1200)}" srcset="${at('webp', 800)} 800w, ${at('webp', 1200)} 1200w" ${sizes} ` +
+            'width="1200" height="630" alt="Another post" fetchpriority="high" decoding="async"></picture></div>',
+        );
+        expect(html.indexOf('class="article-eyecatch"')).toBeLessThan(html.indexOf('class="article-title"'));
+        expect(html).not.toContain('loading="lazy"');
+
+        const bare = await renderPost([post()], 0);
+        expect(bare).not.toContain('eyecatch');
+        expect(bare).not.toContain('<img');
+    });
+
+    test('without an eyecatch, the first image of the article loads at once and first', async () => {
+        const content = '<p>Hello</p><figure><img src="https://example.com/a.png"></figure><figure><img src="https://example.com/b.png"></figure>';
+        const bare = await renderPost([post({ content })], 0);
+        expect(bare).toContain('<img src="https://example.com/a.png" fetchpriority="high" decoding="async">');
+        expect(bare).toContain('<img src="https://example.com/b.png" loading="lazy" decoding="async">');
+
+        // With one, the eyecatch is the only image that goes first
+        const withEyecatch = await renderPost([post({ content, eyecatch: generated })], 0);
+        expect(withEyecatch.match(/loading="lazy"/g)).toHaveLength(2);
+        expect(withEyecatch.match(/fetchpriority="high"/g)).toHaveLength(1);
+        expect(withEyecatch.indexOf('fetchpriority="high"')).toBeLessThan(withEyecatch.indexOf('class="article-body"'));
+    });
+
+    test('a shared article shows its eyecatch as JPEG, large when it is big enough', async () => {
+        const html = await renderPost([post({ eyecatch: { url: `${IMAGES}/photo.png`, width: 2400, height: 1260 } })], 0);
+        expect(html).toContain(
+            `<meta property="og:image" content="${IMAGES}/photo.png?fm=jpg&amp;w=1200">\n` +
+            '    <meta property="og:image:width" content="1200">\n' +
+            '    <meta property="og:image:height" content="630">\n' +
+            '    <meta property="og:image:alt" content="Another post">\n' +
+            '    <meta name="twitter:card" content="summary_large_image">\n' +
+            '    <meta name="twitter:site" content="@e___sp9">\n' +
+            `    <meta name="twitter:image" content="${IMAGES}/photo.png?fm=jpg&amp;w=1200">\n` +
+            '    <meta name="twitter:image:alt" content="Another post">',
+        );
+
+        // A small picture is not stretched: it makes the small card
+        const small = await renderPost([post({ eyecatch: { url: `${IMAGES}/small.webp`, width: 330, height: 180 } })], 0);
+        expect(small).toContain(`<meta property="og:image" content="${IMAGES}/small.webp?fm=jpg">`);
+        expect(small).toContain('<meta property="og:image:width" content="330">');
+        expect(small).toContain('<meta name="twitter:card" content="summary">');
+
+        for (const page of [await renderPost([post()], 0), renderIndex([post({ eyecatch: generated })])]) {
+            expect(page).not.toContain('og:image');
+            expect(page).not.toContain('twitter:image');
+            expect(page).toContain('<meta name="twitter:card" content="summary">');
+        }
     });
 
     test('the feed lists every post', () => {
@@ -192,6 +311,7 @@ describe('microCMS', () => {
             revisedAt: '2024-08-22T15:00:00.000Z',
             category: 'technology',
             tags: ['Remix'],
+            eyecatch: null,
         });
         expect(fetched).toHaveBeenCalledTimes(2);
         const [url, init] = fetched.mock.calls[0] as unknown as [string, RequestInit];

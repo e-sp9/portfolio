@@ -51,41 +51,91 @@ function codeBlock(highlighter: Highlighter, source: string, language: string | 
     );
 }
 
-/** microCMS serves images through imgix: ask for WebP at the widths the column shows (1x and 2x). */
-function sizeImage(image: HTMLRewriterTypes.Element): void {
-    const src = unesc(image.getAttribute('src') ?? '');
-    const width = Number(image.getAttribute('width'));
-    if (!URL.canParse(src) || !width) return;
+/** Where an image is shown: the widths to ask the image API for, and how wide it is on the page (`sizes`) */
+export interface Frame {
+    widths: readonly number[];
+    sizes: string;
+}
+
+/** The text column. Below 860px it is the page less the margins of the screen and the sheet, which narrow at 768px (blog.css). */
+const COLUMN: Frame = {
+    widths: [MEASURE, MEASURE * 1.5, MEASURE * 2],
+    sizes: `(min-width: 860px) ${MEASURE}px, (min-width: 769px) calc(100vw - 140px), calc(100vw - 72px)`,
+};
+
+/**
+ * microCMS serves images through imgix, which makes AVIF and WebP of them at any width.
+ * For an image `width` px wide shown in `frame`: the `<source>` that offers AVIF, the smaller of the
+ * two, and the `src`, `srcset` and `sizes` of the `<img>` after it, which asks for WebP.
+ * Escaped. Null for an image to leave as it is.
+ */
+export function resized(src: string, width: number, frame: Frame): { source: string; img: [string, string][] } | null {
+    if (!URL.canParse(src) || !width) return null;
     const url = new URL(src);
     // GIFs would lose their animation, SVGs their vectors
-    if (url.hostname !== IMAGE_HOST || /\.(gif|svg)$/i.test(url.pathname)) return;
+    if (url.hostname !== IMAGE_HOST || /\.(gif|svg)$/i.test(url.pathname)) return null;
 
-    const sized = (w: number) => {
-        url.searchParams.set('fm', 'webp');
+    const sized = (format: 'avif' | 'webp', w: number) => {
+        url.searchParams.set('fm', format);
         url.searchParams.set('w', String(w));
         return esc(url.href);
     };
-    // Never upscale: the last candidate is the image at its own width
-    const widths = [MEASURE, MEASURE * 2].filter((w) => w < width);
-    if (widths.length < 2) widths.push(width);
-    image.setAttribute('src', sized(widths.at(-1)!));
-    if (widths.length > 1) {
-        image.setAttribute('srcset', widths.map((w) => `${sized(w)} ${w}w`).join(', '));
-        image.setAttribute('sizes', `(min-width: ${MEASURE + 80}px) ${MEASURE}px, 100vw`);
+    // Never upscale: imgix would. Past the image's own width, the last candidate is the image at that width.
+    const widths = frame.widths.filter((w) => w < width);
+    if (widths.length < frame.widths.length) widths.push(width);
+    if (widths.length === 1) {
+        return { source: `<source type="image/avif" srcset="${sized('avif', widths[0]!)}">`, img: [['src', sized('webp', widths[0]!)]] };
     }
+    const srcset = (format: 'avif' | 'webp') => widths.map((w) => `${sized(format, w)} ${w}w`).join(', ');
+    return {
+        source: `<source type="image/avif" srcset="${srcset('avif')}" sizes="${frame.sizes}">`,
+        img: [['src', sized('webp', widths.at(-1)!)], ['srcset', srcset('webp')], ['sizes', frame.sizes]],
+    };
+}
+
+/** The widest picture offered with a shared link: the size of og:image that services ask for */
+const SHARED_WIDTH = 1200;
+
+/**
+ * An image from microCMS as the picture of a shared link (og:image): JPEG, which every service
+ * that shows one can read, and never wider than 1200px. With its size in px; 0 when not known.
+ */
+export function shared(src: string, width: number, height: number): { url: string; width: number; height: number } {
+    if (!URL.canParse(src) || new URL(src).hostname !== IMAGE_HOST) return { url: src, width, height };
+    const url = new URL(src);
+    url.searchParams.set('fm', 'jpg');
+    if (width <= SHARED_WIDTH) return { url: url.href, width, height };
+    url.searchParams.set('w', String(SHARED_WIDTH));
+    return { url: url.href, width: SHARED_WIDTH, height: Math.round((height * SHARED_WIDTH) / width) };
+}
+
+/** Body images: AVIF or WebP at the widths the column shows. */
+function sizeImage(image: HTMLRewriterTypes.Element): void {
+    const sources = resized(unesc(image.getAttribute('src') ?? ''), Number(image.getAttribute('width')), COLUMN);
+    if (!sources) return;
+    for (const [name, value] of sources.img) image.setAttribute(name, value);
+    image.before(`<picture>${sources.source}`, { html: true });
+    image.after('</picture>', { html: true });
 }
 
 /**
  * Rewrites the body of one article for display.
  * `titles` maps the ID of every post to its title, to resolve links between posts.
+ * Images load lazily, except the first when `eagerFirstImage`: with nothing above the
+ * article's text, it is likely on the first screen, so it is fetched at once and first.
  */
-export async function renderArticle(html: string, titles: ReadonlyMap<string, string>): Promise<string> {
+export async function renderArticle(
+    html: string,
+    titles: ReadonlyMap<string, string>,
+    { eagerFirstImage = false }: { eagerFirstImage?: boolean } = {},
+): Promise<string> {
     const highlighter = await highlighterFor(html);
 
     // What the stream is currently inside of
     let filename: string | null = null;
     let code: { source: string; language: string | null } | null = null;
     let moved: { from: string; title: string } | null = null;
+    let images = 0;
 
     const rewriter = new HTMLRewriter()
         // The page's h1 is the article title
@@ -130,7 +180,13 @@ export async function renderArticle(html: string, titles: ReadonlyMap<string, st
         })
         .on('img', {
             element(el) {
-                if (!el.hasAttribute('loading')) el.setAttribute('loading', 'lazy');
+                if (eagerFirstImage && images++ === 0) {
+                    // Loads at once and ahead of the others, even if the editor marked it lazy
+                    el.removeAttribute('loading');
+                    el.setAttribute('fetchpriority', 'high');
+                } else if (!el.hasAttribute('loading')) {
+                    el.setAttribute('loading', 'lazy');
+                }
                 el.setAttribute('decoding', 'async');
                 sizeImage(el);
             },

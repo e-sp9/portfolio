@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "bun --hot ./index.ts",
     "build": "bun ./blog/build.ts && bun build ./index.html ./things.html --outdir ./dist && cp -r ./public/* ./dist/",
+    "eyecatch:dry-run": "bun ./blog/eyecatch-dry-run.ts",
     "deploy": "bunx wrangler deploy"
   },
   "devDependencies": {

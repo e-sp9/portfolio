@@ -17,6 +17,7 @@
 - 記事は、どの起動でもビルドの時点で microCMS から取得します。microCMS の Webhook から起動したときは、`main` の最新のコミットをビルドします。
 - ビルドが失敗した場合はデプロイされません。
 - ブログ（`/blog`）は、`bun run build` の中で microCMS の記事から生成します。Secret の `MICROCMS_SERVICE_DOMAIN` と `MICROCMS_API_KEY` は、ビルドのステップにだけ渡しています。
+- アイキャッチの生成と登録に使う `MICROCMS_WRITE_API_KEY` は渡していません。GitHub Actions のビルドは microCMS に書き込まず、アイキャッチのない記事は一覧に `NO SIGNAL` のまま出ます。アイキャッチを登録するのは、このキーを `.env` に置いた手元のビルドだけです。
 - キーがない場合や、microCMS から記事を取得できない場合は、ビルドが失敗してデプロイしません。本番の `/blog` は前回のデプロイのまま残ります。ブログを省いてビルドを続けることは、手元でも GitHub Actions でもしません。ブログのないサイトをデプロイすると、本番の `/blog` が消えるためです。
 
 ## Secret の登録
