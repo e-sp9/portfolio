@@ -88,16 +88,16 @@ without `/blog` and prints a warning: for now the blog exists in local builds on
 ### Eyecatches
 
 A post that has no eyecatch image in microCMS is given one by the build. The picture
-([blog/eyecatch.ts](blog/eyecatch.ts)) is 1200×630 and has no text: a marbled current in the
-site's blues with veins of accent colour, drawn on a 10px pixel grid and dithered. The content ID
-seeds it, so a post always gets the same picture. The build uploads the picture to the media
-library and sets it as the post's `eyecatch`. A post that already has an eyecatch is never touched.
-That holds for an eyecatch set by hand while the build runs, too: each post is read again right
-before its upload and right before the PATCH, and left alone if it has one by then. Those reads
-use a URL that has never been asked before, so the CDN in front of microCMS cannot answer them
-with what it kept from an earlier build or from one running alongside. (microCMS has no
-conditional update, so an eyecatch set in the instant between that last read and the PATCH can
-still be overwritten.)
+([blog/eyecatch.ts](blog/eyecatch.ts)) is 1200×630 and has no text: a marbled current in a quiet
+blue between ink and paper, with one or two warm veins, drawn in 3px dots under a grain like that
+of film. The content ID seeds it, grain included, so a post always gets the same picture. The
+build uploads the picture to the media library and sets it as the post's `eyecatch`. A post that
+already has an eyecatch is never touched. That holds for an eyecatch set by hand while the build
+runs, too: each post is read again right before its upload and right before the PATCH, and left
+alone if it has one by then. Those reads use a URL that has never been asked before, so the CDN in
+front of microCMS cannot answer them with what it kept from an earlier build or from one running
+alongside. (microCMS has no conditional update, so an eyecatch set in the instant between that last
+read and the PATCH can still be overwritten.)
 
 This is the only thing the build writes to microCMS, and it takes a key of its own, also in `.env`:
 

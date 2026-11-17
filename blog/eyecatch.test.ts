@@ -37,51 +37,66 @@ function decodePng(png: Uint8Array): { width: number; height: number; pixels: Ui
     for (let y = 0; y < height; y++) {
         const filter = rows[y * (stride + 1)];
         const row = rows.subarray(y * (stride + 1) + 1, (y + 1) * (stride + 1));
-        if (filter === 0) pixels.set(row, y * stride);
-        else if (filter === 2) pixels.set(row.map((byte, x) => byte + pixels[(y - 1) * stride + x]!), y * stride);
+        const to = pixels.subarray(y * stride, (y + 1) * stride);
+        // Sub: each byte is the difference from the same channel of the pixel before
+        if (filter === 1) row.forEach((byte, x) => (to[x] = byte + (x < 3 ? 0 : to[x - 3]!)));
+        // Up: the difference from the row above
+        else if (filter === 2) row.forEach((byte, x) => (to[x] = byte + pixels[(y - 1) * stride + x]!));
         else throw new Error(`Unexpected filter ${filter} on row ${y}`);
     }
     return { width, height, pixels };
 }
 
-/** Hue in degrees; null for white and greys */
-function hue(r: number, g: number, b: number): number | null {
-    const max = Math.max(r, g, b);
-    const range = max - Math.min(r, g, b);
-    if (range === 0) return null;
-    const sixth = max === r ? (g - b) / range : max === g ? (b - r) / range + 2 : (r - g) / range + 4;
-    return (sixth * 60 + 360) % 360;
-}
+/** Side of one dot of the picture, in pixels */
+const DOT = 3;
+const COLS = EYECATCH_WIDTH / DOT;
+const ROWS = EYECATCH_HEIGHT / DOT;
 
-/** How much of a picture is blue, and which other colours it carries */
-function colours(pixels: Uint8Array): { blue: number; accent: number; accents: string[] } {
-    const counts = new Map<string, number>();
-    let samples = 0;
-    // A few thousand samples spread over the picture are enough
-    for (let y = 2; y < EYECATCH_HEIGHT; y += 5) {
-        for (let x = 2; x < EYECATCH_WIDTH; x += 5) {
-            const at = (y * EYECATCH_WIDTH + x) * 3;
-            const key = `${pixels[at]},${pixels[at + 1]},${pixels[at + 2]}`;
-            counts.set(key, (counts.get(key) ?? 0) + 1);
-            samples++;
+/**
+ * The two accents, each by its red minus green and its green minus blue. The grain moves the
+ * three channels of a dot by the same amount, so these tell an accent whatever the grain did.
+ */
+const AMBER = { red: 0xe3, gaps: [0xe3 - 0xa0, 0xa0 - 0x3a] };
+const CORAL = { red: 0xdd, gaps: [0xdd - 0x66, 0x66 - 0x50] };
+
+/** What a picture is made of, read dot by dot */
+function read(pixels: Uint8Array) {
+    const dots = COLS * ROWS;
+    const counts = { amber: 0, coral: 0, blue: 0, strays: 0, sameAsTheDotBefore: 0 };
+    let vividest = 0;
+    /** How far the grain moved the accent dots, whose colour without it is known */
+    const grain = new Set<number>();
+    let before = -1;
+    for (let cy = 0; cy < ROWS; cy++) {
+        for (let cx = 0; cx < COLS; cx++) {
+            const at = ((cy * DOT + 1) * EYECATCH_WIDTH + cx * DOT + 1) * 3;
+            const [r, g, b] = [pixels[at]!, pixels[at + 1]!, pixels[at + 2]!];
+            const colour = (r << 16) | (g << 8) | b;
+            if (cx > 0 && colour === before) counts.sameAsTheDotBefore++;
+            before = colour;
+            const accent = [AMBER, CORAL].find(({ gaps }) => r - g === gaps[0] && g - b === gaps[1]);
+            if (accent) {
+                counts[accent === AMBER ? 'amber' : 'coral']++;
+                grain.add(r - accent.red);
+                continue;
+            }
+            // The ground: grey, or grey leaning to blue. Anything else is a stray.
+            if (r > g + 1 || g > b + 1) counts.strays++;
+            const chroma = b - r;
+            vividest = Math.max(vividest, chroma);
+            // Past this the eye calls it blue (the palest blue of the scale, #93a5bd, is at 42)
+            if (chroma >= 40) counts.blue++;
         }
     }
-    let blue = 0;
-    let accent = 0;
-    const accents: string[] = [];
-    for (const [key, count] of counts) {
-        const [r, g, b] = key.split(',').map(Number) as [number, number, number];
-        const h = hue(r, g, b);
-        if (h === null) continue;
-        // The site's blues lie between 211° and 227°
-        if (h > 205 && h < 235) blue += count;
-        else {
-            accent += count;
-            // A colour shows once it covers 0.4% of the picture
-            if (count / samples >= 0.004) accents.push(key);
-        }
-    }
-    return { blue: blue / samples, accent: accent / samples, accents };
+    return {
+        amber: counts.amber / dots,
+        coral: counts.coral / dots,
+        blue: counts.blue / dots,
+        strays: counts.strays,
+        sameAsTheDotBefore: counts.sameAsTheDotBefore / dots,
+        vividest,
+        grain: [...grain].sort((a, b) => a - b),
+    };
 }
 
 describe('eyecatch art', () => {
@@ -90,24 +105,69 @@ describe('eyecatch art', () => {
         const { width, height, pixels } = decodePng(png);
         expect([width, height]).toEqual([1200, 630]);
         expect(digest(pixels)).toBe(digest(paintEyecatch('abc123')));
-        // The media library takes 5MB per upload
-        expect(png.length).toBeLessThan(5 * 1024 * 1024);
+        // The media library takes 5MB per upload. The grain does not compress well, but this is far from it.
+        expect(png.length).toBeLessThan(512 * 1024);
     });
 
-    test('gives a post the same picture every time, and each post its own', () => {
+    test('gives a post the same picture every time, grain and all, and each post its own', () => {
         // Pinned: if this changes, posts get a different picture than the dry run showed before
-        expect(digest(paintEyecatch('abc123'))).toBe('7f732f759dd5ef842050abf8c95f1eb19ef02d8ddfd2f89bc93c3092a4d131a8');
+        expect(digest(paintEyecatch('abc123'))).toBe('c9a8b97b7fd4c549252c468fc2b79954bd3d1b39b54ba43d826786aba309c301');
         expect(eyecatchPng('abc123')).toEqual(eyecatchPng('abc123'));
         expect(digest(paintEyecatch('abc124'))).not.toBe(digest(paintEyecatch('abc123')));
     });
 
-    test('is blue, with veins of at least two other colours', () => {
-        const pictures = Array.from({ length: 24 }, (_, i) => ({ id: `post-${i}`, ...colours(paintEyecatch(`post-${i}`)) }));
-        expect(pictures.filter((picture) => picture.blue < 0.7).map((picture) => picture.id)).toEqual([]);
-        expect(pictures.filter((picture) => picture.accent < 0.03 || picture.accent > 0.25).map((picture) => picture.id)).toEqual([]);
-        expect(pictures.filter((picture) => picture.accents.length < 2).map((picture) => picture.id)).toEqual([]);
-        // Across the posts the accents are many: pink, red, orange, amber, green, cyan, violet
-        expect(new Set(pictures.flatMap((picture) => picture.accents)).size).toBe(7);
+    test('is drawn in dots of 3px', () => {
+        const pixels = paintEyecatch('abc123');
+        // Every dot is of one colour
+        let mixed = 0;
+        for (let cy = 0; cy < ROWS; cy++) {
+            for (let cx = 0; cx < COLS; cx++) {
+                const corner = (cy * DOT * EYECATCH_WIDTH + cx * DOT) * 3;
+                for (let y = 0; y < DOT; y++) {
+                    for (let x = 0; x < DOT; x++) {
+                        const at = corner + (y * EYECATCH_WIDTH + x) * 3;
+                        if (pixels[at] !== pixels[corner] || pixels[at + 1] !== pixels[corner + 1] || pixels[at + 2] !== pixels[corner + 2]) mixed++;
+                    }
+                }
+            }
+        }
+        expect(mixed).toBe(0);
+        // And a dot is no bigger than that: the grain sees to it that the next one is hardly ever the same
+        expect(read(pixels).sameAsTheDotBefore).toBeLessThan(0.1);
+    });
+
+    test('keeps to a quiet blue between ink and paper, with one warm accent or two', () => {
+        const pictures = Array.from({ length: 24 }, (_, i) => ({ id: `post-${i}`, ...read(paintEyecatch(`post-${i}`)) }));
+        const ids = (which: (picture: (typeof pictures)[number]) => boolean) => pictures.filter(which).map((picture) => picture.id);
+
+        // Nothing but the ground and the two accents
+        expect(ids((picture) => picture.strays > 0)).toEqual([]);
+        // The blue is quiet: the accent token it comes from, #3b82f6, has 187 between its red and its blue
+        expect(ids((picture) => picture.vividest > 70)).toEqual([]);
+        // And it does not fill the pictures: about half of the dots are blue, the rest paper, grey or ink
+        expect(ids((picture) => picture.blue > 0.9)).toEqual([]);
+        expect(pictures.reduce((sum, picture) => sum + picture.blue, 0) / pictures.length).toBeLessThan(0.6);
+
+        // Every picture has its vein of amber or of coral, some have both, and none is flooded
+        const shows = (share: number) => share >= 0.004;
+        expect(ids((picture) => !shows(picture.amber) && !shows(picture.coral))).toEqual([]);
+        expect(ids((picture) => picture.amber + picture.coral > 0.16)).toEqual([]);
+        expect(ids((picture) => shows(picture.amber) && shows(picture.coral)).length).toBeGreaterThan(0);
+        expect(ids((picture) => shows(picture.amber) !== shows(picture.coral)).length).toBeGreaterThan(0);
+    });
+
+    test('lays a grain over the whole picture', () => {
+        for (const id of ['abc123', 'abc124']) {
+            const { grain, sameAsTheDotBefore } = read(paintEyecatch(id));
+            // Each dot is moved by up to 18 either way, and by every amount in between
+            expect(grain[0]).toBeGreaterThanOrEqual(-18);
+            expect(grain[0]).toBeLessThan(-14);
+            expect(grain.at(-1)).toBeLessThanOrEqual(18);
+            expect(grain.at(-1)).toBeGreaterThan(14);
+            expect(grain.length).toBeGreaterThan(30);
+            // No patch of the picture is left flat
+            expect(sameAsTheDotBefore).toBeLessThan(0.1);
+        }
     });
 });
 
