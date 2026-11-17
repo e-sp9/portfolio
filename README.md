@@ -117,8 +117,8 @@ bun run eyecatch:dry-run <id> <id>    # these posts; needs no credentials
 
 Two things to know before the key goes in. microCMS counts setting the eyecatch as a revision of
 the post, so from the next build on the article page shows that day as its update date. And the
-pages of this site do not show eyecatches yet (no image on the cards, no `og:image`): the picture
-is only stored with the post.
+picture shows on the site from that build on: on the post's card in the list and above the title of
+its article. It is not used as `og:image` yet.
 
 ## Design
 

@@ -289,7 +289,7 @@ describe('microCMS', () => {
     test('reads the eyecatch of a post, or that it has none', async () => {
         const { calls } = microcms([...contents, { ...apiPost('emptied'), eyecatch: null }]);
         const posts = await fetchPosts(readEnv);
-        expect(posts.map((post) => post.eyecatch)).toEqual([null, `${MEDIA}/photo.jpg`, null, null]);
+        expect(posts.map((post) => post.eyecatch)).toEqual([null, picture(`${MEDIA}/photo.jpg`), null, null]);
         expect(calls[0]!.url.searchParams.get('fields')!.split(',')).toContain('eyecatch');
     });
 

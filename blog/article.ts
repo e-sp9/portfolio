@@ -51,26 +51,37 @@ function codeBlock(highlighter: Highlighter, source: string, language: string | 
     );
 }
 
-/** microCMS serves images through imgix: ask for WebP at the widths the column shows (1x and 2x). */
-function sizeImage(image: HTMLRewriterTypes.Element): void {
-    const src = unesc(image.getAttribute('src') ?? '');
-    const width = Number(image.getAttribute('width'));
-    if (!URL.canParse(src) || !width) return;
+/**
+ * microCMS serves images through imgix. These are the `src` and `srcset`, escaped, that ask it for
+ * an image `width` px wide as WebP at the `wanted` widths. Null for an image to leave as it is.
+ */
+export function resized(src: string, width: number, wanted: readonly number[]): { src: string; srcset: string | null } | null {
+    if (!URL.canParse(src) || !width) return null;
     const url = new URL(src);
     // GIFs would lose their animation, SVGs their vectors
-    if (url.hostname !== IMAGE_HOST || /\.(gif|svg)$/i.test(url.pathname)) return;
+    if (url.hostname !== IMAGE_HOST || /\.(gif|svg)$/i.test(url.pathname)) return null;
 
     const sized = (w: number) => {
         url.searchParams.set('fm', 'webp');
         url.searchParams.set('w', String(w));
         return esc(url.href);
     };
-    // Never upscale: the last candidate is the image at its own width
-    const widths = [MEASURE, MEASURE * 2].filter((w) => w < width);
-    if (widths.length < 2) widths.push(width);
-    image.setAttribute('src', sized(widths.at(-1)!));
-    if (widths.length > 1) {
-        image.setAttribute('srcset', widths.map((w) => `${sized(w)} ${w}w`).join(', '));
+    // Never upscale: imgix would. Past the image's own width, the last candidate is the image at that width.
+    const widths = wanted.filter((w) => w < width);
+    if (widths.length < wanted.length) widths.push(width);
+    return {
+        src: sized(widths.at(-1)!),
+        srcset: widths.length > 1 ? widths.map((w) => `${sized(w)} ${w}w`).join(', ') : null,
+    };
+}
+
+/** Body images: WebP at the widths the column shows (1x and 2x). */
+function sizeImage(image: HTMLRewriterTypes.Element): void {
+    const sources = resized(unesc(image.getAttribute('src') ?? ''), Number(image.getAttribute('width')), [MEASURE, MEASURE * 2]);
+    if (!sources) return;
+    image.setAttribute('src', sources.src);
+    if (sources.srcset) {
+        image.setAttribute('srcset', sources.srcset);
         image.setAttribute('sizes', `(min-width: ${MEASURE + 80}px) ${MEASURE}px, 100vw`);
     }
 }

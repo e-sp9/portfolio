@@ -4,9 +4,9 @@
 // written out as static HTML: these pages carry no script beyond the theme toggle.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { renderArticle } from './article';
+import { renderArticle, resized } from './article';
 import { esc } from './html';
-import type { Post } from './microcms';
+import type { Eyecatch, Post } from './microcms';
 
 export const SITE_URL = 'https://esp-9.dev';
 export const BLOG_TITLE = 'RYOTA KATADA / BLOG';
@@ -148,15 +148,43 @@ function tags(post: Post): string {
     return `<ul class="post-tags">${post.tags.map((tag) => `<li>#${esc(tag)}</li>`).join('')}</ul>`;
 }
 
+/** Where an eyecatch is shown: the widths to ask the image API for (1x and 2x), and how wide it is on the page */
+interface Frame {
+    widths: readonly number[];
+    sizes: string;
+}
+
+/** On a card: a column of the grid in blog.css */
+const CARD: Frame = { widths: [400, 800], sizes: '(min-width: 1100px) 33vw, (min-width: 640px) 50vw, 100vw' };
+/** Across the top of the article sheet, 800px at most */
+const SHEET: Frame = { widths: [800, 1600], sizes: '(min-width: 860px) 800px, 100vw' };
+
+/** The eyecatch as an <img>, sized for its frame. It stands for the post, so its alt is the title. */
+function eyecatch(image: Eyecatch, title: string, frame: Frame, attributes: string): string {
+    const sources = resized(image.url, image.width, frame.widths);
+    const src = sources
+        ? `src="${sources.src}"${sources.srcset ? ` srcset="${sources.srcset}" sizes="${frame.sizes}"` : ''}`
+        : `src="${esc(image.url)}"`;
+    const size = image.width && image.height ? ` width="${image.width}" height="${image.height}"` : '';
+    return `<img ${src}${size} alt="${esc(title)}" ${attributes} decoding="async">`;
+}
+
 function card(post: Post, index: number): string {
     // Cards fade in one after another, as on /things; past the first screens they stop waiting
     const delay = Math.min(index, 12) * 60;
+    // A post without an eyecatch keeps the frame, so the cards in a row stay aligned
+    const picture = post.eyecatch
+        ? `<div class="post-eyecatch">${eyecatch(post.eyecatch, post.title, CARD, 'loading="lazy"')}</div>`
+        : '<div class="post-eyecatch post-eyecatch-none" aria-hidden="true">NO SIGNAL</div>';
     const description = post.description && `<p class="post-desc">${esc(post.description)}</p>`;
     return `            <article class="post panel" style="animation-delay: ${delay}ms">
-                <div class="post-meta">${meta(post)}</div>
-                <h2 class="post-title"><a class="post-link" href="/blog/${post.id}">${esc(post.title)}</a></h2>
-                ${description}
-                ${tags(post)}
+                ${picture}
+                <div class="post-body">
+                    <div class="post-meta">${meta(post)}</div>
+                    <h2 class="post-title"><a class="post-link" href="/blog/${post.id}">${esc(post.title)}</a></h2>
+                    ${description}
+                    ${tags(post)}
+                </div>
             </article>`;
 }
 
@@ -218,7 +246,8 @@ export async function renderPost(posts: Post[], index: number): Promise<string> 
             </div>
         </div>
 
-        <article class="article">
+        <article class="article">${post.eyecatch ? `
+            <div class="article-eyecatch">${eyecatch(post.eyecatch, post.title, SHEET, 'fetchpriority="high"')}</div>` : ''}
             <header class="article-head">
                 <div class="post-meta">${meta(post)}</div>
                 <h1 class="article-title">${esc(post.title)}</h1>${sub && `
