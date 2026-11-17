@@ -19,6 +19,7 @@ function post(fields: Partial<Post> = {}): Post {
         revisedAt: '2024-08-22T18:40:36.470Z',
         category: 'technology',
         tags: ['Remix'],
+        eyecatch: null,
         ...fields,
     };
 }
@@ -192,6 +193,7 @@ describe('microCMS', () => {
             revisedAt: '2024-08-22T15:00:00.000Z',
             category: 'technology',
             tags: ['Remix'],
+            eyecatch: null,
         });
         expect(fetched).toHaveBeenCalledTimes(2);
         const [url, init] = fetched.mock.calls[0] as unknown as [string, RequestInit];
