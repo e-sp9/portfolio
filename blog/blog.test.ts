@@ -93,11 +93,26 @@ describe('article body', () => {
         expect(html).not.toContain('<picture>');
     });
 
-    test('loads images lazily, all but the first when asked', async () => {
+    test('loads images lazily, all but the first when asked, which goes first', async () => {
         const images = '<img src="https://example.com/a.png"><img src="https://example.com/b.png">';
-        expect((await renderArticle(images, titles)).match(/loading="lazy"/g)).toHaveLength(2);
+        const lazy = await renderArticle(images, titles);
+        expect(lazy.match(/loading="lazy"/g)).toHaveLength(2);
+        expect(lazy).not.toContain('fetchpriority');
         const eager = await renderArticle(images, titles, { eagerFirstImage: true });
-        expect(eager).toBe('<img src="https://example.com/a.png" decoding="async"><img src="https://example.com/b.png" loading="lazy" decoding="async">');
+        expect(eager).toBe(
+            '<img src="https://example.com/a.png" fetchpriority="high" decoding="async">' +
+            '<img src="https://example.com/b.png" loading="lazy" decoding="async">',
+        );
+    });
+
+    test('the first image goes first even when the editor marked it lazy', async () => {
+        const images = '<img src="https://example.com/a.png" loading="lazy" alt="A"><img src="https://example.com/b.png" loading="lazy" alt="B">';
+        expect(await renderArticle(images, titles, { eagerFirstImage: true })).toBe(
+            '<img src="https://example.com/a.png" alt="A" fetchpriority="high" decoding="async">' +
+            '<img src="https://example.com/b.png" loading="lazy" alt="B" decoding="async">',
+        );
+        // Not asked: the editor's lazy stays
+        expect((await renderArticle(images, titles)).match(/loading="lazy"/g)).toHaveLength(2);
     });
 
     test('brings links to posts on the old blog along', async () => {
@@ -198,14 +213,17 @@ describe('pages', () => {
         expect(bare).not.toContain('<img');
     });
 
-    test('without an eyecatch, the first image of the article loads at once', async () => {
+    test('without an eyecatch, the first image of the article loads at once and first', async () => {
         const content = '<p>Hello</p><figure><img src="https://example.com/a.png"></figure><figure><img src="https://example.com/b.png"></figure>';
         const bare = await renderPost([post({ content })], 0);
-        expect(bare).toContain('<img src="https://example.com/a.png" decoding="async">');
+        expect(bare).toContain('<img src="https://example.com/a.png" fetchpriority="high" decoding="async">');
         expect(bare).toContain('<img src="https://example.com/b.png" loading="lazy" decoding="async">');
 
+        // With one, the eyecatch is the only image that goes first
         const withEyecatch = await renderPost([post({ content, eyecatch: generated })], 0);
         expect(withEyecatch.match(/loading="lazy"/g)).toHaveLength(2);
+        expect(withEyecatch.match(/fetchpriority="high"/g)).toHaveLength(1);
+        expect(withEyecatch.indexOf('fetchpriority="high"')).toBeLessThan(withEyecatch.indexOf('class="article-body"'));
     });
 
     test('a shared article shows its eyecatch as JPEG, large when it is big enough', async () => {

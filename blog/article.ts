@@ -122,7 +122,7 @@ function sizeImage(image: HTMLRewriterTypes.Element): void {
  * Rewrites the body of one article for display.
  * `titles` maps the ID of every post to its title, to resolve links between posts.
  * Images load lazily, except the first when `eagerFirstImage`: with nothing above the
- * article's text, it is likely on the first screen.
+ * article's text, it is likely on the first screen, so it is fetched at once and first.
  */
 export async function renderArticle(
     html: string,
@@ -180,8 +180,13 @@ export async function renderArticle(
         })
         .on('img', {
             element(el) {
-                const eager = eagerFirstImage && images++ === 0;
-                if (!eager && !el.hasAttribute('loading')) el.setAttribute('loading', 'lazy');
+                if (eagerFirstImage && images++ === 0) {
+                    // Loads at once and ahead of the others, even if the editor marked it lazy
+                    el.removeAttribute('loading');
+                    el.setAttribute('fetchpriority', 'high');
+                } else if (!el.hasAttribute('loading')) {
+                    el.setAttribute('loading', 'lazy');
+                }
                 el.setAttribute('decoding', 'async');
                 sizeImage(el);
             },
