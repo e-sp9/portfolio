@@ -20,8 +20,15 @@ export interface Post {
     /** Category slug (e.g. technology), shown uppercase */
     category: string | null;
     tags: string[];
-    /** URL of the eyecatch image in the media library; null when the post has none */
-    eyecatch: string | null;
+    /** The eyecatch image in the media library; null when the post has none */
+    eyecatch: Eyecatch | null;
+}
+
+export interface Eyecatch {
+    url: string;
+    /** Size of the image in px; 0 when microCMS does not give it */
+    width: number;
+    height: number;
 }
 
 /** A problem with the content source, worded so it can be printed as is */
@@ -38,7 +45,7 @@ interface ApiPost {
     revisedAt?: string;
     category?: { name?: string; slug?: string } | null;
     tags?: { name: string }[];
-    eyecatch?: { url?: string } | null;
+    eyecatch?: { url?: string; width?: number; height?: number } | null;
 }
 
 interface ApiList {
@@ -195,8 +202,13 @@ function toPost(post: ApiPost): Post {
         revisedAt: post.revisedAt ?? post.publishedAt,
         category: post.category?.slug ?? post.category?.name ?? null,
         tags: (post.tags ?? []).map((tag) => tag.name),
-        eyecatch: eyecatchOf(post),
+        eyecatch: toEyecatch(post),
     };
+}
+
+function toEyecatch(post: ApiPost): Eyecatch | null {
+    const url = eyecatchOf(post);
+    return url === null ? null : { url, width: post.eyecatch?.width ?? 0, height: post.eyecatch?.height ?? 0 };
 }
 
 /** The posts the build generates an eyecatch for: those that have none. */

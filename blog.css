@@ -180,9 +180,54 @@ body.blog-page .exp-type:hover {
 
 .post {
     /* inherits .panel: translucent surface, 1px border, blur, hover lift */
-    padding: 14px 16px 12px;
-    gap: 8px;
+    padding: 0;
+    gap: 0;
     animation: fadeSlideIn 0.4s ease-out backwards;
+}
+
+/* The eyecatch runs edge to edge above the text, as the photo on a /things card.
+   The frame is 1200 × 630 whatever the shape of the picture. The article uses it too. */
+.post-eyecatch,
+.article-eyecatch {
+    aspect-ratio: 1200 / 630;
+    overflow: hidden;
+    border-bottom: 1px solid var(--border);
+    /* A well in the page colour, seen while the picture loads and where a post has none */
+    background: var(--bg);
+    transition: background-color 300ms ease-out, border-color 300ms ease-out;
+}
+
+.post-eyecatch img,
+.article-eyecatch img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.post-eyecatch img {
+    transition: transform 400ms ease-out;
+}
+
+.post:hover .post-eyecatch img {
+    transform: scale(1.03);
+}
+
+.post-eyecatch-none {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    letter-spacing: 2px;
+    color: var(--dim);
+}
+
+.post-body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 14px 16px 12px;
 }
 
 .post-meta {
@@ -293,6 +338,11 @@ body.blog-page .exp-type:hover {
     background: var(--sheet);
     border: 1px solid var(--border);
     transition: background-color 300ms ease-out, border-color 300ms ease-out;
+}
+
+/* Across the top of the sheet, out to its border; below it the head keeps the sheet's top padding */
+.article-eyecatch {
+    margin: -36px -40px 36px;
 }
 
 .article-head {
@@ -652,6 +702,10 @@ body.blog-page #exp-footer {
 
     .article {
         padding: 22px 16px 32px;
+    }
+
+    .article-eyecatch {
+        margin: -22px -16px 22px;
     }
 
     .article-head {

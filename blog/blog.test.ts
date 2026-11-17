@@ -134,6 +134,42 @@ describe('pages', () => {
         expect(html).not.toContain('rel="prev"');
     });
 
+    const IMAGES = 'https://images.microcms-assets.io/assets/a/b';
+    const generated = { url: `${IMAGES}/eyecatch-newer.png`, width: 1200, height: 630 };
+
+    test('a card shows the eyecatch small, as WebP, and keeps the frame when there is none', () => {
+        const html = renderIndex([
+            post({ id: 'newer', title: 'Newer <b>&</b>', eyecatch: generated }),
+            post({ eyecatch: { url: `${IMAGES}/small.webp`, width: 330, height: 180 } }),
+            post({ id: 'bare' }),
+        ]);
+        expect(html).toContain(
+            `<div class="post-eyecatch"><img src="${IMAGES}/eyecatch-newer.png?fm=webp&amp;w=800" ` +
+            `srcset="${IMAGES}/eyecatch-newer.png?fm=webp&amp;w=400 400w, ${IMAGES}/eyecatch-newer.png?fm=webp&amp;w=800 800w" ` +
+            'sizes="(min-width: 1100px) 33vw, (min-width: 640px) 50vw, 100vw" width="1200" height="630" ' +
+            'alt="Newer &lt;b&gt;&amp;&lt;/b&gt;" loading="lazy" decoding="async"></div>',
+        );
+        // Never wider than the picture itself
+        expect(html).toContain(`<img src="${IMAGES}/small.webp?fm=webp&amp;w=330" width="330" height="180" alt="Another post" loading="lazy"`);
+        expect(html).toContain('<div class="post-eyecatch post-eyecatch-none" aria-hidden="true">NO SIGNAL</div>');
+        expect(html.match(/class="post-eyecatch/g)).toHaveLength(3);
+    });
+
+    test('an article shows its eyecatch above the title, and nothing when it has none', async () => {
+        const html = await renderPost([post({ eyecatch: generated })], 0);
+        expect(html).toContain(
+            `<div class="article-eyecatch"><img src="${IMAGES}/eyecatch-newer.png?fm=webp&amp;w=1200" ` +
+            `srcset="${IMAGES}/eyecatch-newer.png?fm=webp&amp;w=800 800w, ${IMAGES}/eyecatch-newer.png?fm=webp&amp;w=1200 1200w" ` +
+            'sizes="(min-width: 860px) 800px, 100vw" width="1200" height="630" alt="Another post" fetchpriority="high" decoding="async"></div>',
+        );
+        expect(html.indexOf('class="article-eyecatch"')).toBeLessThan(html.indexOf('class="article-title"'));
+        expect(html).not.toContain('loading="lazy"');
+
+        const bare = await renderPost([post()], 0);
+        expect(bare).not.toContain('eyecatch');
+        expect(bare).not.toContain('<img');
+    });
+
     test('the feed lists every post', () => {
         const xml = renderFeed(posts);
         expect(xml).toContain('<title>Newer &lt;b&gt;&amp;&lt;/b&gt;</title>');

@@ -4,7 +4,7 @@
 
 import { rm } from 'node:fs/promises';
 import { join } from 'node:path';
-import { eyecatchPng } from './eyecatch';
+import { EYECATCH_HEIGHT, EYECATCH_WIDTH, eyecatchPng } from './eyecatch';
 import { BlogSourceError, currentEyecatch, fetchPosts, missingCredentials, type Post, setEyecatch, uploadImage, withoutEyecatch } from './microcms';
 import { blogFiles } from './site';
 
@@ -15,7 +15,8 @@ const UPLOAD_INTERVAL = 1_100;
 
 /**
  * Gives every post that has no eyecatch a generated one: draws it, uploads it to the media
- * library and sets it on the post. A post that has an eyecatch is left alone, and so is one
+ * library and sets it on the post. The post in `posts` gets it too, so the pages this build
+ * writes show it. A post that has an eyecatch is left alone, and so is one
  * that is given an eyecatch by hand while this runs: the list read at the start is not what
  * decides, each post is looked at again right before anything is written for it.
  *
@@ -51,6 +52,7 @@ async function registerEyecatches(posts: Post[], env: Env): Promise<void> {
             if (!(error instanceof BlogSourceError)) throw error;
             throw new BlogSourceError(`${error.message} The picture was uploaded and stays in the media library as ${name}.`);
         }
+        if (set) post.eyecatch = { url, width: EYECATCH_WIDTH, height: EYECATCH_HEIGHT };
         console.log(
             set
                 ? `Generated an eyecatch for ${post.id}`

@@ -289,7 +289,7 @@ describe('microCMS', () => {
     test('reads the eyecatch of a post, or that it has none', async () => {
         const { calls } = microcms([...contents, { ...apiPost('emptied'), eyecatch: null }]);
         const posts = await fetchPosts(readEnv);
-        expect(posts.map((post) => post.eyecatch)).toEqual([null, `${MEDIA}/photo.jpg`, null, null]);
+        expect(posts.map((post) => post.eyecatch)).toEqual([null, picture(`${MEDIA}/photo.jpg`), null, null]);
         expect(calls[0]!.url.searchParams.get('fields')!.split(',')).toContain('eyecatch');
     });
 
@@ -572,6 +572,22 @@ describe('build', () => {
         expect(logged).toContain('Generated an eyecatch for bare-2');
         expect((await readdir(join(dist, 'blog'))).sort()).toEqual(['bare-1.html', 'bare-2.html', 'dressed.html', 'feed.xml']);
         expect(eyecatchesOf(posts)).toEqual([`${MEDIA}/eyecatch-bare-1.png`, `${MEDIA}/photo.jpg`, `${MEDIA}/eyecatch-bare-2.png`]);
+    });
+
+    test('shows the pictures it sets in the pages of the same build', async () => {
+        microcms(contents);
+        await buildBlog(writeEnv, dist);
+
+        const list = await Bun.file(join(dist, 'blog.html')).text();
+        expect(list).not.toContain('NO SIGNAL');
+        for (const id of ['bare-1', 'bare-2']) {
+            const set = `${MEDIA}/eyecatch-${id}.png`;
+            expect(list).toContain(
+                `<div class="post-eyecatch"><img src="${set}?fm=webp&amp;w=800" srcset="${set}?fm=webp&amp;w=400 400w, ${set}?fm=webp&amp;w=800 800w"`,
+            );
+            const article = await Bun.file(join(dist, `blog/${id}.html`)).text();
+            expect(article).toContain(`<div class="article-eyecatch"><img src="${set}?fm=webp&amp;w=1200"`);
+        }
     });
 
     test('sends nothing when every post has an eyecatch', async () => {
