@@ -16,13 +16,16 @@
 - 同時に走るデプロイは1本だけです。実行中に次のデプロイが起動された場合、実行中のものは最後まで走り、新しいものはその後に実行されます。待っているデプロイがあるうちにさらに次が起動されると、待っていたほうは取り消され、最新の1本だけが残ります。
 - 記事は、どの起動でもビルドの時点で microCMS から取得します。microCMS の Webhook から起動したときは、`main` の最新のコミットをビルドします。
 - ビルドが失敗した場合はデプロイされません。
-- ブログ（`/blog`）は、`bun run build` の中で microCMS の記事から生成します。Secret の `MICROCMS_SERVICE_DOMAIN` と `MICROCMS_API_KEY` は、ビルドのステップにだけ渡しています。
-- アイキャッチの生成と登録に使う `MICROCMS_WRITE_API_KEY` は渡していません。GitHub Actions のビルドは microCMS に書き込まず、アイキャッチのない記事は一覧に `NO SIGNAL` のまま出ます。アイキャッチを登録するのは、このキーを `.env` に置いた手元のビルドだけです。
-- キーがない場合や、microCMS から記事を取得できない場合は、ビルドが失敗してデプロイしません。本番の `/blog` は前回のデプロイのまま残ります。ブログを省いてビルドを続けることは、手元でも GitHub Actions でもしません。ブログのないサイトをデプロイすると、本番の `/blog` が消えるためです。
+- ブログ（`/blog`）は、`bun run build` の中で microCMS の記事から生成します。Secret の `MICROCMS_SERVICE_DOMAIN`、`MICROCMS_API_KEY`、`MICROCMS_WRITE_API_KEY` は、ビルドのステップにだけ渡しています。
+- Secret の `MICROCMS_WRITE_API_KEY` が登録されていれば、ビルドはアイキャッチのない記事に画像を生成し、microCMS に登録します。登録したアイキャッチは、同じデプロイの一覧と記事ページに出ます。このキーで書き込めないとき（権限が足りないときなど）は、ビルドが失敗してデプロイしません。Secret が未登録でもビルドは続き、アイキャッチを作らないだけです。その場合、アイキャッチのない記事は一覧に `NO SIGNAL` と出ます。
+- アイキャッチを登録すると記事が更新されるので、microCMS の Webhook がデプロイをもう1本起動します。その2本目のビルドでは、登録した記事にはもうアイキャッチがあるので書き込まず、Webhook も送られません。デプロイが繰り返し起動することはありません。
+- `MICROCMS_SERVICE_DOMAIN` か `MICROCMS_API_KEY` がない場合や、microCMS から記事を取得できない場合は、ビルドが失敗してデプロイしません。本番の `/blog` は前回のデプロイのまま残ります。ブログを省いてビルドを続けることは、手元でも GitHub Actions でもしません。ブログのないサイトをデプロイすると、本番の `/blog` が消えるためです。
 
 ## Secret の登録
 
-リポジトリに次の4つの Secret が必要です。Cloudflare の2つが未登録だとデプロイのステップが認証エラーで失敗し、microCMS の2つが未登録だとビルドのステップで失敗します。
+リポジトリに次の Secret を登録します。`MICROCMS_WRITE_API_KEY` 以外の4つは必須です。Cloudflare の2つが未登録だとデプロイのステップが認証エラーで失敗し、`MICROCMS_SERVICE_DOMAIN` と `MICROCMS_API_KEY` が未登録だとビルドのステップで失敗します。
+
+`MICROCMS_WRITE_API_KEY` は任意です。未登録でもビルドは続き、アイキャッチを作らないだけです。
 
 | Secret 名 | 内容 |
 | --- | --- |
@@ -30,6 +33,7 @@
 | `CLOUDFLARE_ACCOUNT_ID` | Cloudflare のアカウント ID |
 | `MICROCMS_SERVICE_DOMAIN` | microCMS のサービスドメイン（`xxx.microcms.io` の `xxx`） |
 | `MICROCMS_API_KEY` | `blogs` API を GET できる microCMS の API キー |
+| `MICROCMS_WRITE_API_KEY` | マネジメント API でメディアをアップロードでき、`blogs` API を PATCH できる microCMS の API キー（任意） |
 
 ### 1. Cloudflare の API トークンを作成する
 
@@ -56,7 +60,7 @@ Cloudflare ダッシュボードの **Workers & Pages** の右側に表示され
 ### 3. GitHub に登録する
 
 1. リポジトリの **Settings → Secrets and variables → Actions** を開く。
-2. **New repository secret** で、上の表の4つをそれぞれ登録する。microCMS の2つは、手元の `.env` と同じ値です。
+2. **New repository secret** で、上の表の Secret をそれぞれ登録する。アイキャッチを作らないなら、`MICROCMS_WRITE_API_KEY` は登録しなくてよい。microCMS の Secret は、手元の `.env` と同じ値です。
 
 `gh` CLI を使う場合は、次のコマンドを実行すると値の入力を求められます（値がシェルの履歴に残りません）。
 
@@ -65,6 +69,7 @@ gh secret set CLOUDFLARE_API_TOKEN
 gh secret set CLOUDFLARE_ACCOUNT_ID
 gh secret set MICROCMS_SERVICE_DOMAIN
 gh secret set MICROCMS_API_KEY
+gh secret set MICROCMS_WRITE_API_KEY   # 任意
 ```
 
 ## microCMS の Webhook
@@ -126,6 +131,7 @@ microCMS に渡すトークンを、fine-grained personal access token で作り
 | 記事を更新しても Deploy が起動しない | `main` の `deploy.yml` に `repository_dispatch` があるか、トリガーイベント名が `microcms-content-changed` と一致しているか、トークンの期限が切れていないかを確かめる |
 | ビルドのステップが `Missing MICROCMS_...` で失敗する | GitHub に microCMS の Secret が登録されているかを確かめる |
 | ビルドのステップが `microCMS answered 401` などで失敗する | Secret のサービスドメインと API キーの値を確かめる。本番の `/blog` は前回のデプロイのまま |
+| ビルドのステップが `Check MICROCMS_SERVICE_DOMAIN and MICROCMS_WRITE_API_KEY.` を含むエラーで失敗する | `MICROCMS_WRITE_API_KEY` の値を確かめる。キーに、メディアのアップロードと `blogs` の PATCH の権限があるかも確かめる。本番の `/blog` は前回のデプロイのまま。すぐに直せないときは、この Secret を削除してから **Run workflow** で実行し直すと、アイキャッチを作らずにデプロイできる |
 | カテゴリやタグの名前を変えても `/blog` に反映されない | カテゴリやタグを別の API で管理している場合、その変更ではこの Webhook は動かない。**Run workflow** から手動で実行する |
 
 ## 注意

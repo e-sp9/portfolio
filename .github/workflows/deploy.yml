@@ -27,12 +27,14 @@ jobs:
 
       - run: bun install --frozen-lockfile
 
-      # Generates /blog from microCMS. Without the keys, or when the posts cannot be fetched,
-      # the build fails and nothing is deployed, so the live /blog stays as it is
+      # Generates /blog from microCMS. Without the service domain or the read key, or when the posts
+      # cannot be fetched, the build fails and nothing is deployed, so the live /blog stays as it is.
+      # The write key is optional: with it, posts without an eyecatch are given a generated one (docs/DEPLOY.md)
       - run: bun run build
         env:
           MICROCMS_SERVICE_DOMAIN: ${{ secrets.MICROCMS_SERVICE_DOMAIN }}
           MICROCMS_API_KEY: ${{ secrets.MICROCMS_API_KEY }}
+          MICROCMS_WRITE_API_KEY: ${{ secrets.MICROCMS_WRITE_API_KEY }}
 
       - run: bun run deploy
         env:
