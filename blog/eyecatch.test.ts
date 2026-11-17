@@ -599,6 +599,28 @@ describe('build', () => {
         expect(drawn).not.toHaveBeenCalled();
     });
 
+    test('takes the empty write key that GitHub Actions passes for a Secret that is not set as none', async () => {
+        const { calls } = microcms(contents);
+        await buildBlog({ ...readEnv, MICROCMS_WRITE_API_KEY: '' }, dist);
+
+        expect(sent(calls)).toEqual([`GET ${BLOGS}`]);
+        expect(logged).toContain('Posts without an eyecatch: 2. MICROCMS_WRITE_API_KEY is not set, so none is generated.');
+    });
+
+    test('run again by the webhook its own PATCH sets off, writes nothing', async () => {
+        const { calls, posts } = microcms(contents);
+        await buildBlog(writeEnv, dist);
+        const drawn = spyOn(art, 'eyecatchPng');
+        const again = calls.length;
+        await buildBlog(writeEnv, dist);
+
+        // Even when the list is what the CDN kept from before the PATCH, each post in it without an
+        // eyecatch is looked at, found with the one the first build set, and left alone
+        expect(sent(calls.slice(again))).toEqual([`GET ${BLOGS}`, `LOOK ${BLOGS}`, `LOOK ${BLOGS}`]);
+        expect(drawn).not.toHaveBeenCalled();
+        expect(eyecatchesOf(posts)).toEqual([`${MEDIA}/eyecatch-bare-1.png`, `${MEDIA}/photo.jpg`, `${MEDIA}/eyecatch-bare-2.png`]);
+    });
+
     test('leaves alone a post that is given an eyecatch by hand after the list was read', async () => {
         // An editor sets an eyecatch on bare-2 while the build is busy with bare-1
         const { calls, posts } = microcms(contents, (call, stored) => {

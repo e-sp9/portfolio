@@ -70,8 +70,8 @@ interface Access {
 }
 
 /**
- * Names of the credentials that are not set. The service domain and the read key are kept in the
- * local .env and in GitHub Secrets; the write key in the local .env only.
+ * Names of the credentials that are not set. The service domain and both keys are kept in the
+ * local .env and in GitHub Secrets; the write key is optional in both.
  */
 export function missingCredentials(env: Env, keyName: KeyName = 'MICROCMS_API_KEY'): string[] {
     return ['MICROCMS_SERVICE_DOMAIN', keyName].filter((name) => !env[name]);

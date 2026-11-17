@@ -101,7 +101,8 @@ front of microCMS cannot answer them with what it kept from an earlier build or 
 alongside. (microCMS has no conditional update, so an eyecatch set in the instant between that last
 read and the PATCH can still be overwritten.)
 
-This is the only thing the build writes to microCMS, and it takes a key of its own, also in `.env`:
+This is the only thing the build writes to microCMS, and it takes a key of its own, also in `.env`,
+and as a GitHub Secret for the deploy workflow if the automatic deploys should generate eyecatches too:
 
 ```bash
 MICROCMS_WRITE_API_KEY=...    # a key that can PATCH the `blogs` API and upload media (Management API)
