@@ -332,26 +332,22 @@ describe('build', () => {
         await rm(dist, { recursive: true, force: true });
     });
 
-    test('without the credentials, a local build stops and names them', async () => {
+    test('without the credentials, the build stops and names them, on GitHub Actions too', async () => {
         const fetched = spyOn(globalThis, 'fetch');
-        await expect(buildBlog({}, dist)).rejects.toThrow('Missing MICROCMS_SERVICE_DOMAIN and MICROCMS_API_KEY.');
-        await expect(buildBlog({ ...env, MICROCMS_API_KEY: '' }, dist)).rejects.toThrow('Missing MICROCMS_API_KEY.');
+        for (const place of [{}, { GITHUB_ACTIONS: 'true' }]) {
+            await expect(buildBlog(place, dist)).rejects.toThrow('Missing MICROCMS_SERVICE_DOMAIN and MICROCMS_API_KEY.');
+            await expect(buildBlog({ ...env, MICROCMS_API_KEY: '', ...place }, dist)).rejects.toThrow('Missing MICROCMS_API_KEY.');
+        }
         expect(fetched).not.toHaveBeenCalled();
         expect(await readdir(dist)).toEqual([]);
     });
 
-    test('without the credentials, a build on GitHub Actions leaves the blog out with a warning', async () => {
-        const fetched = spyOn(globalThis, 'fetch');
-        const warned = spyOn(console, 'warn').mockImplementation(() => {});
-        await buildBlog({ GITHUB_ACTIONS: 'true' }, dist);
-        await buildBlog({ ...env, MICROCMS_API_KEY: '', GITHUB_ACTIONS: 'true' }, dist);
+    test('when the posts cannot be fetched, the build stops and leaves the earlier blog as it is', async () => {
+        spyOn(globalThis, 'fetch').mockResolvedValue(new Response('', { status: 503 }));
+        await Bun.write(join(dist, 'blog/abc123.html'), 'left by an earlier build');
 
-        expect(warned.mock.calls.map(([line]) => line)).toEqual([
-            '::warning title=Blog not generated::MICROCMS_SERVICE_DOMAIN and MICROCMS_API_KEY not set, so the site is built without /blog.',
-            '::warning title=Blog not generated::MICROCMS_API_KEY not set, so the site is built without /blog.',
-        ]);
-        expect(fetched).not.toHaveBeenCalled();
-        expect(await readdir(dist)).toEqual([]);
+        await expect(buildBlog({ ...env, GITHUB_ACTIONS: 'true' }, dist)).rejects.toBeInstanceOf(BlogSourceError);
+        expect((await readdir(dist, { recursive: true })).sort()).toEqual(['blog', 'blog/abc123.html']);
     });
 
     test('with the credentials, writes the list, the articles, the feed and the stylesheet', async () => {
@@ -359,8 +355,7 @@ describe('build', () => {
         spyOn(console, 'log').mockImplementation(() => {});
         await Bun.write(join(dist, 'blog/unpublished.html'), 'left by an earlier build');
 
-        // The keys decide, not the place: with them, GitHub Actions builds the blog too
-        await buildBlog({ ...env, GITHUB_ACTIONS: 'true' }, dist);
+        await buildBlog(env, dist);
         expect((await readdir(dist, { recursive: true })).sort()).toEqual(['blog', 'blog.css', 'blog.html', 'blog/abc123.html', 'blog/feed.xml']);
     });
 });

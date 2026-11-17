@@ -69,7 +69,10 @@ interface Access {
     keyName: KeyName;
 }
 
-/** Names of the credentials that are not set. They are kept in the local .env only. */
+/**
+ * Names of the credentials that are not set. The service domain and the read key are kept in the
+ * local .env and in GitHub Secrets; the write key in the local .env only.
+ */
 export function missingCredentials(env: Env, keyName: KeyName = 'MICROCMS_API_KEY'): string[] {
     return ['MICROCMS_SERVICE_DOMAIN', keyName].filter((name) => !env[name]);
 }
@@ -82,7 +85,8 @@ function access(env: Env, keyName: KeyName): Access {
         const missing = missingCredentials(env, keyName).join(' and ');
         throw new BlogSourceError(
             keyName === 'MICROCMS_API_KEY'
-                ? `Missing ${missing}. The blog is built from microCMS: set both variables in .env.`
+                ? `Missing ${missing}. The blog is built from microCMS: ` +
+                  'set both variables in .env, or as GitHub Secrets for the deploy workflow.'
                 : `Missing ${missing}. Writing to microCMS takes the service domain and this key.`,
         );
     }

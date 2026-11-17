@@ -32,12 +32,13 @@ bun run build   # generate /blog, bundle index.html + things.html into dist/, co
 bun run deploy  # wrangler deploy
 ```
 
-The build starts with the blog. Without the microCMS credentials it stops there with an error that
-names what is missing, except on GitHub Actions, where it skips the blog with a warning (see [Blog](#blog)).
+The build starts with the blog. Without the microCMS credentials, or when the posts cannot be
+fetched, it stops there with an error, on GitHub Actions too: a deploy never goes out without `/blog`.
 
-Pushing to `main` deploys automatically via GitHub Actions
-([.github/workflows/deploy.yml](.github/workflows/deploy.yml)). Required secrets and
-token permissions are described in [docs/DEPLOY.md](docs/DEPLOY.md) (Japanese).
+Pushing to `main`, and publishing, updating, unpublishing or deleting a post in microCMS, deploy
+automatically via GitHub Actions ([.github/workflows/deploy.yml](.github/workflows/deploy.yml)).
+Required secrets, the microCMS webhook, and token permissions are described in
+[docs/DEPLOY.md](docs/DEPLOY.md) (Japanese).
 
 ## 3D models
 
@@ -75,15 +76,16 @@ and add one entry to [things.ts](things.ts). The page is `things.html` +
 and writes plain HTML plus one stylesheet ([blog.css](blog.css)). The only script on these pages
 is the theme toggle.
 
-The microCMS credentials are kept in a local `.env` (git-ignored) and nowhere else:
+The microCMS credentials are kept in a local `.env` (git-ignored), and as GitHub Secrets for the deploy workflow:
 
 ```bash
 MICROCMS_SERVICE_DOMAIN=...   # the "xxx" of xxx.microcms.io
 MICROCMS_API_KEY=...          # a key that can GET the `blogs` API
 ```
 
-They are used at build time only. The GitHub Actions deploy has no keys, so it builds the site
-without `/blog` and prints a warning: for now the blog exists in local builds only.
+They are used at build time only; the deploy workflow passes them to its build step alone.
+A microCMS webhook starts that workflow (`repository_dispatch`) whenever a post is published, updated,
+unpublished or deleted, so the live `/blog` follows the CMS without a local build.
 
 ### Eyecatches
 
