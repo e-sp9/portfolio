@@ -74,6 +74,12 @@ body.blog-page .exp-type:hover {
     color: var(--accent);
 }
 
+/* A <picture> only offers AVIF beside the WebP of its <img> (blog/article.ts).
+   It adds no box: the <img> is laid out as it would be on its own. */
+body.blog-page picture {
+    display: contents;
+}
+
 /* ─── Virtual screen ─────────────────────────────────────────────────────── */
 
 #blog-screen {

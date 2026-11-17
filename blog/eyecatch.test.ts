@@ -582,11 +582,11 @@ describe('build', () => {
         expect(list).not.toContain('NO SIGNAL');
         for (const id of ['bare-1', 'bare-2']) {
             const set = `${MEDIA}/eyecatch-${id}.png`;
-            expect(list).toContain(
-                `<div class="post-eyecatch"><img src="${set}?fm=webp&amp;w=800" srcset="${set}?fm=webp&amp;w=400 400w, ${set}?fm=webp&amp;w=800 800w"`,
-            );
+            expect(list).toContain(`<div class="post-eyecatch"><picture><source type="image/avif" srcset="${set}?fm=avif&amp;w=400 400w, `);
+            expect(list).toContain(`<img src="${set}?fm=webp&amp;w=800" srcset="${set}?fm=webp&amp;w=400 400w, `);
             const article = await Bun.file(join(dist, `blog/${id}.html`)).text();
-            expect(article).toContain(`<div class="article-eyecatch"><img src="${set}?fm=webp&amp;w=1200"`);
+            expect(article).toContain(`<div class="article-eyecatch"><picture><source type="image/avif" srcset="${set}?fm=avif&amp;w=800 800w, `);
+            expect(article).toContain(`<meta property="og:image" content="${set}?fm=jpg">`);
         }
     });
 

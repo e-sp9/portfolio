@@ -71,7 +71,7 @@ and add one entry to [things.ts](things.ts). The page is `things.html` +
 `/blog` lists the posts I write in microCMS. Each post gets a page at
 `/blog/<content ID>`, and `/blog/feed.xml` is the RSS feed. All of it is static: the build
 ([blog/build.ts](blog/build.ts)) fetches every post once, rewrites the body for reading
-([blog/article.ts](blog/article.ts): highlighted code, WebP images sized for the text column)
+([blog/article.ts](blog/article.ts): highlighted code, AVIF and WebP images sized for the text column)
 and writes plain HTML plus one stylesheet ([blog.css](blog.css)). The only script on these pages
 is the theme toggle.
 
@@ -118,7 +118,7 @@ bun run eyecatch:dry-run <id> <id>    # these posts; needs no credentials
 Two things to know before the key goes in. microCMS counts setting the eyecatch as a revision of
 the post, so from the next build on the article page shows that day as its update date. And the
 picture shows on the site from that build on: on the post's card in the list and above the title of
-its article. It is not used as `og:image` yet.
+its article, and as the picture of a shared link to the article (`og:image`).
 
 ## Design
 
