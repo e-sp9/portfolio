@@ -66,7 +66,7 @@ describe('article body', () => {
     test('asks microCMS for AVIF and WebP images at the widths of the column', async () => {
         const html = await renderArticle('<figure><img src="https://images.microcms-assets.io/assets/a/b/shot.png" alt="" width="2000" height="1000"></figure>', titles);
         const at = (format: string, w: number) => `https://images.microcms-assets.io/assets/a/b/shot.png?fm=${format}&amp;w=${w}`;
-        const sizes = 'sizes="(min-width: 860px) 720px, (min-width: 769px) calc(100vw - 140px), calc(100vw - 72px)"';
+        const sizes = 'sizes="(min-width: 1441px) 922px, (min-width: 860px) 720px, (min-width: 769px) calc(100vw - 140px), calc(100vw - 72px)"';
         expect(html).toBe(
             '<figure><picture>' +
             `<source type="image/avif" srcset="${at('avif', 720)} 720w, ${at('avif', 1080)} 1080w, ${at('avif', 1440)} 1440w" ${sizes}>` +
@@ -199,7 +199,7 @@ describe('pages', () => {
     test('an article shows its eyecatch above the title, and nothing when it has none', async () => {
         const html = await renderPost([post({ eyecatch: generated })], 0);
         const at = (format: string, w: number) => `${IMAGES}/eyecatch-newer.png?fm=${format}&amp;w=${w}`;
-        const sizes = 'sizes="(min-width: 860px) 800px, (min-width: 769px) calc(100vw - 60px), calc(100vw - 40px)"';
+        const sizes = 'sizes="(min-width: 1441px) 1024px, (min-width: 860px) 800px, (min-width: 769px) calc(100vw - 60px), calc(100vw - 40px)"';
         expect(html).toContain(
             `<div class="article-eyecatch"><picture><source type="image/avif" srcset="${at('avif', 800)} 800w, ${at('avif', 1200)} 1200w" ${sizes}>` +
             `<img src="${at('webp', 1200)}" srcset="${at('webp', 800)} 800w, ${at('webp', 1200)} 1200w" ${sizes} ` +
