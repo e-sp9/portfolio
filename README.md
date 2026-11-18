@@ -32,8 +32,9 @@ bun run build   # bundle index.html + things.html into dist/, generate /blog and
 bun run deploy  # wrangler deploy
 ```
 
-The build starts with the blog. Without the microCMS credentials, or when the posts cannot be
-fetched, it stops there with an error, on GitHub Actions too: a deploy never goes out without `/blog`.
+The blog comes right after the pages are bundled, since it also writes into the top page (see
+[On the top page](#on-the-top-page)). Without the microCMS credentials, or when the posts cannot be
+fetched, the build stops there with an error, on GitHub Actions too: a deploy never goes out without `/blog`.
 
 Pushing to `main`, and publishing, updating, unpublishing or deleting a post in microCMS, deploy
 automatically via GitHub Actions ([.github/workflows/deploy.yml](.github/workflows/deploy.yml)).
@@ -94,6 +95,16 @@ MICROCMS_API_KEY=...          # a key that can GET the `blogs` API
 They are used at build time only; the deploy workflow passes them to its build step alone.
 A microCMS webhook starts that workflow (`repository_dispatch`) whenever a post is published, updated,
 unpublished or deleted, so the live `/blog` follows the CMS without a local build.
+
+### On the top page
+
+The WRITING panel of the top page is the way in. It lists the posts tagged `おすすめ` in microCMS,
+newest first, then a link to `/blog`, then my posts on other sites (written in [index.html](index.html)).
+The build puts the tagged posts into the bundled `dist/index.html`
+([blog/entrance.ts](blog/entrance.ts)), so tagging or untagging a post changes the top page with the
+next deploy, and the webhook starts that deploy. With no post tagged, or no such tag at all, the
+panel starts with the link to `/blog`. `bun run dev` serves `index.html` as it is, without the tagged
+posts; to see them, build and serve `dist/`.
 
 ### Eyecatches
 

@@ -515,6 +515,8 @@ describe('build', () => {
 
     beforeEach(async () => {
         dist = await mkdtemp(join(tmpdir(), 'blog-eyecatch-'));
+        // The top page as bundled before the blog is built, with the place for the picks
+        await Bun.write(join(dist, 'index.html'), '<body><div id="writing-picks"></div></body>');
         logged = [];
         spyOn(console, 'log').mockImplementation((line: string) => void logged.push(line));
         // The pause between uploads is not waited out here
@@ -715,7 +717,9 @@ describe('build', () => {
         );
         // bare-2 is not started
         expect(sent(calls)).toEqual([`GET ${BLOGS}`, `LOOK ${BLOGS}`, `POST ${UPLOADS}`, `LOOK ${BLOGS}`, `PATCH ${BLOGS}/bare-1`]);
-        expect(await readdir(dist)).toEqual([]);
+        // Nothing is written next to the bundled top page, and the page itself is left as it was
+        expect(await readdir(dist)).toEqual(['index.html']);
+        expect(await Bun.file(join(dist, 'index.html')).text()).toBe('<body><div id="writing-picks"></div></body>');
     });
 });
 
