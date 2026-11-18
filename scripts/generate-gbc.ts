@@ -6,19 +6,19 @@
  * (straight-on front and back shots, the main board for side/bottom ports):
  *   body 78 x 133.5 x 27.4 mm  ->  1.0 x 1.712 x 0.351 world units (1 unit = 78 mm).
  *
- * The portfolio viewer (main.ts) re-materializes every mesh as translucent
- * glass and draws EdgesGeometry lines with an 8-degree threshold, so:
+ * The portfolio viewer (main.ts) replaces the materials and draws
+ * EdgesGeometry lines with an 8-degree threshold, so:
  *   - smooth surfaces keep facet angles < 8 deg (no stray lines),
  *   - deliberate feature edges (caps, rims, recesses, steps) read as crisp outlines,
- *   - the mesh named "screen" receives the dark glossy screen material,
- *   - the other meshes get one of three glass tiers by bounding-box volume rank,
- *     so part sizes are chosen to keep every part in the tier it had.
+ *   - each glTF material names its finish in extras.role (see MATERIALS), and
+ *     the viewer picks the surface by that role (model-materials.ts).
  *
  * Run: bun scripts/generate-gbc.ts
  */
 import { Document, NodeIO } from '@gltf-transform/core';
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import type { Role } from '../model-materials';
 
 // ─── Dimensions (world units, 1 unit = 78 mm) ────────────────────────────────
 
@@ -514,8 +514,8 @@ function buildParts() {
   add('sel_start_wells', mergeGeometries([-ssX, ssX].map(x =>
     plate(inset => ssWell(x)(inset + 0.005), FZ - BTN_WELL, 0.003)), false)!, 'inset');
   const pillGeo = shellGeometry(roundedRect(0.087, 0.0346, 0.0173), FZ - BTN_WELL, FZ + 0.014, 0.012, 12);
-  add('select_pill', pillGeo, 'dark', [-ssX, ssY, 0]);
-  add('start_pill', pillGeo.clone(), 'dark', [ssX, ssY, 0]);
+  add('select_pill', pillGeo, 'rubber', [-ssX, ssY, 0]);
+  add('start_pill', pillGeo.clone(), 'rubber', [ssX, ssY, 0]);
 
   // ── Speaker: hex-packed hole cluster, bottom right ──
   const spX = 0.324, spY = yTop(0.876);
@@ -530,7 +530,7 @@ function buildParts() {
       }
     }
   }
-  add('speaker_holes', mergedAt(holes), 'dark');
+  add('speaker_holes', mergedAt(holes), 'hole');
 
   // ── Side-wall grip ridges (5 short bars near the top, both sides) ──
   const ridges: { g: THREE.BufferGeometry; at: [number, number, number] }[] = [];
@@ -544,24 +544,24 @@ function buildParts() {
   // ── Left side: EXT link port (raised bezel) + volume wheel ──
   const extY = yTop(0.235);
   add('ext_frame', plate(roundedRect(0.077, 0.128, 0.02), 0.006, 0.010), 'bodyDark', [-HW, extY, 0], qToLeft);
-  add('ext_inner', plate(roundedRect(0.051, 0.103, 0.012), 0.004, 0.010), 'dark', [-HW, extY, 0], qToLeft);
+  add('ext_inner', plate(roundedRect(0.051, 0.103, 0.012), 0.004, 0.010), 'hole', [-HW, extY, 0], qToLeft);
 
   // Thumbwheel spins about Z; only its rim pokes through the slot.
   const volY = yTop(0.34);
-  add('vol_slot', box(0.012, 0.128, 0.030), 'dark', [-0.499, volY, 0]);
+  add('vol_slot', box(0.012, 0.128, 0.030), 'hole', [-0.499, volY, 0]);
   add('vol_wheel', new THREE.CylinderGeometry(0.083, 0.083, 0.018, 64), 'dark',
     [-0.422, volY, 0], qX90);
 
   // ── Right side: power slide switch ──
   const powY = yTop(0.28);
-  add('power_slot', box(0.012, 0.128, 0.026), 'dark', [0.499, powY, 0]);
+  add('power_slot', box(0.012, 0.128, 0.026), 'hole', [0.499, powY, 0]);
   add('power_nub', box(0.016, 0.052, 0.020), 'dark', [0.504, powY, 0]);
 
   // ── Top edge: empty cartridge slot (open to the back above the hump) + IR window ──
   // The slot runs down to the cartridge connector at the bottom of the cartridge.
   const SLOT_BOTTOM = yTop(0.46);
   add('cart_slot', cartSlot(SLOT.halfW, SLOT.depth, SLOT_BOTTOM), 'inset');
-  add('cart_slit', box(0.72, 0.012, 0.097), 'dark', [0, SLOT_BOTTOM + 0.006, STRIP_Z + 0.0515]);
+  add('cart_slit', box(0.72, 0.012, 0.097), 'hole', [0, SLOT_BOTTOM + 0.006, STRIP_Z + 0.0515]);
   add('ir_window', plate(roundedRect(0.165, 0.08, 0.012), 0.003, 0.007), 'ir', [-0.283, HH, 0.075], qToTop);
 
   // ── Bottom edge: headphone jack (right of center) and DC input (left) ──
@@ -571,14 +571,14 @@ function buildParts() {
   }))), 'body');
   add('phone_hole', mergedAt(jacks.map(([x, , r]) => ({
     g: new THREE.CylinderGeometry(r, r, 0.002, 48), at: [x, bottomY(x) - 0.0025, -0.01] as [number, number, number],
-  }))), 'dark');
+  }))), 'hole');
 
   // ── Back: label recess floor, battery cover, screw heads on the counterbore floors ──
   add('back_label', plate(inset => label(inset + 0.002), BZ + 0.003, 0.003, -1), 'shade');
   add('battery_cover', plate(cover, BZ - 0.002, 0.006, -1), 'bodyDark');
 
   add('screws', mergedAt([...screwsTop, ...screwsMid].map(([x, y]) =>
-    ({ g: disc(0.020, 24), at: [x, y, SCREW_Z - 0.0005] as [number, number, number], rot: qY180 }))), 'dark');
+    ({ g: disc(0.020, 24), at: [x, y, SCREW_Z - 0.0005] as [number, number, number], rot: qY180 }))), 'hole');
 
   // ── Embossed Nintendo stadium outline on the front shell ──
   const ringOuter = roundedRect(0.273, 0.0565, 0.02825, 0, 0);
@@ -705,18 +705,24 @@ function cartSlot(halfW: number, depth: number, yBottom: number): THREE.BufferGe
 
 // ─── Export via gltf-transform ───────────────────────────────────────────────
 
-const MATERIALS: Record<string, { color: [number, number, number, number]; metallic: number; roughness: number }> = {
-  body:     { color: srgb(0x7259ab), metallic: 0.05, roughness: 0.45 }, // grape purple
-  bodyDark: { color: srgb(0x63479a), metallic: 0.05, roughness: 0.50 },
-  shade:    { color: srgb(0x54387f), metallic: 0.05, roughness: 0.55 }, // recessed areas
-  screen:   { color: srgb(0x14141c), metallic: 0.05, roughness: 0.10 },
-  lcd:      { color: srgb(0x8a9490), metallic: 0.00, roughness: 0.35 },
-  dark:     { color: srgb(0x232329), metallic: 0.05, roughness: 0.45 }, // buttons etc.
-  inset:    { color: srgb(0x4a3d6b), metallic: 0.05, roughness: 0.55 }, // wells
-  label:    { color: srgb(0x8f95a3), metallic: 0.00, roughness: 0.40 },
-  emboss:   { color: srgb(0x5a4488), metallic: 0.05, roughness: 0.50 },
-  led:      { color: srgb(0x8a1622), metallic: 0.00, roughness: 0.25 },
-  ir:       { color: srgb(0x4a1018), metallic: 0.00, roughness: 0.15 },
+/**
+ * Colors are for other glTF viewers; the portfolio ignores them and uses
+ * `role`, one of ROLES in model-materials.ts (written to the material's extras).
+ */
+const MATERIALS: Record<string, { color: [number, number, number, number]; metallic: number; roughness: number; role: Role }> = {
+  body:     { color: srgb(0x7259ab), metallic: 0.05, roughness: 0.45, role: 'shell' }, // grape purple
+  bodyDark: { color: srgb(0x63479a), metallic: 0.05, roughness: 0.50, role: 'shell' },
+  shade:    { color: srgb(0x54387f), metallic: 0.05, roughness: 0.55, role: 'print' }, // back label
+  screen:   { color: srgb(0x14141c), metallic: 0.05, roughness: 0.10, role: 'lens' },
+  lcd:      { color: srgb(0x8a9490), metallic: 0.00, roughness: 0.35, role: 'lcd' },
+  dark:     { color: srgb(0x232329), metallic: 0.05, roughness: 0.45, role: 'button' }, // d-pad, A/B, wheel, switch
+  rubber:   { color: srgb(0x232329), metallic: 0.05, roughness: 0.45, role: 'rubber' }, // SELECT / START
+  hole:     { color: srgb(0x232329), metallic: 0.05, roughness: 0.45, role: 'cavity' }, // holes, slots, screws
+  inset:    { color: srgb(0x4a3d6b), metallic: 0.05, roughness: 0.55, role: 'shell' }, // wells
+  label:    { color: srgb(0x8f95a3), metallic: 0.00, roughness: 0.40, role: 'print' },
+  emboss:   { color: srgb(0x5a4488), metallic: 0.05, roughness: 0.50, role: 'shell' },
+  led:      { color: srgb(0x8a1622), metallic: 0.00, roughness: 0.25, role: 'print' },
+  ir:       { color: srgb(0x4a1018), metallic: 0.00, roughness: 0.15, role: 'lens' },
 };
 
 async function exportGLB() {
@@ -732,7 +738,8 @@ async function exportGLB() {
     mats.set(name, doc.createMaterial(name)
       .setBaseColorFactor(def.color)
       .setMetallicFactor(def.metallic)
-      .setRoughnessFactor(def.roughness));
+      .setRoughnessFactor(def.roughness)
+      .setExtras({ role: def.role }));
   }
 
   let triangles = 0;
