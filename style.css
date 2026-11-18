@@ -717,13 +717,15 @@ body.dark-mode .panel:hover {
    RESPONSIVE
    ═══════════════════════════════════════════════════════════════════════════════ */
 
-/* --- Wide screens (index only; /things and /blog keep the base tokens) ---
+/* --- Wide screens ---
    Text grows gently with the width; the height left over goes to spacing.
    The header/footer bands stay as they are.
    The frame (--vs-left/right) is capped and centred so the sidebars sit just
-   outside the strip kept clear for the model instead of at the screen edges. */
+   outside the strip kept clear for the model instead of at the screen edges.
+   The tokens are set for every page: /things and /blog take the same text unit
+   and frame, so the header and the frame stay put from page to page. */
 @media (min-width: 1441px) {
-    body:not(.things-page):not(.blog-page) {
+    body {
         /* Text: follows the width, capped; the height term only bites when
            the sidebars would no longer fit (fixed px + text-sized lines). */
         --text-u-max: 1.28px;
@@ -754,7 +756,8 @@ body.dark-mode .panel:hover {
         --vs-right: calc((100vw - var(--frame-w)) / 2);
     }
 
-    /* Line spacing opens up with the space unit (1.4 at the base) */
+    /* Line spacing opens up with the space unit (1.4 at the base). Top page
+       only: .link-label is on /things too. */
     body:not(.things-page):not(.blog-page) :is(.skill-name, .career-year, .career-role, .career-company,
         .project-desc, .project-tech, .link-label) {
         line-height: calc(1.4em + 2 * (var(--space-u) - 1px));
@@ -765,7 +768,7 @@ body.dark-mode .panel:hover {
    spare width instead. Wider sidebars, SKILLS in two columns (name over bar,
    as on mobile), CAREER with the year beside the role. --- */
 @media (min-width: 1441px) and (min-aspect-ratio: 15/8) {
-    body:not(.things-page):not(.blog-page) {
+    body {
         --sidebar-w: calc(340 * var(--text-u) + 20 * (var(--space-u) - 1px));
         --fit-fixed: 362px;
         --fit-lines: 380;
