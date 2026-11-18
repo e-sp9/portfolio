@@ -1101,7 +1101,7 @@ body.dark-mode .panel:hover {
     }
 
     .exp-label {
-        font-size: 18px;
+        font-size: 20px;
         letter-spacing: 2px;
         white-space: nowrap;
     }
@@ -1153,9 +1153,11 @@ body.dark-mode .panel:hover {
         right: 12px;
     }
 
+    /* The name grows with the width as far as the buttons leave room:
+       15px up to 345px, 16px at 360px, 18px at 390px, 20px from 420px */
     .exp-label {
-        font-size: 15px;
-        letter-spacing: 1px;
+        font-size: clamp(15px, calc(16px + (100vw - 360px) / 15), 20px);
+        letter-spacing: clamp(1px, calc(1px + (100vw - 360px) / 30), 2px);
     }
 
     #theme-toggle,
