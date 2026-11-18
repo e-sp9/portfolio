@@ -2,6 +2,9 @@
    /hire — what I can take on and how to reach me, in the same CRT-monitor
    language as /things. Loaded after style.css; everything here is scoped to
    body.hire-page.
+   As on /things, /blog and /work, type and spacing are multiples of --text-u, so
+   above 1440px the page grows with the text of the top page. Not --space-u: it
+   spreads the height the top page's sidebars leave free, and this page scrolls.
    ═══════════════════════════════════════════════════════════════════════════════ */
 
 html:has(body.hire-page),
@@ -40,7 +43,7 @@ body.hire-page .exp-label:hover {
     flex: 1;
     margin: var(--vs-top) var(--vs-right) 0 var(--vs-left);
     border: 1px solid var(--border);
-    padding: 22px 20px 28px;
+    padding: calc(22 * var(--text-u)) calc(20 * var(--text-u)) calc(28 * var(--text-u));
     position: relative;
     z-index: 2;
 }
@@ -69,13 +72,13 @@ body.hire-page .exp-label:hover {
 }
 
 .hire-head {
-    margin-bottom: 20px;
+    margin-bottom: calc(20 * var(--text-u));
 }
 
 .hire-head .ph {
-    font-size: 28px;
+    font-size: calc(28 * var(--text-u));
     font-weight: 400;
-    letter-spacing: 3px;
+    letter-spacing: calc(3 * var(--text-u));
     margin: 0;
     padding: 0;
     border: 0;
@@ -85,17 +88,17 @@ body.hire-page .exp-label:hover {
 
 /* The width of a blog article, centred in the screen */
 .hire-column {
-    max-width: 800px;
+    max-width: calc(800 * var(--text-u));
     margin: 0 auto;
     display: flex;
     flex-direction: column;
-    gap: 14px;
+    gap: calc(14 * var(--text-u));
 }
 
 .hire-row {
     display: grid;
     grid-template-columns: 1fr;
-    gap: 14px;
+    gap: calc(14 * var(--text-u));
 }
 
 @media (min-width: 640px) {
@@ -106,7 +109,7 @@ body.hire-page .exp-label:hover {
 
 .hire-panel {
     /* inherits .panel: translucent surface, 1px border, blur, hover lift */
-    padding: 14px 16px 16px;
+    padding: calc(14 * var(--text-u)) calc(16 * var(--text-u)) calc(16 * var(--text-u));
     animation: fadeSlideIn 0.4s ease-out backwards;
 }
 
@@ -119,19 +122,19 @@ body.hire-page .exp-label:hover {
 }
 
 .hire-panel .ph {
-    font-size: 18px;
+    font-size: calc(18 * var(--text-u));
     font-weight: 400;
-    letter-spacing: 1.5px;
-    margin-bottom: 4px;
-    padding-bottom: 8px;
+    letter-spacing: calc(1.5 * var(--text-u));
+    margin-bottom: calc(4 * var(--text-u));
+    padding-bottom: calc(8 * var(--text-u));
 }
 
 /* The heading of the draft, in Japanese, at the end of the panel header */
 .ph-ja {
     margin-left: auto;
-    padding-left: 12px;
+    padding-left: calc(12 * var(--text-u));
     font-family: var(--font-read);
-    font-size: 12px;
+    font-size: calc(12 * var(--text-u));
     letter-spacing: 0.04em;
     color: var(--txt);
 }
@@ -146,10 +149,10 @@ body.hire-page .exp-label:hover {
 .hire-list li {
     counter-increment: hire;
     position: relative;
-    padding: 10px 0 10px 2.25em;
+    padding: calc(10 * var(--text-u)) 0 calc(10 * var(--text-u)) 2.25em;
     border-bottom: 1px solid var(--border);
     font-family: var(--font-read);
-    font-size: 15px;
+    font-size: calc(15 * var(--text-u));
     line-height: 1.7;
     color: var(--txt-br);
     /* Broken between phrases rather than inside a word, and a hair of space
@@ -169,9 +172,9 @@ body.hire-page .exp-label:hover {
     position: absolute;
     left: 0;
     font-family: var(--fp);
-    font-size: 12px;
-    line-height: calc(15px * 1.7);
-    letter-spacing: 1px;
+    font-size: calc(12 * var(--text-u));
+    line-height: calc(15 * 1.7 * var(--text-u));
+    letter-spacing: calc(1 * var(--text-u));
     color: var(--accent-secondary);
 }
 
@@ -183,22 +186,23 @@ body.hire-page .exp-label:hover {
 /* ─── Contact ────────────────────────────────────────────────────────────── */
 
 .hire-contact {
-    gap: 10px;
-    padding: 12px 0 0;
+    gap: calc(10 * var(--text-u));
+    /* The bottom too: .link-row pads it in --space-u */
+    padding: calc(12 * var(--text-u)) 0 0;
 }
 
 .hire-contact .link-icon {
-    font-size: 14px;
+    font-size: calc(14 * var(--text-u));
 }
 
 .hire-contact .link-label {
-    font-size: 20px;
-    letter-spacing: 1px;
+    font-size: calc(20 * var(--text-u));
+    letter-spacing: calc(1 * var(--text-u));
 }
 
 .hire-handle {
-    font-size: 20px;
-    letter-spacing: 1px;
+    font-size: calc(20 * var(--text-u));
+    letter-spacing: calc(1 * var(--text-u));
     color: var(--accent);
     transition: color 200ms ease-out;
 }
@@ -208,7 +212,7 @@ body.hire-page .exp-label:hover {
 }
 
 .hire-contact .link-arrow {
-    font-size: 16px;
+    font-size: calc(16 * var(--text-u));
 }
 
 /* ─── Footer in flow ─────────────────────────────────────────────────────── */

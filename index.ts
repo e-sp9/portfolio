@@ -2,6 +2,7 @@ import index from "./index.html";
 import things from "./things.html";
 import hire from "./hire.html";
 import { serveBlog } from "./blog/dev";
+import { serveWork } from "./work/site";
 
 Bun.serve({
   routes: {
@@ -13,6 +14,11 @@ Bun.serve({
     "/blog": serveBlog,
     "/blog/*": serveBlog,
     "/blog.css": serveBlog,
+    // The cases come from work/cases.ts: rendered on request here, written to
+    // dist/ by the build (work/build.ts).
+    "/work": serveWork,
+    "/work/*": serveWork,
+    "/work.css": serveWork,
   },
   // Serve everything under ./public (3D models etc.) so adding a model
   // requires no server changes.

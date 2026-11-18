@@ -20,7 +20,7 @@ rendered as translucent glass with crisp feature edges, framed by status panels.
 ```bash
 bun install
 bun run dev     # http://localhost:3000 with HMR
-bun test        # tests of the blog generator
+bun test        # tests of the blog and /work generators
 ```
 
 `/blog` needs the microCMS credentials in `.env` (see [Blog](#blog)); the other pages work without them.
@@ -28,12 +28,13 @@ bun test        # tests of the blog generator
 ## Build & deploy
 
 ```bash
-bun run build   # generate /blog, bundle index.html + things.html + hire.html into dist/, copy public/
+bun run build   # bundle index.html + things.html + hire.html into dist/, generate /blog and /work, copy public/
 bun run deploy  # wrangler deploy
 ```
 
-The build starts with the blog. Without the microCMS credentials, or when the posts cannot be
-fetched, it stops there with an error, on GitHub Actions too: a deploy never goes out without `/blog`.
+The blog comes right after the pages are bundled, since it also writes into the top page (see
+[On the top page](#on-the-top-page)). Without the microCMS credentials, or when the posts cannot be
+fetched, the build stops there with an error, on GitHub Actions too: a deploy never goes out without `/blog`.
 
 Pushing to `main`, and publishing, updating, unpublishing or deleting a post in microCMS, deploy
 automatically via GitHub Actions ([.github/workflows/deploy.yml](.github/workflows/deploy.yml)).
@@ -67,6 +68,14 @@ name, category, a one-liner, and a link. To add one: drop the photo into `public
 and add one entry to [things.ts](things.ts). The page is `things.html` +
 `things-page.ts` + `things.css`, built alongside the top page.
 
+## Work
+
+[`/work`](https://esp-9.dev/work) shows my client work as case studies: a card per case, then a
+section on the bot operation behind them. Each case gets a page at `/work/<slug>`. The text lives in
+[work/cases.ts](work/cases.ts), and the build ([work/build.ts](work/build.ts)) writes static HTML plus
+one stylesheet ([work.css](work.css)). To add a case, add one entry there, and a card for it to the
+WORK panel in `index.html`; the tests check that the top page and the manifest agree.
+
 ## Hire
 
 [`/hire`](https://esp-9.dev/hire) is where to ask me for work: what I can take on, the kinds of
@@ -92,6 +101,16 @@ MICROCMS_API_KEY=...          # a key that can GET the `blogs` API
 They are used at build time only; the deploy workflow passes them to its build step alone.
 A microCMS webhook starts that workflow (`repository_dispatch`) whenever a post is published, updated,
 unpublished or deleted, so the live `/blog` follows the CMS without a local build.
+
+### On the top page
+
+The WRITING panel of the top page is the way in. It lists the posts tagged `おすすめ` in microCMS,
+newest first, then a link to `/blog`, then my posts on other sites (written in [index.html](index.html)).
+The build puts the tagged posts into the bundled `dist/index.html`
+([blog/entrance.ts](blog/entrance.ts)), so tagging or untagging a post changes the top page with the
+next deploy, and the webhook starts that deploy. With no post tagged, or no such tag at all, the
+panel starts with the link to `/blog`. `bun run dev` serves `index.html` as it is, without the tagged
+posts; to see them, build and serve `dist/`.
 
 ### Eyecatches
 

@@ -4,7 +4,7 @@
 // written out as static HTML: these pages carry no script beyond the theme toggle.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { type Frame, renderArticle, resized, shared } from './article';
+import { type Frame, renderArticle, resized, shared, WIDE_SCALE } from './article';
 import { esc } from './html';
 import type { Eyecatch, Post } from './microcms';
 
@@ -163,15 +163,16 @@ function tags(post: Post): string {
 /**
  * On a card: a column of the grid in blog.css, less the margins of the screen, the gaps and the borders.
  * With two columns, the narrowest margins (below 768px) are counted, so it never comes out short.
+ * Above 1440px the frame is narrower than the screen less its margins, so three columns come out a little long.
  */
 const CARD: Frame = {
     widths: [400, 600, 800],
     sizes: '(min-width: 1100px) calc((100vw - 204px) / 3), (min-width: 640px) calc(50vw - 28px), calc(100vw - 40px)',
 };
-/** Across the top of the article sheet, 800px at most; below that, the page less the margins, which narrow at 768px */
+/** Across the top of the article sheet, 800px at most (more above 1440px); below that, the page less the margins, which narrow at 768px */
 const SHEET: Frame = {
     widths: [800, 1200, 1600],
-    sizes: '(min-width: 860px) 800px, (min-width: 769px) calc(100vw - 60px), calc(100vw - 40px)',
+    sizes: `(min-width: 1441px) ${Math.ceil(800 * WIDE_SCALE)}px, (min-width: 860px) 800px, (min-width: 769px) calc(100vw - 60px), calc(100vw - 40px)`,
 };
 
 /** Cards whose eyecatch loads at once: what the first screen of most displays shows (two rows of three, or three of two). The rest wait until they are scrolled near. */

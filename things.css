@@ -1,6 +1,9 @@
 /* ═══════════════════════════════════════════════════════════════════════════════
    /things — a scrolling inventory page in the same CRT-monitor language as the
    top page. Loaded after style.css; everything here is scoped to body.things-page.
+   Type and spacing are multiples of --text-u, so above 1440px the page grows
+   with the text of the top page (style.css, "Wide screens"). Not --space-u: it
+   spreads the height the top page's sidebars leave free, and this page scrolls.
    ═══════════════════════════════════════════════════════════════════════════════ */
 
 html:has(body.things-page),
@@ -39,7 +42,7 @@ body.things-page .exp-label:hover {
     flex: 1;
     margin: var(--vs-top) var(--vs-right) 0 var(--vs-left);
     border: 1px solid var(--border);
-    padding: 22px 20px 28px;
+    padding: calc(22 * var(--text-u)) calc(20 * var(--text-u)) calc(28 * var(--text-u));
     position: relative;
     z-index: 2;
 }
@@ -71,14 +74,14 @@ body.things-page .exp-label:hover {
     display: flex;
     align-items: flex-end;
     justify-content: space-between;
-    gap: 16px;
-    margin-bottom: 20px;
+    gap: calc(16 * var(--text-u));
+    margin-bottom: calc(20 * var(--text-u));
 }
 
 .things-head .ph {
-    font-size: 28px;
+    font-size: calc(28 * var(--text-u));
     font-weight: 400;
-    letter-spacing: 3px;
+    letter-spacing: calc(3 * var(--text-u));
     margin: 0;
     padding: 0;
     border: 0;
@@ -87,10 +90,10 @@ body.things-page .exp-label:hover {
 .things-sub {
     display: flex;
     align-items: baseline;
-    gap: 14px;
+    gap: calc(14 * var(--text-u));
     font-family: var(--fp);
-    font-size: 12px;
-    letter-spacing: 2px;
+    font-size: calc(12 * var(--text-u));
+    letter-spacing: calc(2 * var(--text-u));
     color: var(--txt);
     white-space: nowrap;
 }
@@ -112,7 +115,7 @@ body.things-page .exp-label:hover {
 .things-grid {
     display: grid;
     grid-template-columns: 1fr;
-    gap: 14px;
+    gap: calc(14 * var(--text-u));
 }
 
 @media (min-width: 640px) {
@@ -168,10 +171,10 @@ body.things-page .exp-label:hover {
 }
 
 .thing-body {
-    padding: 12px 14px 10px;
+    padding: calc(12 * var(--text-u)) calc(14 * var(--text-u)) calc(10 * var(--text-u));
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: calc(6 * var(--text-u));
 }
 
 .thing-meta {
@@ -179,14 +182,14 @@ body.things-page .exp-label:hover {
     align-items: center;
     justify-content: space-between;
     font-family: var(--fp);
-    font-size: 11px;
-    letter-spacing: 1.5px;
+    font-size: calc(11 * var(--text-u));
+    letter-spacing: calc(1.5 * var(--text-u));
 }
 
 .thing-cat {
     color: var(--accent-secondary);
     border: 1px solid currentColor;
-    padding: 2px 6px;
+    padding: calc(2 * var(--text-u)) calc(6 * var(--text-u));
     line-height: 1;
 }
 
@@ -204,9 +207,7 @@ body.things-page .exp-label:hover {
 
 .thing-name {
     font-family: var(--fp);
-    /* Scale with the card so the longest name stays on one line (20px on wide cards) */
-    font-size: 11px;
-    font-size: clamp(11px, 5cqi, 20px);
+    font-size: calc(11 * var(--text-u));
     letter-spacing: 0.075em;
     color: var(--val);
     text-decoration: none;
@@ -215,6 +216,15 @@ body.things-page .exp-label:hover {
     /* Wrap at spaces, not inside a katakana word (14インチ) */
     word-break: keep-all;
     overflow-wrap: break-word;
+}
+
+/* Scale with the card so the longest name stays on one line (20px on wide cards).
+   Behind @supports: a value with var() in it is only dropped at computed time,
+   so a browser without container units would lose the size above too. */
+@supports (font-size: 1cqi) {
+    .thing-name {
+        font-size: clamp(calc(11 * var(--text-u)), 5cqi, calc(20 * var(--text-u)));
+    }
 }
 
 .thing-name::after {
@@ -236,26 +246,27 @@ body.things-page .exp-label:hover {
 
 .thing-note {
     font-family: 'Inter', -apple-system, sans-serif;
-    font-size: 14px;
+    font-size: calc(14 * var(--text-u));
     font-weight: 400;
     line-height: 1.6;
     color: var(--txt);
 }
 
 .thing-link {
-    margin-top: 4px;
-    padding-top: 8px;
+    margin-top: calc(4 * var(--text-u));
+    /* The bottom too: .link-row pads it in --space-u */
+    padding: calc(8 * var(--text-u)) 0 calc(4 * var(--text-u));
     border-top: 1px solid var(--border);
     font-family: var(--fp);
 }
 
 .thing-link .link-label {
-    font-size: 13px;
-    letter-spacing: 1px;
+    font-size: calc(13 * var(--text-u));
+    letter-spacing: calc(1 * var(--text-u));
 }
 
 .thing-link .link-arrow {
-    font-size: 13px;
+    font-size: calc(13 * var(--text-u));
 }
 
 /* ─── Footer in flow ─────────────────────────────────────────────────────── */

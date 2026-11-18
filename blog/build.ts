@@ -1,9 +1,11 @@
-// Writes the blog into dist/ as static files. First step of `bun run build`,
-// so a build without the posts stops before anything else runs.
+// Writes the blog into dist/ as static files, and the posts it recommends into the
+// top page there. A step of `bun run build` that comes after the pages are bundled,
+// so dist/index.html is there to write into. Without the posts the build stops here.
 // On the way, posts that have no eyecatch in microCMS are given a generated one.
 
 import { rm } from 'node:fs/promises';
 import { join } from 'node:path';
+import { picks, writeEntrance } from './entrance';
 import { EYECATCH_HEIGHT, EYECATCH_WIDTH, eyecatchPng } from './eyecatch';
 import { BlogSourceError, currentEyecatch, fetchPosts, type Post, setEyecatch, uploadImage, withoutEyecatch } from './microcms';
 import { blogFiles } from './site';
@@ -62,7 +64,8 @@ async function registerEyecatches(posts: Post[], env: Env): Promise<void> {
 }
 
 /**
- * Generates the blog into `dist`.
+ * Generates the blog into `dist`, and puts the posts tagged for the top page into its
+ * dist/index.html (blog/entrance.ts).
  *
  * Without the microCMS credentials, or when the posts cannot be fetched, this is an error and
  * nothing is written, locally and on GitHub Actions alike. The deploy workflow gets the keys
@@ -75,7 +78,9 @@ export async function buildBlog(env: Env, dist: string): Promise<void> {
     await rm(join(dist, 'blog'), { recursive: true, force: true });
     const files = blogFiles(posts);
     for (const [path, render] of files) await Bun.write(join(dist, path), await render());
-    console.log(`Generated /blog: ${posts.length} posts, ${files.size} files`);
+    // From the same posts as the pages above, so every pick links to an article this build wrote
+    await writeEntrance(dist, posts);
+    console.log(`Generated /blog: ${posts.length} posts, ${files.size} files, ${picks(posts).length} on the top page`);
 }
 
 if (import.meta.main) {

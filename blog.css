@@ -2,6 +2,8 @@
    /blog — the post list and the article pages, in the same CRT-monitor language
    as /things. Bundled together with style.css into /blog.css (blog/site.ts);
    everything here is scoped to body.blog-page.
+   As on /things, type and spacing are multiples of --text-u, so above 1440px
+   the pages grow with the text of the top page.
    ═══════════════════════════════════════════════════════════════════════════════ */
 
 @import "./style.css";
@@ -15,7 +17,7 @@ body.blog-page {
 
 body.blog-page {
     /* Width of the text column. blog/article.ts sizes images for it. */
-    --measure: 720px;
+    --measure: calc(720 * var(--text-u));
 
     /* Neither web font has Japanese glyphs: name the gothic that fills in, rather
        than leave it to the generic family (MS Gothic for monospace on Windows). */
@@ -86,7 +88,7 @@ body.blog-page picture {
     flex: 1;
     margin: var(--vs-top) var(--vs-right) 0 var(--vs-left);
     border: 1px solid var(--border);
-    padding: 22px 20px 28px;
+    padding: calc(22 * var(--text-u)) calc(20 * var(--text-u)) calc(28 * var(--text-u));
     position: relative;
     z-index: 2;
 }
@@ -118,14 +120,14 @@ body.blog-page picture {
     display: flex;
     align-items: flex-end;
     justify-content: space-between;
-    gap: 16px;
-    margin-bottom: 20px;
+    gap: calc(16 * var(--text-u));
+    margin-bottom: calc(20 * var(--text-u));
 }
 
 .blog-head .ph {
-    font-size: 28px;
+    font-size: calc(28 * var(--text-u));
     font-weight: 400;
-    letter-spacing: 3px;
+    letter-spacing: calc(3 * var(--text-u));
     margin: 0;
     padding: 0;
     border: 0;
@@ -134,9 +136,9 @@ body.blog-page picture {
 .blog-sub {
     display: flex;
     align-items: baseline;
-    gap: 14px;
-    font-size: 12px;
-    letter-spacing: 2px;
+    gap: calc(14 * var(--text-u));
+    font-size: calc(12 * var(--text-u));
+    letter-spacing: calc(2 * var(--text-u));
     color: var(--txt);
     white-space: nowrap;
 }
@@ -153,8 +155,8 @@ body.blog-page picture {
     /* Taller than its text, for touch */
     margin: -8px 0;
     padding: 8px 0;
-    font-size: 12px;
-    letter-spacing: 2px;
+    font-size: calc(12 * var(--text-u));
+    letter-spacing: calc(2 * var(--text-u));
     color: var(--accent);
     text-decoration: none;
     transition: color 200ms ease-out;
@@ -169,7 +171,7 @@ body.blog-page picture {
 .posts-grid {
     display: grid;
     grid-template-columns: 1fr;
-    gap: 14px;
+    gap: calc(14 * var(--text-u));
 }
 
 @media (min-width: 640px) {
@@ -223,8 +225,8 @@ body.blog-page picture {
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 11px;
-    letter-spacing: 2px;
+    font-size: calc(11 * var(--text-u));
+    letter-spacing: calc(2 * var(--text-u));
     color: var(--dim);
 }
 
@@ -232,22 +234,22 @@ body.blog-page picture {
     flex: 1;
     display: flex;
     flex-direction: column;
-    gap: 8px;
-    padding: 14px 16px 12px;
+    gap: calc(8 * var(--text-u));
+    padding: calc(14 * var(--text-u)) calc(16 * var(--text-u)) calc(12 * var(--text-u));
 }
 
 .post-meta {
     display: flex;
     align-items: center;
-    gap: 12px;
-    font-size: 11px;
-    letter-spacing: 1.5px;
+    gap: calc(12 * var(--text-u));
+    font-size: calc(11 * var(--text-u));
+    letter-spacing: calc(1.5 * var(--text-u));
 }
 
 .post-cat {
     color: var(--accent-secondary);
     border: 1px solid currentColor;
-    padding: 2px 6px;
+    padding: calc(2 * var(--text-u)) calc(6 * var(--text-u));
     line-height: 1;
 }
 
@@ -266,7 +268,7 @@ body.blog-page picture {
 }
 
 .post-link {
-    font-size: 17px;
+    font-size: calc(17 * var(--text-u));
     line-height: 1.5;
     letter-spacing: 0.04em;
     color: var(--val);
@@ -301,7 +303,7 @@ body.blog-page picture {
 
 .post-desc {
     font-family: var(--font-read);
-    font-size: 14px;
+    font-size: calc(14 * var(--text-u));
     font-weight: 400;
     line-height: 1.7;
     color: var(--txt);
@@ -319,28 +321,28 @@ body.blog-page picture {
     flex-wrap: wrap;
     /* Latin and Japanese tags come from different fonts: share a baseline and a line height */
     align-items: baseline;
-    gap: 2px 10px;
-    font-size: 11px;
+    gap: calc(2 * var(--text-u)) calc(10 * var(--text-u));
+    font-size: calc(11 * var(--text-u));
     line-height: 1.6;
-    letter-spacing: 1px;
+    letter-spacing: calc(1 * var(--text-u));
     color: var(--txt);
 }
 
 .post .post-tags {
     margin-top: auto;
-    padding-top: 2px;
+    padding-top: calc(2 * var(--text-u));
 }
 
 /* ─── Article ────────────────────────────────────────────────────────────── */
 
 .article,
 .article-nav {
-    max-width: calc(var(--measure) + 2 * 40px);
+    max-width: calc(var(--measure) + 2 * 40 * var(--text-u));
     margin: 0 auto;
 }
 
 .article {
-    padding: 36px 40px 48px;
+    padding: calc(36 * var(--text-u)) calc(40 * var(--text-u)) calc(48 * var(--text-u));
     background: var(--sheet);
     border: 1px solid var(--border);
     transition: background-color 300ms ease-out, border-color 300ms ease-out;
@@ -348,20 +350,20 @@ body.blog-page picture {
 
 /* Across the top of the sheet, out to its border; below it the head keeps the sheet's top padding */
 .article-eyecatch {
-    margin: -36px -40px 36px;
+    margin: calc(-36 * var(--text-u)) calc(-40 * var(--text-u)) calc(36 * var(--text-u));
 }
 
 .article-head {
     display: flex;
     flex-direction: column;
-    gap: 14px;
-    padding-bottom: 20px;
-    margin-bottom: 32px;
+    gap: calc(14 * var(--text-u));
+    padding-bottom: calc(20 * var(--text-u));
+    margin-bottom: calc(32 * var(--text-u));
     border-bottom: 1px solid var(--border);
 }
 
 .article-title {
-    font-size: 28px;
+    font-size: calc(28 * var(--text-u));
     font-weight: 400;
     line-height: 1.5;
     letter-spacing: 0.04em;
@@ -374,9 +376,9 @@ body.blog-page picture {
     display: flex;
     flex-wrap: wrap;
     align-items: baseline;
-    gap: 4px 16px;
-    font-size: 11px;
-    letter-spacing: 1px;
+    gap: calc(4 * var(--text-u)) calc(16 * var(--text-u));
+    font-size: calc(11 * var(--text-u));
+    letter-spacing: calc(1 * var(--text-u));
     color: var(--txt);
 }
 
@@ -389,7 +391,7 @@ body.blog-page picture {
 
 .article-body {
     font-family: var(--font-read);
-    font-size: 16px;
+    font-size: calc(16 * var(--text-u));
     font-weight: 400;
     line-height: 1.9;
     letter-spacing: 0.02em;
@@ -419,9 +421,9 @@ body.blog-page picture {
 
 .article-body h2 {
     margin-top: 3em;
-    padding-bottom: 8px;
+    padding-bottom: calc(8 * var(--text-u));
     border-bottom: 1px solid var(--border);
-    font-size: 22px;
+    font-size: calc(22 * var(--text-u));
 }
 
 /* Square marker, echoing the dot of the panel headers */
@@ -430,7 +432,7 @@ body.blog-page picture {
     display: inline-block;
     width: 6px;
     height: 6px;
-    margin-right: 10px;
+    margin-right: calc(10 * var(--text-u));
     background: var(--accent);
     vertical-align: 0.2em;
 }
@@ -438,14 +440,14 @@ body.blog-page picture {
 /* Accent rule, as on the CAREER entries */
 .article-body h3 {
     margin-top: 2.5em;
-    padding-left: 12px;
+    padding-left: calc(12 * var(--text-u));
     border-left: 2px solid var(--accent);
-    font-size: 19px;
+    font-size: calc(19 * var(--text-u));
 }
 
 .article-body :is(h4, h5, h6) {
     margin-top: 2em;
-    font-size: 16px;
+    font-size: calc(16 * var(--text-u));
 }
 
 .article-body > :first-child {
@@ -517,11 +519,11 @@ body.blog-page picture {
 }
 
 .article-body figcaption {
-    margin-top: 8px;
+    margin-top: calc(8 * var(--text-u));
     font-family: var(--font-display);
-    font-size: 12px;
+    font-size: calc(12 * var(--text-u));
     line-height: 1.6;
-    letter-spacing: 1px;
+    letter-spacing: calc(1 * var(--text-u));
     color: var(--txt);
     text-align: center;
 }
@@ -558,13 +560,13 @@ body.blog-page picture {
 .code-head {
     display: flex;
     align-items: baseline;
-    gap: 16px;
-    padding: 7px 14px 6px;
+    gap: calc(16 * var(--text-u));
+    padding: calc(7 * var(--text-u)) calc(14 * var(--text-u)) calc(6 * var(--text-u));
     border-bottom: 1px solid var(--border);
     font-family: var(--font-display);
-    font-size: 12px;
+    font-size: calc(12 * var(--text-u));
     line-height: 1.5;
-    letter-spacing: 1px;
+    letter-spacing: calc(1 * var(--text-u));
     color: var(--txt);
 }
 
@@ -576,9 +578,9 @@ body.blog-page picture {
 
 .article-body pre {
     overflow-x: auto;
-    padding: 14px 16px;
+    padding: calc(14 * var(--text-u)) calc(16 * var(--text-u));
     font-family: var(--font-code);
-    font-size: 13.5px;
+    font-size: calc(13.5 * var(--text-u));
     line-height: 1.7;
     letter-spacing: 0;
     tab-size: 2;
@@ -591,12 +593,12 @@ body.blog-page picture {
 
 .article-body table {
     border-collapse: collapse;
-    font-size: 15px;
+    font-size: calc(15 * var(--text-u));
     line-height: 1.6;
 }
 
 .article-body :is(th, td) {
-    padding: 8px 12px;
+    padding: calc(8 * var(--text-u)) calc(12 * var(--text-u));
     border: 1px solid var(--border);
     text-align: left;
     vertical-align: top;
@@ -612,13 +614,13 @@ body.blog-page picture {
 .article-nav {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 14px;
-    margin-top: 14px;
+    gap: calc(14 * var(--text-u));
+    margin-top: calc(14 * var(--text-u));
 }
 
 .article-nav-link {
-    padding: 12px 16px;
-    gap: 6px;
+    padding: calc(12 * var(--text-u)) calc(16 * var(--text-u));
+    gap: calc(6 * var(--text-u));
     text-decoration: none;
 }
 
@@ -627,14 +629,14 @@ body.blog-page picture {
 }
 
 .article-nav-label {
-    font-size: 11px;
-    letter-spacing: 1.5px;
+    font-size: calc(11 * var(--text-u));
+    letter-spacing: calc(1.5 * var(--text-u));
     color: var(--accent);
 }
 
 .article-nav-title {
     font-family: var(--font-read);
-    font-size: 14px;
+    font-size: calc(14 * var(--text-u));
     line-height: 1.6;
     color: var(--txt-br);
     text-autospace: normal;

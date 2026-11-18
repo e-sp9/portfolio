@@ -432,7 +432,44 @@ body {
 }
 
 #sidebar-r {
-    right: calc(var(--vs-right) + 6 * var(--space-u));
+    /* Width of its scrollbar (below), added to the box so the panels keep their place */
+    --scrollbar-w: 0px;
+    right: calc(var(--vs-right) + 6 * var(--space-u) - var(--scrollbar-w));
+    width: calc(var(--sidebar-w) + var(--scrollbar-w));
+}
+
+/* The right sidebar (WORK, MAKING, WRITING, LINKS) is the longer one. Where it does not fit,
+   it scrolls with its scrollbar showing, so what is below is seen to be there.
+   The left sidebar keeps its hidden scrollbar. */
+@supports selector(::-webkit-scrollbar) {
+    /* Chrome and Safari: a thin bar in the gap between the panels and the frame. It is
+       always there, so the panels do not move; the thumb shows only when there is more. */
+    #sidebar-r {
+        --scrollbar-w: 4px;
+        overflow-y: scroll;
+        scrollbar-width: auto;
+    }
+
+    #sidebar-r::-webkit-scrollbar {
+        display: block;
+        width: 4px;
+    }
+
+    #sidebar-r::-webkit-scrollbar-thumb {
+        background: var(--dim);
+    }
+
+    #sidebar-r::-webkit-scrollbar-thumb:hover {
+        background: var(--txt);
+    }
+}
+
+@supports not selector(::-webkit-scrollbar) {
+    /* Firefox: its own thin scrollbar */
+    #sidebar-r {
+        scrollbar-width: thin;
+        scrollbar-color: var(--dim) transparent;
+    }
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════════
@@ -680,6 +717,76 @@ body.dark-mode .panel:hover {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════════
+   WORK
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+/* "ALL →" at the end of the panel header: the link to /work, at no extra height */
+.ph-link {
+    margin-left: auto;
+    font-size: calc(12 * var(--text-u));
+    letter-spacing: calc(1.5 * var(--text-u));
+    color: var(--txt);
+    text-decoration: none;
+    pointer-events: auto;
+    transition: color 200ms ease-out;
+}
+
+.ph-link:hover {
+    color: var(--accent);
+}
+
+/* One card per case, set like the MAKING entries; the whole card links to its page */
+.work-entry {
+    display: block;
+    margin-bottom: calc(8 * var(--space-u));
+    padding-bottom: calc(6 * var(--space-u));
+    border-bottom: 1px solid var(--border);
+    text-decoration: none;
+    pointer-events: auto;
+}
+
+.work-entry:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+    padding-bottom: 0;
+}
+
+.work-name {
+    display: block;
+    font-family: 'Share Tech Mono', 'Courier New', var(--font-ja);
+    font-size: calc(14 * var(--text-u));
+    line-height: 1.4;
+    color: var(--accent);
+    margin-bottom: calc(2 * var(--space-u));
+    word-break: auto-phrase;
+    transition: color 200ms ease-out;
+}
+
+/* Arrow glued to the last word by a no-break space, so it never wraps alone */
+.work-name::after {
+    content: '\a0\2192';
+    position: relative;
+    left: 0;
+    transition: left 200ms ease-out;
+}
+
+.work-entry:hover .work-name {
+    color: var(--accent-hover);
+}
+
+.work-entry:hover .work-name::after {
+    left: 3px;
+}
+
+.work-desc {
+    display: block;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, var(--font-ja);
+    font-size: calc(14 * var(--text-u));
+    line-height: 1.4;
+    color: var(--txt);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
    LINKS
    ═══════════════════════════════════════════════════════════════════════════════ */
 
@@ -723,6 +830,83 @@ body.dark-mode .panel:hover {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════════
+   WRITING
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+/* Posts on /blog tagged おすすめ, written in by the build (blog/entrance.ts).
+   Without any, the panel opens on the link to /blog. */
+#writing-picks {
+    margin-bottom: calc(2 * var(--space-u));
+}
+
+#writing-picks:empty {
+    display: none;
+}
+
+/* Posts on other sites, below a rule */
+.writing-elsewhere {
+    margin-top: calc(4 * var(--space-u));
+    padding-top: calc(8 * var(--space-u));
+    border-top: 1px solid var(--border);
+}
+
+.writing-entry {
+    display: block;
+    margin-bottom: calc(6 * var(--space-u));
+    text-decoration: none;
+    pointer-events: auto;
+}
+
+.writing-elsewhere .writing-entry {
+    margin-bottom: calc(8 * var(--space-u));
+}
+
+.writing-entry:last-child {
+    margin-bottom: 0;
+}
+
+.writing-title {
+    display: block;
+    font-family: 'Share Tech Mono', 'Courier New', var(--font-ja);
+    font-size: calc(14 * var(--text-u));
+    line-height: 1.4;
+    color: var(--txt-br);
+    word-break: auto-phrase;
+    transition: color 200ms ease-out;
+}
+
+/* Arrow glued to the last word by a no-break space, so it never wraps alone:
+   → to the article here, ↗ to another site (new tab) */
+.writing-title::after {
+    content: '\a0\2192';
+    position: relative;
+    left: 0;
+    color: var(--accent);
+    transition: left 200ms ease-out;
+}
+
+.writing-entry[target] .writing-title::after {
+    content: '\a0\2197';
+}
+
+.writing-entry:hover .writing-title {
+    color: var(--accent);
+}
+
+.writing-entry:hover .writing-title::after {
+    left: 3px;
+}
+
+.writing-meta {
+    display: block;
+    margin-top: calc(1 * var(--space-u));
+    font-family: var(--fp);
+    font-size: calc(12 * var(--text-u));
+    color: var(--dim);
+    letter-spacing: calc(0.5 * var(--text-u));
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
    ANIMATIONS
    ═══════════════════════════════════════════════════════════════════════════════ */
 
@@ -748,25 +932,31 @@ body.dark-mode .panel:hover {
    RESPONSIVE
    ═══════════════════════════════════════════════════════════════════════════════ */
 
-/* --- Wide screens (index only; /things, /blog and /hire keep the base tokens) ---
+/* --- Wide screens ---
    Text grows gently with the width; the height left over goes to spacing.
    The header/footer bands stay as they are.
    The frame (--vs-left/right) is capped and centred so the sidebars sit just
-   outside the strip kept clear for the model instead of at the screen edges. */
+   outside the strip kept clear for the model instead of at the screen edges.
+   The tokens are set for every page: /things, /blog, /work and /hire take the
+   same text unit and frame, so the header and the frame stay put from page to page. */
 @media (min-width: 1441px) {
-    body:not(.things-page):not(.blog-page):not(.hire-page) {
+    body {
         /* Text: follows the width, capped; the height term only bites when
-           the sidebars would no longer fit (fixed px + text-sized lines). */
+           the sidebars would no longer fit (fixed px + text-sized lines).
+           The --fit-* values were measured on the taller sidebar, WRITING
+           left out (the right one, while it had PROJECTS). They are never
+           raised to make the text smaller, here or on the other pages: a
+           sidebar that outgrows them scrolls instead. */
         --text-u-max: 1.28px;
-        --fit-fixed: 286px;
-        --fit-lines: 614;
+        --fit-fixed: 348px;
+        --fit-lines: 672;
         --text-u: max(1px, min(1px + (100vw - 1440px) * 0.00025, var(--text-u-max),
                     (100vh - var(--fit-fixed)) / var(--fit-lines)));
 
         /* Space: whatever height the text leaves free, spread over the
            sidebar's spacing (--fit-space px per unit), capped. */
         --space-u-max: 2.5px;
-        --fit-space: 190;
+        --fit-space: 240;
         --space-u: clamp(1px, 1px + (100vh - var(--fit-fixed)
                     - var(--fit-lines) * var(--text-u)) / var(--fit-space), var(--space-u-max));
         /* Wider by the extra panel padding, so the text column keeps its measure */
@@ -785,9 +975,10 @@ body.dark-mode .panel:hover {
         --vs-right: calc((100vw - var(--frame-w)) / 2);
     }
 
-    /* Line spacing opens up with the space unit (1.4 at the base) */
-    body:not(.things-page):not(.blog-page):not(.hire-page) :is(.skill-name, .career-year, .career-role, .career-company,
-        .project-desc, .project-tech, .link-label) {
+    /* Line spacing opens up with the space unit (1.4 at the base). Top page
+       only: .link-label is on /things and /hire too. */
+    body:not(.things-page):not(.blog-page):not(.work-page):not(.hire-page) :is(.skill-name, .career-year, .career-role, .career-company,
+        .project-desc, .project-tech, .work-name, .work-desc, .writing-title, .writing-meta, .link-label) {
         line-height: calc(1.4em + 2 * (var(--space-u) - 1px));
     }
 }
@@ -796,11 +987,11 @@ body.dark-mode .panel:hover {
    spare width instead. Wider sidebars, SKILLS in two columns (name over bar,
    as on mobile), CAREER with the year beside the role. --- */
 @media (min-width: 1441px) and (min-aspect-ratio: 15/8) {
-    body:not(.things-page):not(.blog-page):not(.hire-page) {
+    body {
         --sidebar-w: calc(340 * var(--text-u) + 20 * (var(--space-u) - 1px));
-        --fit-fixed: 362px;
-        --fit-lines: 380;
-        --fit-space: 175;
+        --fit-fixed: 348px;
+        --fit-lines: 558;
+        --fit-space: 228;
     }
 
     #sidebar-l .panel:first-child .pc {
@@ -851,6 +1042,10 @@ body.dark-mode .panel:hover {
         width: 120px;
     }
 
+    #sidebar-r {
+        width: calc(120px + var(--scrollbar-w));
+    }
+
     .ph {
         font-size: 16px;
     }
@@ -898,6 +1093,22 @@ body.dark-mode .panel:hover {
     }
 
     .project-tech {
+        font-size: 11px;
+    }
+
+    .work-name {
+        font-size: 13px;
+    }
+
+    .work-desc {
+        font-size: 13px;
+    }
+
+    .writing-title {
+        font-size: 13px;
+    }
+
+    .writing-meta {
         font-size: 11px;
     }
 
@@ -984,7 +1195,7 @@ body.dark-mode .panel:hover {
         display: contents;
     }
 
-    /* --- Mobile content: 2-column grid for CAREER & PROJECTS --- */
+    /* --- Mobile content: 2-column grid for CAREER & MAKING --- */
     .mobile-content {
         display: grid;
         grid-template-columns: 1fr 1fr;
@@ -1019,9 +1230,22 @@ body.dark-mode .panel:hover {
         order: 3;
     }
 
-    /* PROJECTS panel order */
-    #sidebar-r .panel:first-child {
+    /* MAKING panel order */
+    #sidebar-r .panel:nth-child(2) {
         order: 4;
+    }
+
+    /* WORK panel: first, across both columns */
+    #sidebar-r .panel:first-child {
+        order: 0;
+        grid-column: 1 / -1;
+    }
+
+    /* WRITING panel: last, across both columns */
+    #writing {
+        order: 5;
+        grid-column: 1 / -1;
+        padding: 12px 14px;
     }
 
     /* --- SKILLS panel compact --- */
@@ -1066,9 +1290,10 @@ body.dark-mode .panel:hover {
         padding: 2px 0;
     }
 
-    /* --- Non-floating panels (CAREER & PROJECTS) --- */
+    /* --- Non-floating panels (WORK, CAREER & MAKING) --- */
+    #sidebar-r .panel:first-child,
     #sidebar-l .panel:last-child,
-    #sidebar-r .panel:first-child {
+    #sidebar-r .panel:nth-child(2) {
         padding: 12px 14px;
     }
 
@@ -1110,6 +1335,22 @@ body.dark-mode .panel:hover {
         font-size: 12px;
     }
 
+    .work-name {
+        font-size: 15px;
+    }
+
+    .work-desc {
+        font-size: 14px;
+    }
+
+    .writing-title {
+        font-size: 15px;
+    }
+
+    .writing-meta {
+        font-size: 12px;
+    }
+
     .link-label {
         font-size: 15px;
     }
@@ -1131,15 +1372,8 @@ body.dark-mode .panel:hover {
         font-size: 11px;
     }
 
-    #theme-toggle,
-    .exp-btn {
-        font-size: 10px;
-        padding: 6px 14px;
-        letter-spacing: 1px;
-    }
-
     .exp-label {
-        font-size: 18px;
+        font-size: 20px;
         letter-spacing: 2px;
         white-space: nowrap;
     }
@@ -1150,13 +1384,29 @@ body.dark-mode .panel:hover {
     }
 
     .exp-right {
-        gap: 6px;
+        gap: 8px;
         flex-shrink: 0;
     }
 
+    /* Header buttons keep the 12px type and 30px frame from the 1000px breakpoint;
+       only the tap area reaches past the frame, to 44px tall */
     #theme-toggle,
     .exp-btn {
+        position: relative;
+        min-width: 44px;
+        text-align: center;
         white-space: nowrap;
+    }
+
+    #theme-toggle::after,
+    .exp-btn::after {
+        content: '';
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 50%;
+        height: 44px;
+        transform: translateY(-50%);
     }
 
     /* --- Dark mode for floating panels --- */
@@ -1175,19 +1425,17 @@ body.dark-mode .panel:hover {
         right: 12px;
     }
 
+    /* The name grows with the width as far as the buttons leave room:
+       15px up to 345px, 16px at 360px, 18px at 390px, 20px from 420px */
     .exp-label {
-        font-size: 15px;
-        letter-spacing: 1px;
-    }
-
-    .exp-right {
-        gap: 4px;
+        font-size: clamp(15px, calc(16px + (100vw - 360px) / 15), 20px);
+        letter-spacing: clamp(1px, calc(1px + (100vw - 360px) / 30), 2px);
     }
 
     #theme-toggle,
     .exp-btn {
-        padding: 6px 8px;
-        letter-spacing: 0.5px;
+        padding: 8px 10px;
+        letter-spacing: 1px;
     }
 
     #sidebar-l .panel:first-child,
@@ -1199,9 +1447,18 @@ body.dark-mode .panel:hover {
         grid-template-columns: 1fr 1fr;
     }
 
-    /* CAREER & PROJECTS span full width on small screens */
+    /* CAREER & MAKING span full width on small screens */
     #sidebar-l .panel:last-child,
-    #sidebar-r .panel:first-child {
+    #sidebar-r .panel:nth-child(2) {
         grid-column: 1 / -1;
+    }
+}
+
+/* Below 360px the header buttons tighten further, so the name still has room */
+@media (max-width: 359px) {
+    #theme-toggle,
+    .exp-btn {
+        padding: 8px 6px;
+        letter-spacing: 0.5px;
     }
 }
