@@ -1,6 +1,6 @@
 /**
  * Geometry helpers shared by the handheld model generators
- * (generate-gbc.ts, generate-gbasp.ts).
+ * (generate-gbc.ts, generate-gbasp.ts, generate-ds.ts).
  *
  * The portfolio viewer (main.ts) replaces the materials and draws
  * EdgesGeometry lines with an 8-degree threshold, so:
@@ -64,6 +64,43 @@ export function roundedRect(w: number, h: number, radius: number | Corners, cx =
     { cx: cx - hw + r.tl, cy: cy + hh - r.tl, r: r.tl, a0: P / 2, a1: P },
     { cx: cx - hw + r.bl, cy: cy - hh + r.bl, r: r.bl, a0: P, a1: P * 1.5 },
   ]);
+}
+
+/** Stadium around the segment p -> q (both ends of radius r). */
+export function stadium(p: { x: number; y: number }, q: { x: number; y: number }, r: number): Outline {
+  const t = Math.atan2(q.y - p.y, q.x - p.x), P = Math.PI;
+  return arcOutline([
+    { cx: q.x, cy: q.y, r, a0: t - P / 2, a1: t + P / 2 },
+    { cx: p.x, cy: p.y, r, a0: t + P / 2, a1: t + P * 1.5 },
+  ]);
+}
+
+/**
+ * Outline through arcs run in either direction (a1 < a0 bends inward), for
+ * plates and holes that are only ever drawn at inset 0.
+ */
+export function fixedOutline(arcs: Arc[], step = ARC_STEP): Outline {
+  const pts = arcs.flatMap(a => {
+    const n = Math.max(1, Math.ceil(Math.abs(a.a1 - a.a0) / step - 1e-9));
+    return Array.from({ length: n + 1 }, (_, i) => {
+      const t = a.a0 + (a.a1 - a.a0) * (i / n);
+      return new THREE.Vector2(a.cx + Math.cos(t) * a.r, a.cy + Math.sin(t) * a.r);
+    });
+  }).filter((p, i, all) => p.distanceTo(all[(i - 1 + all.length) % all.length]!) > 1e-7);
+  return () => pts;
+}
+
+/** Rectangle with sharp corners. */
+export function sharpRect(w: number, h: number, cx = 0, cy = 0): Outline {
+  const pts = [[1, -1], [1, 1], [-1, 1], [-1, -1]].map(([sx, sy]) => new THREE.Vector2(cx + sx! * w / 2, cy + sy! * h / 2));
+  return () => pts;
+}
+
+/** Small round hole: 46 facets keep its wall under the 8-degree edge threshold with fewer points than arcOutline. */
+export function circle(r: number, cx: number, cy: number, seg = 46): Outline {
+  const pts = Array.from({ length: seg }, (_, i) =>
+    new THREE.Vector2(cx + r * Math.cos(i / seg * 2 * Math.PI), cy + r * Math.sin(i / seg * 2 * Math.PI)));
+  return () => pts;
 }
 
 /** Outward 2D normal at each point of a closed CCW outline. */
@@ -239,6 +276,68 @@ export function recess(outline: Outline, zTop: number, depth: number, slope: num
   ], false)!;
 }
 
+export function quad(pts: number[][], n: number[]): THREE.BufferGeometry {
+  return indexedGeometry(pts.flat(), pts.flatMap(() => n), [0, 1, 2, 0, 2, 3]);
+}
+
+/**
+ * Cylinder along +y, centered; fan caps keep it lighter than CylinderGeometry.
+ * A cap against another part can be left off.
+ */
+export function drum(r: number, len: number, { top = true, bottom = true } = {}, seg = 48): THREE.BufferGeometry {
+  const positions: number[] = [], normals: number[] = [], indices: number[] = [];
+  for (let i = 0; i < seg; i++) {
+    const a = i / seg * 2 * Math.PI, x = Math.sin(a), z = Math.cos(a);
+    positions.push(r * x, -len / 2, r * z, r * x, len / 2, r * z);
+    normals.push(x, 0, z, x, 0, z);
+    const j = (i + 1) % seg;
+    indices.push(2 * i, 2 * j, 2 * i + 1, 2 * j, 2 * j + 1, 2 * i + 1);
+  }
+  const ring = Array.from({ length: seg }, (_, i) =>
+    new THREE.Vector2(r * Math.sin(i / seg * 2 * Math.PI), r * Math.cos(i / seg * 2 * Math.PI)));
+  const cap = (y: number, n: number) => polygon(ring, p => new THREE.Vector3(p.x, y, p.y), new THREE.Vector3(0, n, 0));
+  return mergeGeometries([
+    indexedGeometry(positions, normals, indices), ...(top ? [cap(len / 2, 1)] : []), ...(bottom ? [cap(-len / 2, -1)] : []),
+  ], false)!;
+}
+
+/**
+ * Shell under a wider part that closes it at the parting line: the swept side
+ * and the outer face only. A second cap in the same plane would double the
+ * reflection through the clear plastic.
+ */
+export function openShell(outline: Outline, zStart: number, zEnd: number, rimR: number, holes: Outline[] = []): THREE.BufferGeometry {
+  const rings = rimRings(zStart, zEnd, rimR, 13);
+  return mergeGeometries([
+    sweepSide(outline, rings, Math.sign(zEnd - zStart)),
+    flatCap(outline(rings[rings.length - 1]!.inset), zEnd, Math.sign(zEnd - zStart), holes.map(h => h(0))),
+  ], false)!;
+}
+
+export interface Opening { at: THREE.Vector3; w: number; h: number; r: number; depth: number }
+
+/**
+ * Openings cut through a flat wall. The wall (`corners`, in order, model
+ * coordinates) is drawn again with a hole per opening, and each hole gets an
+ * inner wall `depth` deep; its back comes apart, to be dark. `q` turns +z to
+ * the wall's outward normal; w and h run along the wall's local x and y.
+ */
+export function cutWall(corners: THREE.Vector3[], q: THREE.Quaternion, openings: Opening[]) {
+  const m = new THREE.Matrix4().compose(corners[0]!, q, new THREE.Vector3(1, 1, 1));
+  const inv = m.clone().invert();
+  const local = (p: THREE.Vector3) => { const l = p.clone().applyMatrix4(inv); return new THREE.Vector2(l.x, l.y); };
+  const holes = openings.map(o => { const c = local(o.at); return roundedRect(o.w, o.h, o.r, c.x, c.y); });
+  const face = polygon(corners.map(local), p => new THREE.Vector3(p.x, p.y, 0), new THREE.Vector3(0, 0, 1), holes.map(h => h(0)));
+  const wall = mergeGeometries([face, ...holes.map((h, i) => recessWall(h, 0, openings[i]!.depth, 0))], false)!.applyMatrix4(m);
+  // The face's first vertices are the corners: put back their exact values,
+  // so they meet the wall around them without a round-trip error.
+  corners.forEach((c, i) => wall.getAttribute('position').setXYZ(i, c.x, c.y, c.z));
+  return {
+    wall,
+    backs: mergeGeometries(holes.map((h, i) => fanCap(h(0), -openings[i]!.depth, 1)), false)!.applyMatrix4(m),
+  };
+}
+
 /** Flat disc (single face) — reads as a crisp circle outline. */
 export function disc(r: number, segments = 32): THREE.BufferGeometry {
   return new THREE.CircleGeometry(r, segments);
@@ -277,6 +376,9 @@ export const qX90 = axis(1, 0, 0, 90);    // +y -> +z (lathes, cylinders facing 
 export const qToTop = axis(1, 0, 0, -90); // +z -> +y (plates on the top edge)
 export const qToLeft = axis(0, 1, 0, -90); // +z -> -x (plates on the left side)
 export const qY180 = axis(0, 1, 0, 180);  // +z -> -z (discs on the back)
+export const qToRight = axis(0, 1, 0, 90); // +z -> +x (plates on the right side)
+export const qToFront = axis(1, 0, 0, 90); // +z -> -y
+export const qYtoX = axis(0, 0, 1, -90);   // +y -> +x (cylinders along a hinge)
 
 // ─── Controls ────────────────────────────────────────────────────────────────
 
@@ -361,6 +463,80 @@ export function buttonGeometry(r: number, wallH: number, sag: number, domeSteps 
     profile.push(new THREE.Vector2(sphereR * Math.sin(a), wallH + sphereR * (Math.cos(a) - Math.cos(a0))));
   }
   return new THREE.LatheGeometry(profile, 48);
+}
+
+/**
+ * Shoulder button (L or R, side s = -1 / +1): a band wrapping the body's
+ * rounded back corner (radius r, at hw, len), from `fromY` up the side to
+ * `toX` along the back, between z0 and z1, from `inner` to `outer` mm off the
+ * body's outline.
+ */
+export function shoulderBand(s: number, o: {
+  hw: number; len: number; r: number; fromY: number; toX: number; z0: number; z1: number; inner: number; outer: number;
+}): THREE.BufferGeometry {
+  const { hw, len, r, z0, z1 } = o, P = Math.PI;
+  const chain = (off: number) => {
+    const pts: [THREE.Vector2, THREE.Vector2][] = [[new THREE.Vector2(hw + off, o.fromY), new THREE.Vector2(1, 0)]];
+    for (let i = 0; i <= 14; i++) {
+      const n = new THREE.Vector2(Math.cos(i / 14 * P / 2), Math.sin(i / 14 * P / 2));
+      pts.push([new THREE.Vector2(hw - r + (r + off) * n.x, len - r + (r + off) * n.y), n]);
+    }
+    pts.push([new THREE.Vector2(o.toX, len + off), new THREE.Vector2(0, 1)]);
+    return pts.map(([p, n]) => [new THREE.Vector2(s * p.x, p.y), new THREE.Vector2(s * n.x, n.y)] as const);
+  };
+  const outer = chain(o.outer), inner = chain(o.inner);
+  const pieces: THREE.BufferGeometry[] = [];
+  const v3 = (p: THREE.Vector2, z: number) => [p.x, p.y, z];
+  for (let k = 0; k < outer.length - 1; k++) {
+    const [o0, on0] = outer[k]!, [o1, on1] = outer[k + 1]!, [i0] = inner[k]!, [i1] = inner[k + 1]!;
+    const wall = (a: THREE.Vector2, b: THREE.Vector2, na: THREE.Vector2, nb: THREE.Vector2, sign: number) =>
+      indexedGeometry([...v3(a, z0), ...v3(b, z0), ...v3(b, z1), ...v3(a, z1)],
+        [na, nb, nb, na].flatMap(n => [sign * n.x, sign * n.y, 0]), [0, 1, 2, 0, 2, 3]);
+    pieces.push(wall(o0, o1, on0, on1, 1), wall(i0, i1, on0, on1, -1));
+    pieces.push(quad([v3(i0, z1), v3(o0, z1), v3(o1, z1), v3(i1, z1)], [0, 0, 1]));
+    pieces.push(quad([v3(i0, z0), v3(o0, z0), v3(o1, z0), v3(i1, z0)], [0, 0, -1]));
+  }
+  const last = outer.length - 1;
+  pieces.push(quad([v3(inner[0]![0], z0), v3(outer[0]![0], z0), v3(outer[0]![0], z1), v3(inner[0]![0], z1)], [0, -1, 0]));
+  pieces.push(quad([v3(inner[last]![0], z0), v3(outer[last]![0], z0), v3(outer[last]![0], z1), v3(inner[last]![0], z1)], [-s, 0, 0]));
+  return mergeGeometries(pieces, false)!;
+}
+
+// ─── Clamshell pose ──────────────────────────────────────────────────────────
+
+/**
+ * For a clamshell built in its closed frame (x right, y from the front edge
+ * toward the hinge, z up) with the lid's parts built opened flat behind the
+ * hinge: folds the lid back about the hinge axis (along x at axisY, axisZ) to
+ * `openDeg`, stands the console up facing +z by leaning it back `standDeg`,
+ * centers it and scales it to 1 unit = `unitMm`.
+ */
+export function poseClamshell(
+  list: (Part & { lid?: boolean })[], o: { axisY: number; axisZ: number; openDeg: number; standDeg: number; unitMm: number },
+): Part[] {
+  const P = Math.PI;
+  const fold = (180 - o.openDeg) * P / 180;
+  const open = new THREE.Matrix4().makeTranslation(0, o.axisY, o.axisZ)
+    .multiply(new THREE.Matrix4().makeRotationX(fold))
+    .multiply(new THREE.Matrix4().makeTranslation(0, -o.axisY, -o.axisZ));
+  const stand = new THREE.Matrix4().makeRotationX(-o.standDeg * P / 180);
+  const posed = list.map(p => {
+    const m = new THREE.Matrix4().compose(
+      new THREE.Vector3(...(p.position ?? [0, 0, 0])), p.rotation ?? new THREE.Quaternion(), new THREE.Vector3(1, 1, 1));
+    if (p.lid) m.premultiply(open);
+    m.premultiply(stand);
+    const geometry = p.geometry.clone().applyMatrix4(m);
+    geometry.deleteAttribute('uv');
+    return { name: p.name, material: p.material, geometry };
+  });
+  const bounds = new THREE.Box3();
+  for (const p of posed) { p.geometry.computeBoundingBox(); bounds.union(p.geometry.boundingBox!); }
+  const size = bounds.getSize(new THREE.Vector3()), center = bounds.getCenter(new THREE.Vector3());
+  console.log(`  posed size: ${size.x.toFixed(1)} x ${size.y.toFixed(1)} x ${size.z.toFixed(1)} mm`);
+  const unit = new THREE.Matrix4().makeScale(1 / o.unitMm, 1 / o.unitMm, 1 / o.unitMm)
+    .multiply(new THREE.Matrix4().makeTranslation(-center.x, -center.y, -center.z));
+  for (const p of posed) p.geometry.applyMatrix4(unit);
+  return posed;
 }
 
 // ─── Export via gltf-transform ───────────────────────────────────────────────

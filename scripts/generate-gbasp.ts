@@ -30,9 +30,10 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import {
-  ARC_STEP, arcOutline, axis, buttonGeometry, disc, dpadGeometry, exportGLB, fanCap, flatCap, indexedGeometry,
-  mergedAt, plate, polygon, qToLeft, qToTop, qX90, qY180, recess, recessWall, rimRings, roundedRect,
-  shellGeometry, srgb, sweepSide, type Arc, type MaterialDefs, type Outline, type Part,
+  arcOutline, axis, buttonGeometry, circle, cutWall, disc, dpadGeometry, drum, exportGLB, fanCap, fixedOutline, flatCap,
+  indexedGeometry, mergedAt, openShell, plate, polygon, poseClamshell, qToFront, qToLeft, qToRight, qToTop, qX90, qY180,
+  qYtoX, quad, recess, recessWall, rimRings, roundedRect, sharpRect, shellGeometry, shoulderBand, srgb, stadium, sweepSide,
+  type MaterialDefs, type Outline, type Part,
 } from './model-geometry';
 
 const P = Math.PI;
@@ -75,43 +76,6 @@ const yLid = (v: number) => LID_TOP - v;
 
 // ─── Outlines ────────────────────────────────────────────────────────────────
 
-/** Stadium around the segment p -> q (both ends of radius r). */
-function stadium(p: { x: number; y: number }, q: { x: number; y: number }, r: number): Outline {
-  const t = Math.atan2(q.y - p.y, q.x - p.x);
-  return arcOutline([
-    { cx: q.x, cy: q.y, r, a0: t - P / 2, a1: t + P / 2 },
-    { cx: p.x, cy: p.y, r, a0: t + P / 2, a1: t + P * 1.5 },
-  ]);
-}
-
-/**
- * Outline through arcs run in either direction (a1 < a0 bends inward), for
- * plates and holes that are only ever drawn at inset 0.
- */
-function fixedOutline(arcs: Arc[], step = ARC_STEP): Outline {
-  const pts = arcs.flatMap(a => {
-    const n = Math.max(1, Math.ceil(Math.abs(a.a1 - a.a0) / step - 1e-9));
-    return Array.from({ length: n + 1 }, (_, i) => {
-      const t = a.a0 + (a.a1 - a.a0) * (i / n);
-      return new THREE.Vector2(a.cx + Math.cos(t) * a.r, a.cy + Math.sin(t) * a.r);
-    });
-  }).filter((p, i, all) => p.distanceTo(all[(i - 1 + all.length) % all.length]!) > 1e-7);
-  return () => pts;
-}
-
-/** Rectangle with sharp corners. */
-function sharpRect(w: number, h: number, cx = 0, cy = 0): Outline {
-  const pts = [[1, -1], [1, 1], [-1, 1], [-1, -1]].map(([sx, sy]) => new THREE.Vector2(cx + sx! * w / 2, cy + sy! * h / 2));
-  return () => pts;
-}
-
-/** Small round hole: 46 facets keep its wall under the 8-degree edge threshold with fewer points than arcOutline. */
-function circle(r: number, cx: number, cy: number, seg = 46): Outline {
-  const pts = Array.from({ length: seg }, (_, i) =>
-    new THREE.Vector2(cx + r * Math.cos(i / seg * 2 * P), cy + r * Math.sin(i / seg * 2 * P)));
-  return () => pts;
-}
-
 /** Lower half seen from above: the Game Pak slot's mouth is a notch in the front edge. */
 const SLOT_HALF_W = 29.5;
 const NOTCH_D = 4.5;
@@ -129,30 +93,6 @@ const baseOutline = arcOutline([
 ]);
 
 // ─── Mesh builders ───────────────────────────────────────────────────────────
-
-function quad(pts: number[][], n: number[]): THREE.BufferGeometry {
-  return indexedGeometry(pts.flat(), pts.flatMap(() => n), [0, 1, 2, 0, 2, 3]);
-}
-
-/**
- * Cylinder along +y, centered; fan caps keep it lighter than CylinderGeometry.
- * A cap against another part can be left off.
- */
-function drum(r: number, len: number, { top = true, bottom = true } = {}, seg = 48): THREE.BufferGeometry {
-  const positions: number[] = [], normals: number[] = [], indices: number[] = [];
-  for (let i = 0; i < seg; i++) {
-    const a = i / seg * 2 * P, x = Math.sin(a), z = Math.cos(a);
-    positions.push(r * x, -len / 2, r * z, r * x, len / 2, r * z);
-    normals.push(x, 0, z, x, 0, z);
-    const j = (i + 1) % seg;
-    indices.push(2 * i, 2 * j, 2 * i + 1, 2 * j, 2 * j + 1, 2 * i + 1);
-  }
-  const ring = Array.from({ length: seg }, (_, i) => new THREE.Vector2(r * Math.sin(i / seg * 2 * P), r * Math.cos(i / seg * 2 * P)));
-  const cap = (y: number, n: number) => polygon(ring, p => new THREE.Vector3(p.x, y, p.y), new THREE.Vector3(0, n, 0));
-  return mergeGeometries([
-    indexedGeometry(positions, normals, indices), ...(top ? [cap(len / 2, 1)] : []), ...(bottom ? [cap(-len / 2, -1)] : []),
-  ], false)!;
-}
 
 /**
  * Hinge knuckle at one end of the barrel. It belongs to the lower half: it
@@ -180,76 +120,6 @@ function knuckle(x0: number, x1: number): THREE.BufferGeometry {
     polygon(pts, p => new THREE.Vector3(x0, p.x, p.y), new THREE.Vector3(-1, 0, 0)),
     polygon(pts, p => new THREE.Vector3(x1, p.x, p.y), new THREE.Vector3(1, 0, 0)),
   ], false)!;
-}
-
-/**
- * L or R (side s = -1 / +1): a band wrapping the bottom shell's back corner,
- * from 7.5 mm up the side to x = 32 along the back, standing 0.9 mm proud.
- */
-function shoulder(s: number): THREE.BufferGeometry {
-  const z0 = 1.4, z1 = 9.5;
-  const chain = (off: number) => {
-    const pts: [THREE.Vector2, THREE.Vector2][] = [[new THREE.Vector2(HW + off, LEN - 7.5), new THREE.Vector2(1, 0)]];
-    for (let i = 0; i <= 14; i++) {
-      const n = new THREE.Vector2(Math.cos(i / 14 * P / 2), Math.sin(i / 14 * P / 2));
-      pts.push([new THREE.Vector2(HW - BACK_R + (BACK_R + off) * n.x, LEN - BACK_R + (BACK_R + off) * n.y), n]);
-    }
-    pts.push([new THREE.Vector2(32, LEN + off), new THREE.Vector2(0, 1)]);
-    return pts.map(([p, n]) => [new THREE.Vector2(s * p.x, p.y), new THREE.Vector2(s * n.x, n.y)] as const);
-  };
-  const outer = chain(0.9), inner = chain(-0.2);
-  const pieces: THREE.BufferGeometry[] = [];
-  const v3 = (p: THREE.Vector2, z: number) => [p.x, p.y, z];
-  for (let k = 0; k < outer.length - 1; k++) {
-    const [o0, on0] = outer[k]!, [o1, on1] = outer[k + 1]!, [i0] = inner[k]!, [i1] = inner[k + 1]!;
-    const wall = (a: THREE.Vector2, b: THREE.Vector2, na: THREE.Vector2, nb: THREE.Vector2, sign: number) =>
-      indexedGeometry([...v3(a, z0), ...v3(b, z0), ...v3(b, z1), ...v3(a, z1)],
-        [na, nb, nb, na].flatMap(n => [sign * n.x, sign * n.y, 0]), [0, 1, 2, 0, 2, 3]);
-    pieces.push(wall(o0, o1, on0, on1, 1), wall(i0, i1, on0, on1, -1));
-    pieces.push(quad([v3(i0, z1), v3(o0, z1), v3(o1, z1), v3(i1, z1)], [0, 0, 1]));
-    pieces.push(quad([v3(i0, z0), v3(o0, z0), v3(o1, z0), v3(i1, z0)], [0, 0, -1]));
-  }
-  const last = outer.length - 1;
-  pieces.push(quad([v3(inner[0]![0], z0), v3(outer[0]![0], z0), v3(outer[0]![0], z1), v3(inner[0]![0], z1)], [0, -1, 0]));
-  pieces.push(quad([v3(inner[last]![0], z0), v3(outer[last]![0], z0), v3(outer[last]![0], z1), v3(inner[last]![0], z1)], [-s, 0, 0]));
-  return mergeGeometries(pieces, false)!;
-}
-
-/**
- * Shell under a wider part that closes it at the parting line: the swept side
- * and the outer face only. A second cap in the same plane would double the
- * reflection through the clear plastic.
- */
-function openShell(outline: Outline, zStart: number, zEnd: number, rimR: number, holes: Outline[] = []): THREE.BufferGeometry {
-  const rings = rimRings(zStart, zEnd, rimR, 13);
-  return mergeGeometries([
-    sweepSide(outline, rings, Math.sign(zEnd - zStart)),
-    flatCap(outline(rings[rings.length - 1]!.inset), zEnd, Math.sign(zEnd - zStart), holes.map(h => h(0))),
-  ], false)!;
-}
-
-interface Opening { at: THREE.Vector3; w: number; h: number; r: number; depth: number }
-
-/**
- * Openings cut through a flat wall. The wall (`corners`, in order, model
- * coordinates) is drawn again with a hole per opening, and each hole gets an
- * inner wall `depth` deep; its back comes apart, to be dark. `q` turns +z to
- * the wall's outward normal; w and h run along the wall's local x and y.
- */
-function cutWall(corners: THREE.Vector3[], q: THREE.Quaternion, openings: Opening[]) {
-  const m = new THREE.Matrix4().compose(corners[0]!, q, new THREE.Vector3(1, 1, 1));
-  const inv = m.clone().invert();
-  const local = (p: THREE.Vector3) => { const l = p.clone().applyMatrix4(inv); return new THREE.Vector2(l.x, l.y); };
-  const holes = openings.map(o => { const c = local(o.at); return roundedRect(o.w, o.h, o.r, c.x, c.y); });
-  const face = polygon(corners.map(local), p => new THREE.Vector3(p.x, p.y, 0), new THREE.Vector3(0, 0, 1), holes.map(h => h(0)));
-  const wall = mergeGeometries([face, ...holes.map((h, i) => recessWall(h, 0, openings[i]!.depth, 0))], false)!.applyMatrix4(m);
-  // The face's first vertices are the corners: put back their exact values,
-  // so they meet the wall around them without a round-trip error.
-  corners.forEach((c, i) => wall.getAttribute('position').setXYZ(i, c.x, c.y, c.z));
-  return {
-    wall,
-    backs: mergeGeometries(holes.map((h, i) => fanCap(h(0), -openings[i]!.depth, 1)), false)!.applyMatrix4(m),
-  };
 }
 
 /**
@@ -283,10 +153,7 @@ function add(
   parts.push({ name, geometry, material, position, rotation, lid });
 }
 
-const qToRight = axis(0, 1, 0, 90);  // +z -> +x (plates on the right side)
 const qToBack = qToTop;               // +z -> +y (plates on the hinge edge)
-const qToFront = axis(1, 0, 0, 90);   // +z -> -y
-const qYtoX = axis(0, 0, 1, -90);     // +y -> +x (cylinders along the hinge)
 
 // ─── Parts ───────────────────────────────────────────────────────────────────
 
@@ -468,7 +335,11 @@ function buildLowerHalf() {
   add('strap_holes', mergedAt(STRAP.map(([x, y]) =>
     ({ g: disc(STRAP_R, 24), at: [x, y, STRAP_D] as [number, number, number], rot: qY180 }))), 'hole');
 
-  // ── Hinge edge: L / R ──
+  // ── Hinge edge: L / R, bands wrapping the bottom shell's back corners from
+  // 7.5 mm up the sides to x = 32 along the back, standing 0.9 mm proud ──
+  const shoulder = (s: number) => shoulderBand(s, {
+    hw: HW, len: LEN, r: BACK_R, fromY: LEN - 7.5, toX: 32, z0: 1.4, z1: 9.5, inner: -0.2, outer: 0.9,
+  });
   add('button_l', shoulder(-1), 'keys');
   add('button_r', shoulder(1), 'keys');
 }
@@ -530,32 +401,6 @@ function buildLid() {
 
 // ─── Pose and export ─────────────────────────────────────────────────────────
 
-/** Folds the lid to OPEN_DEG, stands the console up (STAND_DEG), centers it, 1 unit = 82 mm. */
-function pose(list: typeof parts): Part[] {
-  const fold = (180 - OPEN_DEG) * P / 180;
-  const open = new THREE.Matrix4().makeTranslation(0, AXIS_Y, AXIS_Z)
-    .multiply(new THREE.Matrix4().makeRotationX(fold))
-    .multiply(new THREE.Matrix4().makeTranslation(0, -AXIS_Y, -AXIS_Z));
-  const stand = new THREE.Matrix4().makeRotationX(-STAND_DEG * P / 180);
-  const posed = list.map(p => {
-    const m = new THREE.Matrix4().compose(
-      new THREE.Vector3(...(p.position ?? [0, 0, 0])), p.rotation ?? new THREE.Quaternion(), new THREE.Vector3(1, 1, 1));
-    if (p.lid) m.premultiply(open);
-    m.premultiply(stand);
-    const geometry = p.geometry.clone().applyMatrix4(m);
-    geometry.deleteAttribute('uv');
-    return { name: p.name, material: p.material, geometry };
-  });
-  const bounds = new THREE.Box3();
-  for (const p of posed) { p.geometry.computeBoundingBox(); bounds.union(p.geometry.boundingBox!); }
-  const size = bounds.getSize(new THREE.Vector3()), center = bounds.getCenter(new THREE.Vector3());
-  console.log(`  posed size: ${size.x.toFixed(1)} x ${size.y.toFixed(1)} x ${size.z.toFixed(1)} mm`);
-  const unit = new THREE.Matrix4().makeScale(1 / 82, 1 / 82, 1 / 82)
-    .multiply(new THREE.Matrix4().makeTranslation(-center.x, -center.y, -center.z));
-  for (const p of posed) p.geometry.applyMatrix4(unit);
-  return posed;
-}
-
 /** Colors (AGS-101 Pearl Blue) are for other glTF viewers; the portfolio uses `role`. */
 const MATERIALS: MaterialDefs = {
   body:     { color: srgb(0xa9c8dc), metallic: 0.30, roughness: 0.35, role: 'shell' }, // pearl blue
@@ -574,4 +419,6 @@ const MATERIALS: MaterialDefs = {
 
 buildLowerHalf();
 buildLid();
-await exportGLB(pose(parts), MATERIALS, 'GameBoyAdvanceSP', './public/models/gbasp.glb');
+// Fold the lid to OPEN_DEG, stand the console up (STAND_DEG), 1 unit = 82 mm.
+const posed = poseClamshell(parts, { axisY: AXIS_Y, axisZ: AXIS_Z, openDeg: OPEN_DEG, standDeg: STAND_DEG, unitMm: 82 });
+await exportGLB(posed, MATERIALS, 'GameBoyAdvanceSP', './public/models/gbasp.glb');
