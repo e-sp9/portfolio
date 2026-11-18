@@ -81,6 +81,8 @@ interface RoleTheme {
 
 interface RoleDef {
     params: THREE.MeshPhysicalMaterialParameters;
+    /** Seen through the lens (see addBehindGlass) */
+    behindGlass?: boolean;
     light: RoleTheme;
     dark: RoleTheme;
 }
@@ -109,15 +111,16 @@ const ROLE_DEFS: Record<Role, RoleDef> = {
         light: { opacity: 1, emissiveIntensity: 0.1 },
         dark: { opacity: 1, emissiveIntensity: 0.3 },
     },
-    // LCD seen through the lens: matte and dark; the gloss on top is the lens's.
+    // LCD under the lens: matte and dark, with no reflection of its own;
+    // the reflection belongs to the lens around it.
     lcd: {
         params: {
-            color: 0x1c1d1d, roughness: 0.85, metalness: 0,
-            clearcoat: 1, clearcoatRoughness: 0.02,
-            specularIntensity: 0.1,
-            envMapIntensity: 2.0,
+            color: 0x1c1d1d, roughness: 0.9, metalness: 0,
+            specularIntensity: 0.05,
+            envMapIntensity: 0.4,
             emissive: 0x111111,
         },
+        behindGlass: true,
         light: { opacity: 1, emissiveIntensity: 0.15 },
         dark: { opacity: 1, emissiveIntensity: 0.4 },
     },
@@ -194,8 +197,22 @@ function addGloss(mat: THREE.MeshPhysicalMaterial) {
     };
 }
 
+/**
+ * A panel seen through the lens. The glass lets less light through toward
+ * grazing angles (Fresnel, acrylic's 4 % at normal incidence, twice through
+ * the surface), so the panel dims as the model turns while the lens around
+ * it reflects more: the panel reads as lying behind the glass.
+ */
+function addBehindGlass(mat: THREE.MeshPhysicalMaterial) {
+    mat.onBeforeCompile = (shader) => {
+        shader.fragmentShader = shader.fragmentShader.replace('#include <opaque_fragment>', `#include <opaque_fragment>
+            float glassT = 1.0 - F_Schlick( 0.04, 1.0, saturate( dot( geometryNormal, geometryViewDir ) ) );
+            gl_FragColor.rgb *= glassT * glassT;`);
+    };
+}
+
 function makeRoleMat(role: Role) {
-    const { params, light } = ROLE_DEFS[role];
+    const { params, behindGlass, light } = ROLE_DEFS[role];
     const opaque = light.opacity >= 1;
     const mat = new THREE.MeshPhysicalMaterial({
         side: THREE.DoubleSide,
@@ -204,6 +221,7 @@ function makeRoleMat(role: Role) {
         depthWrite: opaque,
     });
     if (light.gloss) addGloss(mat);
+    if (behindGlass) addBehindGlass(mat);
     return mat;
 }
 

@@ -92,6 +92,16 @@ describe('Game Boy Color', () => {
         for (const [name, role] of Object.entries(expected)) expect([name, roleOf(byName.get(name)!)]).toEqual([name, role]);
     });
 
+    test('only the lens reflects; the LCD under it has no coat of its own', async () => {
+        const { scene } = await load('public/models/gbc.glb');
+        const set = assignMaterials(scene);
+        const lens = set.roles.get('lens')!, lcd = set.roles.get('lcd')!;
+        expect(lens.clearcoat).toBeGreaterThan(0);
+        expect(lcd.clearcoat).toBe(0);
+        expect(lcd.envMapIntensity).toBeLessThan(lens.envMapIntensity);
+        expect(lcd.roughness).toBeGreaterThan(lens.roughness);
+    });
+
     test('theme switches change the role materials', async () => {
         const { scene } = await load('public/models/gbc.glb');
         const set = assignMaterials(scene);
