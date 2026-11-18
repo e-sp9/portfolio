@@ -114,3 +114,24 @@ describe('Game Boy Color', () => {
         expect(set.roles.get('shell')!.transparent).toBe(true);
     });
 });
+
+describe('Game Boy Advance SP', () => {
+    test('every part names a known role', async () => {
+        const { meshes } = await load('public/models/gbasp.glb');
+        expect(meshes.filter((m) => !roleOf(m)).map((m) => m.name)).toEqual([]);
+    });
+
+    test('parts get the finish of what they are', async () => {
+        const { byName } = await load('public/models/gbasp.glb');
+        const expected: Record<string, Role> = {
+            base_face: 'shell', base_bottom: 'shell', lid_face: 'shell', lid_back: 'shell',
+            knuckles: 'shell', hinge_barrel: 'shell', battery_cover: 'shell',
+            lens: 'lens', lcd: 'lcd', logo_strip: 'print', badge: 'print', label: 'print', leds: 'print',
+            dpad: 'button', button_a: 'button', button_b: 'button', button_select: 'button', button_start: 'button',
+            light_switch: 'button', button_l: 'button', button_r: 'button',
+            pads: 'rubber',
+            speaker_holes: 'cavity', ports: 'cavity', screws: 'cavity', strap_holes: 'cavity', cart_slit: 'cavity',
+        };
+        for (const [name, role] of Object.entries(expected)) expect([name, roleOf(byName.get(name)!)]).toEqual([name, role]);
+    });
+});

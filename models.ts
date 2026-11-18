@@ -18,4 +18,5 @@ export interface ModelDef {
 export const MODELS: ModelDef[] = [
     { path: '/models/gba.glb', label: 'GAME BOY ADVANCE', rotationY: -Math.PI / 2 },
     { path: '/models/gbc.glb', label: 'GAME BOY COLOR', fit: 1.35 },
+    { path: '/models/gbasp.glb', label: 'GAME BOY ADVANCE SP', fit: 1.4 },
 ];
