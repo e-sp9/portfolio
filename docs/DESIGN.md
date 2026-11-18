@@ -138,7 +138,8 @@ export const MODELS: ModelDef[] = [
 ## 8. Information Panels
 
 - 左: **SKILLS**(スキル名 + プログレスバー)、**CAREER**(タイムライン形式)
-- 右: **PROJECTS**(名前リンク + 説明 + 技術タグ。WIP は `IN DEV` タグ付き・リンクなし)、**LINKS**(GitHub / X / Blog)
+- 右: **WORK**(仕事の事例のカード)、**PROJECTS**(名前リンク + 説明 + 技術タグ。WIP は `IN DEV` タグ付き・リンクなし)、**LINKS**(GitHub / X / Blog)
+- WORK: 右のサイドバーの先頭に置く。カード 1 枚は事例のタイトル(→)と 1〜2 行の要約で、PROJECTS と同じく区切り線で分ける。カード全体が事例のページ(`/work/<名前>`)へのリンク。`/work` へのリンクは、パネルのヘッダーの右端に `ALL →` として置き、行を増やさない。タイトルと要約は日本語なので、`--font-ja`(`style.css`)で日本語のゴシック体を指定し、パネルに `lang="ja"` を付ける。要約は `work/cases.ts` の `summary` の写しで、`work/work.test.ts` が食い違いを検出する
 - パネル共通: 半透明背景 + blur、`1px solid var(--border)`、ヘッダーに pulse する dot indicator + 下線
 - ホバーで `translateY(-2px)` + シャドウ
 
@@ -150,11 +151,11 @@ export const MODELS: ModelDef[] = [
 
 | Breakpoint | Changes |
 |------------|---------|
-| > 1440px | トップのみ。文字の単位 `--text-u`(通常 1px)を幅に応じて `1 + (100vw - 1440px) × 0.00025`、上限 1.28 まで控えめに拡大する(1920px で 1.12倍、2560px で 1.28倍)。文字が使わなかった高さは余白に回す: 余白の単位 `--space-u`(通常 1px、上限 2.5)がサイドバーの内側の余白、パネルの間隔と内側の余白、項目の間隔、行間を広げる。ヘッダー/フッターの帯は変えない。サイドバー幅は `--sidebar-w`(230 × `--text-u` + パネルの余白が増えたぶん)。枠の幅 `--frame-w` は「モデル用に空ける帯 `--model-clear`(84vh)+ 両サイドバー」を目安に頭打ちにして中央に置く。キャンバスは全面のまま。高さの見積もりは `--fit-fixed` / `--fit-lines` / `--fit-space` で持ち、サイドバーが収まらないときは余白、次に文字の拡大を抑える。/things と /blog は基準値のまま |
+| > 1440px | トップのみ。文字の単位 `--text-u`(通常 1px)を幅に応じて `1 + (100vw - 1440px) × 0.00025`、上限 1.28 まで控えめに拡大する(1920px で 1.12倍、2560px で 1.28倍)。文字が使わなかった高さは余白に回す: 余白の単位 `--space-u`(通常 1px、上限 2.5)がサイドバーの内側の余白、パネルの間隔と内側の余白、項目の間隔、行間を広げる。ヘッダー/フッターの帯は変えない。サイドバー幅は `--sidebar-w`(230 × `--text-u` + パネルの余白が増えたぶん)。枠の幅 `--frame-w` は「モデル用に空ける帯 `--model-clear`(84vh)+ 両サイドバー」を目安に頭打ちにして中央に置く。キャンバスは全面のまま。高さの見積もりは `--fit-fixed` / `--fit-lines` / `--fit-space` で持ち、サイドバーが収まらないときは余白、次に文字の拡大を抑える。見積もりの値は高いほうのサイドバーで測る。WORK を足してからは右のほうが高い。/things、/blog、/work は基準値のまま |
 | > 1440px かつ横長(15:8 以上) | 高さが足りないぶん横幅を使う。サイドバーを 340 × `--text-u`(+ 余白ぶん)に広げ、SKILLS は2列(名前の下にバー)、CAREER は年を役職の横に置く |
-| 1000-1440px | フルレイアウト。サイドバー230px、マージン64px/72px |
+| 1000-1440px | フルレイアウト。サイドバー230px、マージン64px/72px。画面の高さが足りないときは、サイドバーの中が縦にスクロールする(スクロールバーは出さない)。右は高さ 1020px ほど、左は 900px ほどを下回るとスクロールする |
 | 768-1000px | サイドバー120px、マージン16px/40px、フォントサイズ縮小 |
-| < 768px | 縦スクロール。ヘッダー固定 + 3Dキャンバス(60vh)+ モデルセレクタ + パネル群(SKILLS/LINKS 2カラム → CAREER → PROJECTS)+ フッター |
+| < 768px | 縦スクロール。ヘッダー固定 + 3Dキャンバス(60vh)+ モデルセレクタ + パネル群(WORK を全幅 → SKILLS/LINKS 2カラム → CAREER → PROJECTS)+ フッター |
 
 ## 11. /things Page
 
@@ -189,7 +190,21 @@ microCMS で書いた記事の一覧(`/blog`)、記事ページ(`/blog/<記事ID
 - テーマ: `localStorage` の `portfolio-theme` をほかのページと共有する
 - 配信: Cloudflare Workers の assets が `/blog` を `blog.html` に、`/blog/<記事ID>` を `blog/<記事ID>.html` に解決する
 
-## 13. Tech Stack
+## 13. /work Pages
+
+仕事の事例の一覧(`/work`)と、事例ごとのページ(`/work/<名前>`)。/blog と同じ CRT モニターの言語を使い、3D シーンは持たない。
+
+- レイアウト: ヘッダー、仮想スクリーン枠、フッターは /blog と同じ。ページ全体が縦スクロール。ヘッダー左の `WORK` は `/work` へのリンク。大きい画面でも /things と /blog と同じく基準値のまま
+- 一覧: 枠の中央に、記事のシートと同じ最大幅 800px の列を置く。列の中に事例のカード(`.case`)を並べ、その下に「この2件を支えているボット運用」の節をシートで置く。カードは `.panel` を継承し、`CASE 01` のタグ → タイトル(→)→ 要約。カード全体が事例のページへのリンク。グリッドは 1 カラム(〜640px)/ 2 カラム(640px〜)
+- 事例のページ: /blog の記事と同じシート(`.sheet`)に、`CASE 01` のタグとタイトルを置き、本文は「先方の困りごと」「やったこと」「いまどうなったか」の 3 節。本文の組み方(Inter 16px、行間 1.9、幅 720px、h2 に四角のマーカーと下線)も記事と同じ。下に前後の事例へのリンクを置く
+- 文章: 確認済みの原稿のとおりにする。原稿から変えるのは、「本人」を「私」にすることと、事例を見出しの名前(大手人材会社向けの人材紹介データベース、ベンチャーキャピタル向けCRM)で呼ぶことだけ。客先名と客先のシステム名は出さない。カードの要約は原稿の文から抜き出して作り、原稿にない事実は書かない
+- データ: `work/cases.ts` の `CASES` に事例を、`OPERATIONS` にボット運用の節を持つ。事例を 1 件足すと、一覧のカードとページが増える。トップの WORK パネル(8. Information Panels)は `index.html` に手で足す
+- 生成: `work/build.ts` が `dist/work.html`、`dist/work/<名前>.html`、`dist/work.css` を書き出す。`work.css` は `style.css` を取り込んだ 1 ファイル。ページは静的 HTML で、スクリプトはテーマ切り替えだけ
+- 開発: `bun run dev` は同じファイルをリクエストのたびに描画する(`work/site.ts`)
+- テーマ: `localStorage` の `portfolio-theme` をほかのページと共有する
+- 配信: Cloudflare Workers の assets が `/work` を `work.html` に、`/work/<名前>` を `work/<名前>.html` に解決する。/blog と同じ仕組みなので、`worker.ts` と `wrangler.jsonc` は変えていない
+
+## 14. Tech Stack
 
 | Layer | Technology |
 |-------|------------|
@@ -198,4 +213,4 @@ microCMS で書いた記事の一覧(`/blog`)、記事ページ(`/blog/<記事ID
 | Styling | Vanilla CSS (CSS Custom Properties) |
 | Blog | microCMS (記事。ビルド時に取得) / Shiki (コードの色付け) |
 | Deploy | Cloudflare Workers (static assets via wrangler) |
-| Build | `bun ./blog/build.ts && bun build ./index.html ./things.html --outdir ./dist && cp -r ./public/* ./dist/` |
+| Build | `bun ./blog/build.ts && bun ./work/build.ts && bun build ./index.html ./things.html --outdir ./dist && cp -r ./public/* ./dist/` |

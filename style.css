@@ -13,6 +13,9 @@
     --dim: #999999;
     --fp: 'Share Tech Mono', 'Courier New', monospace;
     --fm: 'Share Tech Mono', 'Courier New', monospace;
+    /* Neither web font has Japanese glyphs: name the gothic that fills in, rather
+       than leave it to the generic family (MS Gothic for monospace on Windows). */
+    --font-ja: 'Hiragino Sans', 'Noto Sans JP', 'BIZ UDPGothic', Meiryo, sans-serif;
     --vs-top: 72px;
     --vs-left: 64px;
     --vs-right: 64px;
@@ -649,6 +652,76 @@ body.dark-mode .panel:hover {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════════
+   WORK
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+/* "ALL →" at the end of the panel header: the link to /work, at no extra height */
+.ph-link {
+    margin-left: auto;
+    font-size: calc(12 * var(--text-u));
+    letter-spacing: calc(1.5 * var(--text-u));
+    color: var(--txt);
+    text-decoration: none;
+    pointer-events: auto;
+    transition: color 200ms ease-out;
+}
+
+.ph-link:hover {
+    color: var(--accent);
+}
+
+/* One card per case, set like the PROJECTS entries; the whole card links to its page */
+.work-entry {
+    display: block;
+    margin-bottom: calc(8 * var(--space-u));
+    padding-bottom: calc(6 * var(--space-u));
+    border-bottom: 1px solid var(--border);
+    text-decoration: none;
+    pointer-events: auto;
+}
+
+.work-entry:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+    padding-bottom: 0;
+}
+
+.work-name {
+    display: block;
+    font-family: 'Share Tech Mono', 'Courier New', var(--font-ja);
+    font-size: calc(14 * var(--text-u));
+    line-height: 1.4;
+    color: var(--accent);
+    margin-bottom: calc(2 * var(--space-u));
+    word-break: auto-phrase;
+    transition: color 200ms ease-out;
+}
+
+/* Arrow glued to the last word by a no-break space, so it never wraps alone */
+.work-name::after {
+    content: '\a0\2192';
+    position: relative;
+    left: 0;
+    transition: left 200ms ease-out;
+}
+
+.work-entry:hover .work-name {
+    color: var(--accent-hover);
+}
+
+.work-entry:hover .work-name::after {
+    left: 3px;
+}
+
+.work-desc {
+    display: block;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, var(--font-ja);
+    font-size: calc(14 * var(--text-u));
+    line-height: 1.4;
+    color: var(--txt);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
    LINKS
    ═══════════════════════════════════════════════════════════════════════════════ */
 
@@ -717,25 +790,27 @@ body.dark-mode .panel:hover {
    RESPONSIVE
    ═══════════════════════════════════════════════════════════════════════════════ */
 
-/* --- Wide screens (index only; /things and /blog keep the base tokens) ---
+/* --- Wide screens (index only; /things, /blog and /work keep the base tokens) ---
    Text grows gently with the width; the height left over goes to spacing.
    The header/footer bands stay as they are.
    The frame (--vs-left/right) is capped and centred so the sidebars sit just
    outside the strip kept clear for the model instead of at the screen edges. */
 @media (min-width: 1441px) {
-    body:not(.things-page):not(.blog-page) {
+    body:not(.things-page):not(.blog-page):not(.work-page) {
         /* Text: follows the width, capped; the height term only bites when
-           the sidebars would no longer fit (fixed px + text-sized lines). */
+           the sidebars would no longer fit (fixed px + text-sized lines).
+           The --fit-* values are measured on the taller sidebar, the right one
+           since WORK went in; a new panel or row means measuring them again. */
         --text-u-max: 1.28px;
-        --fit-fixed: 286px;
-        --fit-lines: 614;
+        --fit-fixed: 350px;
+        --fit-lines: 672;
         --text-u: max(1px, min(1px + (100vw - 1440px) * 0.00025, var(--text-u-max),
                     (100vh - var(--fit-fixed)) / var(--fit-lines)));
 
         /* Space: whatever height the text leaves free, spread over the
            sidebar's spacing (--fit-space px per unit), capped. */
         --space-u-max: 2.5px;
-        --fit-space: 190;
+        --fit-space: 240;
         --space-u: clamp(1px, 1px + (100vh - var(--fit-fixed)
                     - var(--fit-lines) * var(--text-u)) / var(--fit-space), var(--space-u-max));
         /* Wider by the extra panel padding, so the text column keeps its measure */
@@ -755,8 +830,8 @@ body.dark-mode .panel:hover {
     }
 
     /* Line spacing opens up with the space unit (1.4 at the base) */
-    body:not(.things-page):not(.blog-page) :is(.skill-name, .career-year, .career-role, .career-company,
-        .project-desc, .project-tech, .link-label) {
+    body:not(.things-page):not(.blog-page):not(.work-page) :is(.skill-name, .career-year, .career-role, .career-company,
+        .project-desc, .project-tech, .work-name, .work-desc, .link-label) {
         line-height: calc(1.4em + 2 * (var(--space-u) - 1px));
     }
 }
@@ -765,11 +840,11 @@ body.dark-mode .panel:hover {
    spare width instead. Wider sidebars, SKILLS in two columns (name over bar,
    as on mobile), CAREER with the year beside the role. --- */
 @media (min-width: 1441px) and (min-aspect-ratio: 15/8) {
-    body:not(.things-page):not(.blog-page) {
+    body:not(.things-page):not(.blog-page):not(.work-page) {
         --sidebar-w: calc(340 * var(--text-u) + 20 * (var(--space-u) - 1px));
-        --fit-fixed: 362px;
-        --fit-lines: 380;
-        --fit-space: 175;
+        --fit-fixed: 350px;
+        --fit-lines: 575;
+        --fit-space: 230;
     }
 
     #sidebar-l .panel:first-child .pc {
@@ -868,6 +943,14 @@ body.dark-mode .panel:hover {
 
     .project-tech {
         font-size: 11px;
+    }
+
+    .work-name {
+        font-size: 13px;
+    }
+
+    .work-desc {
+        font-size: 13px;
     }
 
     .link-label {
@@ -989,8 +1072,14 @@ body.dark-mode .panel:hover {
     }
 
     /* PROJECTS panel order */
-    #sidebar-r .panel:first-child {
+    #sidebar-r .panel:nth-child(2) {
         order: 4;
+    }
+
+    /* WORK panel: first, across both columns */
+    #sidebar-r .panel:first-child {
+        order: 0;
+        grid-column: 1 / -1;
     }
 
     /* --- SKILLS panel compact --- */
@@ -1035,9 +1124,10 @@ body.dark-mode .panel:hover {
         padding: 2px 0;
     }
 
-    /* --- Non-floating panels (CAREER & PROJECTS) --- */
+    /* --- Non-floating panels (WORK, CAREER & PROJECTS) --- */
+    #sidebar-r .panel:first-child,
     #sidebar-l .panel:last-child,
-    #sidebar-r .panel:first-child {
+    #sidebar-r .panel:nth-child(2) {
         padding: 12px 14px;
     }
 
@@ -1077,6 +1167,14 @@ body.dark-mode .panel:hover {
 
     .project-tech {
         font-size: 12px;
+    }
+
+    .work-name {
+        font-size: 15px;
+    }
+
+    .work-desc {
+        font-size: 14px;
     }
 
     .link-label {
@@ -1170,7 +1268,7 @@ body.dark-mode .panel:hover {
 
     /* CAREER & PROJECTS span full width on small screens */
     #sidebar-l .panel:last-child,
-    #sidebar-r .panel:first-child {
+    #sidebar-r .panel:nth-child(2) {
         grid-column: 1 / -1;
     }
 }
