@@ -6,6 +6,7 @@ import { LineSegments2 } from 'three/examples/jsm/lines/LineSegments2.js';
 import { LineSegmentsGeometry } from 'three/examples/jsm/lines/LineSegmentsGeometry.js';
 import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
 import { MODELS, type ModelDef } from './models';
+import { applyMaterialTheme, assignMaterials, type ModelMaterials } from './model-materials';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // STATE
@@ -17,11 +18,7 @@ let renderer: THREE.WebGLRenderer;
 let controls: OrbitControls;
 let model: THREE.Object3D | null = null;
 let edgeMat: LineMaterial;
-let screenMesh: THREE.Mesh | null = null;
-let bodyShell: THREE.MeshPhysicalMaterial | null = null;
-let bodyMid: THREE.MeshPhysicalMaterial | null = null;
-let bodyDetail: THREE.MeshPhysicalMaterial | null = null;
-let screenMat: THREE.MeshPhysicalMaterial | null = null;
+let materials: ModelMaterials | null = null;
 let ambientLight: THREE.AmbientLight | null = null;
 let keyLight: THREE.DirectionalLight | null = null;
 let fillLight: THREE.DirectionalLight | null = null;
@@ -108,7 +105,7 @@ function disposeModel() {
         }
     });
     model = null;
-    screenMesh = null;
+    materials = null;
 }
 
 function loadModel(def: ModelDef, opts: { initial?: boolean } = {}) {
@@ -141,52 +138,6 @@ function loadModel(def: ModelDef, opts: { initial?: boolean } = {}) {
             // ─────────────────────────────────────────────────────────────────
             // Materials
             // ─────────────────────────────────────────────────────────────────
-            function makeBodyMat(mat: Record<string, any> = {}) {
-                return new THREE.MeshPhysicalMaterial({
-                    color: mat.color ?? 0x494949,
-                    metalness: mat.metalness ?? 0.1,
-                    roughness: mat.roughness ?? 0.35,
-                    envMapIntensity: 0.5,
-                    transparent: true,
-                    opacity: mat.opacity ?? 0.03,
-                    side: THREE.DoubleSide,
-                    clearcoat: mat.clearcoat ?? 0.3,
-                    clearcoatRoughness: 0.15,
-                    specularIntensity: mat.specularIntensity ?? 0.3,
-                    specularColor: new THREE.Color(mat.specColor || 0xa0a0a8),
-                    depthWrite: false,
-                });
-            }
-
-            bodyShell = makeBodyMat();
-            bodyMid = makeBodyMat({
-                color: 0x858590,
-                roughness: 0.25,
-                opacity: 0.30,
-                clearcoat: 0.5,
-            });
-            bodyDetail = makeBodyMat({
-                color: 0x9a9aa0,
-                roughness: 0.5,
-                opacity: 0.42,
-                metalness: 0.18,
-            });
-
-            screenMat = new THREE.MeshPhysicalMaterial({
-                color: 0x1a1a1a,
-                metalness: 0.0,
-                roughness: 0.09,
-                emissive: 0x111111,
-                emissiveIntensity: 0.15,
-                envMapIntensity: 0.03,
-                side: THREE.DoubleSide,
-                clearcoat: 1.0,
-                clearcoatRoughness: 0.03,
-                specularIntensity: 1.2,
-                specularColor: new THREE.Color(0xcccccc),
-                depthWrite: true,
-            });
-
             edgeMat = new LineMaterial({
                 color: 0x222222,
                 linewidth: 0.8,
@@ -204,32 +155,8 @@ function loadModel(def: ModelDef, opts: { initial?: boolean } = {}) {
             // ─────────────────────────────────────────────────────────────────
             // Mesh Processing
             // ─────────────────────────────────────────────────────────────────
-            const bodyParts: { mesh: THREE.Mesh; vol: number }[] = [];
-
-            model.traverse((child) => {
-                if (!(child instanceof THREE.Mesh)) return;
-                const n = (child.name || '').toLowerCase();
-
-                if (n === 'screen') {
-                    child.material = screenMat;
-                    child.renderOrder = 1;
-                    screenMesh = child;
-                } else {
-                    child.geometry.computeBoundingBox();
-                    const s = child.geometry.boundingBox!.getSize(new THREE.Vector3());
-                    bodyParts.push({ mesh: child, vol: s.x * s.y * s.z });
-                }
-            });
-
-            // Assign materials by volume (3 tiers)
-            bodyParts.sort((a, b) => b.vol - a.vol);
-            const t1 = Math.ceil(bodyParts.length / 3);
-            const t2 = Math.ceil(bodyParts.length * 2 / 3);
-
-            bodyParts.forEach((p, i) => {
-                p.mesh.material = i < t1 ? bodyShell! :
-                    i < t2 ? bodyMid! : bodyDetail!;
-            });
+            // Role materials where the model names them, volume tiers elsewhere
+            materials = assignMaterials(model);
 
             scene.add(model);
 
@@ -385,33 +312,23 @@ function applyTheme() {
             edgeMat.color.set(0xaaaaaa);
             edgeMat.opacity = 0.5;
         }
-        // Body materials: increase opacity
-        if (bodyShell) bodyShell.opacity = 0.08;
-        if (bodyMid) bodyMid.opacity = 0.50;
-        if (bodyDetail) bodyDetail.opacity = 0.60;
         // Lighting: increase intensity
         ambientLight.intensity = 3.0;
         if (keyLight) keyLight.intensity = 3.5;
         if (fillLight) fillLight.intensity = 2.5;
-        // Screen: brighter emissive
-        if (screenMat) screenMat.emissiveIntensity = 0.4;
     } else {
         // Edge lines: original values
         if (edgeMat) {
             edgeMat.color.set(0x222222);
             edgeMat.opacity = 0.25;
         }
-        // Body materials: original opacity
-        if (bodyShell) bodyShell.opacity = 0.03;
-        if (bodyMid) bodyMid.opacity = 0.30;
-        if (bodyDetail) bodyDetail.opacity = 0.42;
         // Lighting: original intensity
         ambientLight.intensity = 2.0;
         if (keyLight) keyLight.intensity = 2.5;
         if (fillLight) fillLight.intensity = 1.5;
-        // Screen: original emissive
-        if (screenMat) screenMat.emissiveIntensity = 0.15;
     }
+    // Body, screen and role materials
+    if (materials) applyMaterialTheme(materials, isDarkMode);
 }
 
 // Initialize theme from localStorage

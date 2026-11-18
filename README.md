@@ -52,10 +52,13 @@ bun scripts/generate-gbc.ts   # -> public/models/gbc.glb
 bun scripts/generate-ds4.ts   # -> public/models/ds4.glb
 ```
 
-The viewer ([main.ts](main.ts)) re-materializes every mesh as translucent glass and
-draws edge lines with an 8° threshold, so smooth surfaces stay clean while deliberate
-feature edges read as crisp outlines. A mesh named `screen` gets the dark glossy
-screen material.
+The viewer ([main.ts](main.ts)) replaces the materials in the `.glb` and draws edge
+lines with an 8° threshold, so smooth surfaces stay clean while deliberate feature
+edges read as crisp outlines. A glTF material can name its finish with the extra
+`{ "role": "shell" }` (or `lens`, `lcd`, `print`, `button`, `rubber`, `cavity`), and
+the part gets that surface from [model-materials.ts](model-materials.ts).
+`generate-gbc.ts` writes these roles. Parts without a role fall back to translucent
+glass in three tiers by size, and a mesh named `screen` to the dark glossy screen.
 
 To add a model to the rotation: drop the `.glb` into `public/models/` and add one
 entry to [models.ts](models.ts) — it automatically joins the random rotation and the
