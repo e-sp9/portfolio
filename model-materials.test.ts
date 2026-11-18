@@ -10,6 +10,58 @@ async function load(path: string) {
     return { scene: gltf.scene, meshes, byName: new Map(meshes.map((m) => [m.name, m])) };
 }
 
+/**
+ * Pairs of meshes with triangles in one plane that overlap with some area
+ * (more than 0.001 mm², `mm` per unit): the depth test can't tell such faces
+ * apart, so they flicker in triangle-shaped patches.
+ */
+function coplanarOverlaps(scene: THREE.Object3D, mm: number): string[] {
+    scene.updateMatrixWorld(true);
+    type Tri = { mesh: string; p: THREE.Vector3[]; n: THREE.Vector3; d: number };
+    const buckets = new Map<string, Tri[]>();
+    const keyOf = (n: THREE.Vector3, d: number) => `${[n.x, n.y, n.z].map((v) => Math.round(v * 500))}|${Math.round(d / 0.02)}`;
+    scene.traverse((o) => {
+        if (!(o instanceof THREE.Mesh)) return;
+        const pos = o.geometry.getAttribute('position'), idx = o.geometry.index!;
+        for (let i = 0; i < idx.count; i += 3) {
+            const p = [0, 1, 2].map((k) => new THREE.Vector3().fromBufferAttribute(pos, idx.getX(i + k)).applyMatrix4(o.matrixWorld).multiplyScalar(mm));
+            const n = new THREE.Triangle(p[0], p[1], p[2]).getNormal(new THREE.Vector3());
+            if (n.lengthSq() < 0.5) continue;
+            // One normal per plane, whichever way the face looks
+            n.multiplyScalar(Math.sign(Math.abs(n.x) > 1e-6 ? n.x : Math.abs(n.y) > 1e-6 ? n.y : n.z));
+            const t = { mesh: o.name, p, n, d: n.dot(p[0]!) }, key = keyOf(n, t.d);
+            buckets.set(key, [...(buckets.get(key) ?? []), t]);
+        }
+    });
+    const area = (poly: THREE.Vector2[]) => poly.reduce((s, p, i) => s + p.cross(poly[(i + 1) % poly.length]!), 0) / 2;
+    // The part of triangle a inside triangle b (Sutherland-Hodgman)
+    const clip = (a: THREE.Vector2[], b: THREE.Vector2[]) => {
+        const sense = Math.sign(area(b));
+        return b.reduce((poly, e0, i) => {
+            const e1 = b[(i + 1) % 3]!, side = (p: THREE.Vector2) => sense * (e1.clone().sub(e0).cross(p.clone().sub(e0)));
+            return poly.flatMap((p, j) => {
+                const q = poly[(j + 1) % poly.length]!, sp = side(p), sq = side(q);
+                return [...(sp > 1e-9 ? [p] : []), ...((sp > 1e-9) !== (sq > 1e-9) ? [p.clone().lerp(q, sp / (sp - sq))] : [])];
+            });
+        }, a);
+    };
+    const found = new Set<string>();
+    for (const [key, list] of buckets) {
+        const [n, d] = key.split('|');
+        const near = [...list, ...(buckets.get(`${n}|${Number(d) + 1}`) ?? [])];
+        list.forEach((a, i) => {
+            const u = new THREE.Vector3().crossVectors(a.n, Math.abs(a.n.x) < 0.9 ? new THREE.Vector3(1, 0, 0) : new THREE.Vector3(0, 1, 0)).normalize();
+            const v = new THREE.Vector3().crossVectors(a.n, u);
+            const flat = (t: Tri) => t.p.map((p) => new THREE.Vector2(p.dot(u), p.dot(v)));
+            near.forEach((b, j) => {
+                if ((j < list.length && j <= i) || Math.abs(a.d - b.d) > 0.01) return;
+                if (Math.abs(area(clip(flat(a), flat(b)))) > 1e-3) found.add([a.mesh, b.mesh].sort().join(' / '));
+            });
+        });
+    }
+    return [...found].sort();
+}
+
 /** A unit-cube mesh scaled to `size`, whose material names `role` */
 function part(name: string, size: number, role?: string) {
     const material = new THREE.MeshStandardMaterial();
@@ -212,6 +264,11 @@ describe('Nintendo DS', () => {
         }
         expect(covered).toEqual([]);
         expect(checked).toBe(56 + 1 + 8);
+    });
+
+    test('no two faces lie in one plane over each other', async () => {
+        const { scene } = await load('public/models/ds.glb');
+        expect(coplanarOverlaps(scene, 148.7)).toEqual([]);
     });
 
     test('the open lid stays clear of the lower half\'s face', async () => {

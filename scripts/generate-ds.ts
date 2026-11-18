@@ -133,9 +133,15 @@ function clover(cx: number, cy: number, d: number, r: number, rf: number): Outli
 
 // ─── Mesh builders ───────────────────────────────────────────────────────────
 
-/** Well cut into a face at zTop: wall and floor (earcut, for outlines that are not star-shaped). */
-function well(outline: Outline, zTop: number, depth: number, slope: number): THREE.BufferGeometry {
-  return mergeGeometries([recessWall(outline, zTop, depth, slope), flatCap(outline(slope), zTop - depth, 1)], false)!;
+/**
+ * Well cut into a face at zTop: wall and floor (earcut, for outlines that are
+ * not star-shaped). The floor leaves out `under`, the footprint of a part
+ * that closes it there, so no two faces lie in one plane.
+ */
+function well(outline: Outline, zTop: number, depth: number, slope: number, under?: THREE.Vector2[]): THREE.BufferGeometry {
+  return mergeGeometries([
+    recessWall(outline, zTop, depth, slope), flatCap(outline(slope), zTop - depth, 1, under ? [under] : []),
+  ], false)!;
 }
 
 /**
@@ -230,8 +236,14 @@ function buildLowerHalf() {
   const mic = sharpRect(0.8, 3.0, -31.3, 12.6);
   const leds = [26.5, 29.7].map(x => sharpRect(0.8, 2.8, x, 12.3));
   const panels: [Outline, Outline[]][] = [[panelL, [dpadWell, powerWell]], [panelR, [abxyWell, ssWell]], [frame, [touch]]];
-  const wells: [Outline, number, number][] = [ // outline, depth, slope
-    [dpadWell, 1.2, 0.3],
+  // The D-pad's base closes its well's floor under it (the points dpadGeometry uses).
+  const DPAD_S = 10.8, DPAD_T = 3.75;
+  const dpadBase = [
+    [DPAD_S, -DPAD_T], [DPAD_S, DPAD_T], [DPAD_T, DPAD_T], [DPAD_T, DPAD_S], [-DPAD_T, DPAD_S], [-DPAD_T, DPAD_T],
+    [-DPAD_S, DPAD_T], [-DPAD_S, -DPAD_T], [-DPAD_T, -DPAD_T], [-DPAD_T, -DPAD_S], [DPAD_T, -DPAD_S], [DPAD_T, -DPAD_T],
+  ].map(([x, y]) => new THREE.Vector2(dpad.x + x!, dpad.y + y!));
+  const wells: [Outline, number, number, THREE.Vector2[]?][] = [ // outline, depth, slope, footprint on the floor
+    [dpadWell, 1.2, 0.3, dpadBase],
     [powerWell, 0.8, 0.5],
     [abxyWell, 0.8, 0],
     [ssWell, 0.6, 0.3],
@@ -241,7 +253,7 @@ function buildLowerHalf() {
     ...panels.map(([o, holes]) => mergeGeometries([
       recessWall(o, FZ, PANEL_D, 0), flatCap(o(0), PZ, 1, holes.map(h => h(0))),
     ], false)!),
-    ...wells.map(([o, depth, slope]) => well(o, PZ, depth, slope)),
+    ...wells.map(([o, depth, slope, under]) => well(o, PZ, depth, slope, under)),
     recessWall(touch, PZ, 0.8, 0),
     recessWall(mic, FZ, 1.2, 0),
   ], false)!, 'body');
@@ -252,7 +264,7 @@ function buildLowerHalf() {
   add('leds', mergeGeometries(leds.map(o => plate(o, FZ + 0.05, 0.35)), false)!, 'led');
 
   // ── +Control Pad (21.6 mm cross), A / B / X / Y (7.1 mm), SELECT / START, POWER ──
-  add('dpad', dpadGeometry(10.8, 3.75, 2.7, 0.4, 3.2, 0.35), 'keys', [dpad.x, dpad.y, PZ - 1.2]);
+  add('dpad', dpadGeometry(DPAD_S, DPAD_T, 2.7, 0.4, 3.2, 0.35), 'keys', [dpad.x, dpad.y, PZ - 1.2]);
   const abGeo = buttonGeometry(3.55, 1.9, 0.35, 2);
   const names = ['button_a', 'button_x', 'button_y', 'button_b'];
   names.forEach((name, k) => add(name, k ? abGeo.clone() : abGeo, 'keys',
@@ -366,10 +378,7 @@ function buildLid() {
   const pocket: Outline = inset => lens(inset - 0.5);
   const POCKET_D = 0.8, LENS_TOP = LZ - 0.3;
   const BUMPERS: [number, number][] = [[-43.6, 6.7], [43.6, 6.7], [-43.6, 67.1], [43.6, 67.1]];
-  const wells: [Outline, number, number][] = [
-    [pocket, POCKET_D, 0.1],
-    ...BUMPERS.map(([x, d]) => [sharpRect(4.4, 4.4, x, yLid(d)), 0.4, 0] as [Outline, number, number]),
-  ];
+  const bumperWells = BUMPERS.map(([x, d]) => sharpRect(4.4, 4.4, x, yLid(d)));
   const HOLE_R = 0.45, SPEAKER_D = 1.2;
   const speaker: [number, number][] = [];
   for (const sx of [-50, 50]) {
@@ -379,14 +388,16 @@ function buildLid() {
   }
   const holes = speaker.map(([x, y]) => circle(HOLE_R, x, y));
   add('lid_face', mergeGeometries([
-    shellGeometry(lidOutline, LID_SEAM, LZ, 1.2, 13, [...wells.map(([o]) => o), ...holes]),
-    ...wells.map(([o, depth, slope]) => recess(o, LZ, depth, slope)),
+    shellGeometry(lidOutline, LID_SEAM, LZ, 1.2, 13, [pocket, ...bumperWells, ...holes]),
+    // The lens closes the pocket's floor under it.
+    well(pocket, LZ, POCKET_D, 0.1, lens(0)),
+    ...bumperWells.map(o => recess(o, LZ, 0.4, 0)),
   ], false)!, 'body', undefined, undefined, lid);
   add('speaker_holes', mergeGeometries(speaker.map(([x, y]) => pit(HOLE_R, x, y, LZ, SPEAKER_D)), false)!,
     'hole', undefined, undefined, lid);
   add('lens', shellGeometry(lens, LZ - POCKET_D, LENS_TOP, 0), 'screen', undefined, undefined, lid);
-  // LCD window, a little larger than the 61.4 x 46.1 mm picture
-  add('lcd', plate(sharpRect(63, 47.5, 0, yLid(37.3)), LENS_TOP + 0.27, 0.27), 'lcd', undefined, undefined, lid);
+  // LCD window, a little larger than the 61.4 x 46.1 mm picture; open below, where it lies on the lens
+  add('lcd', openShell(sharpRect(63, 47.5, 0, yLid(37.3)), LENS_TOP, LENS_TOP + 0.27, 0), 'lcd', undefined, undefined, lid);
   add('bumpers', mergeGeometries(BUMPERS.map(([x, d]) => openShell(sharpRect(3.6, 3.6, x, yLid(d)), LZ - 0.4, LZ + 0.3, 0)), false)!,
     'rubber', undefined, undefined, lid);
 
