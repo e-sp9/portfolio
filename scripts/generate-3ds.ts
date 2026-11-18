@@ -118,9 +118,11 @@ const faceOutline: Outline = inset => {
 };
 
 /**
- * The lid, opened flat: the middle starts at `start`, in the barrel. A sharp
- * corner is one point, whose normal leans to its longer edge; points 0.01 mm
- * from the middle's corners keep the middle's short sides lit square.
+ * The lid, opened flat: the middle starts at `start`, in the barrel. Its
+ * sides stay square with the barrel's ends at any inset: the rim and the
+ * bevel run along the steps beside the knuckles but not along those sides. A
+ * sharp corner is one point, whose normal leans to its longer edge; points
+ * 0.01 mm from the steps' inner corners keep the steps lit square.
  */
 function lidOutline(start: number): Outline {
   const outline = arcOutline([
@@ -137,19 +139,19 @@ function lidOutline(start: number): Outline {
   const c = outline(0).findIndex(p => Math.abs(p.x + BARREL_X) < 1e-3 && Math.abs(p.y - start) < 1e-3);
   return inset => {
     const pts = outline(inset);
+    // The middle's corners are c - 1 to c + 2, left knuckle to right
+    for (let i = c - 1; i <= c + 2; i++) pts[i]!.x = Math.sign(pts[i]!.x) * BARREL_X;
     const near = (i: number, j: number) => pts[i]!.clone().add(pts[j]!.clone().sub(pts[i]!).setLength(0.01));
-    // The middle's corners are c - 1 to c + 2, left knuckle to right; from the right
     pts.splice(c + 2, 0, near(c + 2, c + 1));
-    pts.splice(c + 1, 0, near(c, c + 1), near(c + 1, c));
     pts.splice(c, 0, near(c - 1, c));
     return pts;
   };
 }
 
-/** Picks the outline's segments along its end in the barrel (both points at its least y). */
-function hingeEnd(outline: Outline): (i: number) => boolean {
-  const pts = outline(0), y0 = Math.min(...pts.map(p => p.y));
-  return i => Math.abs(pts[i]!.y - y0) < 1e-3 && Math.abs(pts[(i + 1) % pts.length]!.y - y0) < 1e-3;
+/** Picks the outline's segments around its middle (both points on the barrel's ends), which the barrel closes. */
+function middle(outline: Outline): (i: number) => boolean {
+  const pts = outline(0), onEnd = (p: THREE.Vector2) => Math.abs(Math.abs(p.x) - BARREL_X) < 1e-6;
+  return i => onEnd(pts[i]!) && onEnd(pts[(i + 1) % pts.length]!);
 }
 
 /** Plus sign of half-span s and half-width t around (cx, cy): sharp corners, the inner four turning inward. */
@@ -432,7 +434,7 @@ function buildLid() {
   }
 
   const rings = rimRings(LID_SEAM, LZ, LID_RIM, 13);
-  const outline = lidOutline(FACE_START), inBarrel = hingeEnd(outline);
+  const outline = lidOutline(FACE_START), inMiddle = middle(outline);
   const edge = outline(0);
   const rightSide = edge.findIndex((p, i) => {
     const q = edge[(i + 1) % edge.length]!;
@@ -443,7 +445,7 @@ function buildLid() {
   const slot = cutWall([v(p0.x, p0.y, LID_SEAM), v(p1.x, p1.y, LID_SEAM), v(p1.x, p1.y, rings[1]!.z), v(p0.x, p0.y, rings[1]!.z)],
     qToRight, [{ at: SLIDER, w: 1.2, h: 14, r: 0, depth: 1.2 }]);
   add('lid_face', mergeGeometries([
-    sweepSide(outline, rings, 1, undefined, (i, r) => (r === 0 && i === rightSide) || inBarrel(i)),
+    sweepSide(outline, rings, 1, undefined, (i, r) => (r === 0 && i === rightSide) || inMiddle(i)),
     slot.wall,
     flatCap(outline(LID_RIM), LZ, 1, [pocket(0)]),
     flatCap(outline(0), LID_SEAM, -1),
@@ -479,11 +481,11 @@ function buildLid() {
   // 35 mm apart near the far edge, their LED beside the right one ──
   const backOutline = lidOutline(BACK_START);
   const outer: Outline = inset => backOutline(inset + BACK_INSET);
-  const backInBarrel = hingeEnd(outer);
+  const backInMiddle = middle(outer);
   const cams = [-17.5, 17.5].map(x => circle(2.6, x, yLid(8.5)));
   const CAM_D = 0.35;
   add('lid_back', mergeGeometries([
-    sweepSide(outer, chamferRings(LID_SEAM, LID_BACK_Z, LID_CHAMFER), -1, undefined, backInBarrel),
+    sweepSide(outer, chamferRings(LID_SEAM, LID_BACK_Z, LID_CHAMFER), -1, undefined, backInMiddle),
     flatCap(outer(LID_CHAMFER), LID_BACK_Z, -1, cams.map(c => c(0))),
     ...cams.map(c => recessWall(c, LID_BACK_Z, CAM_D, 0, 1)),
   ], false)!, 'lidBack', undefined, undefined, lid);
@@ -494,19 +496,20 @@ function buildLid() {
 
   // ── Hinge barrel between the knuckles, outside the lid: from the crease
   // where the screen face runs into it, over the top and the back, to its
-  // bottom line, 48 sides to a turn. Its ends leave out the lid's profile
-  // (the back's bevel and end, the seam, the face plate's end and rim), which
-  // the lid's own sides close. ──
+  // bottom line, 48 sides to a turn. Its ends are the flat sides of the lid's
+  // middle as well: round the barrel, then along the outer face, up the back's
+  // bevel and the face plate's rim at the steps, and back along the screen
+  // face to the crease. ──
   // Angles run from the top toward the back; the crease is in front of the top.
   const onBarrel = (a: number) => new THREE.Vector2(AXIS_Y - BARREL_R * Math.sin(a), AXIS_Z + BARREL_R * Math.cos(a));
   const a0 = -Math.asin((CREASE_Y - AXIS_Y) / BARREL_R);
   const arc = [onBarrel(a0)];
   for (let k = Math.floor(a0 / (2 * P) * 48) + 1; k <= 24; k++) arc.push(onBarrel(k / 48 * 2 * P));
-  const profile = [
-    ...chamferRings(LID_SEAM, LID_BACK_Z, LID_CHAMFER).reverse().map(r => new THREE.Vector2(BACK_START + BACK_INSET + r.inset, r.z)),
-    ...rings.map(r => new THREE.Vector2(FACE_START + r.inset, r.z)),
+  const steps = [
+    ...chamferRings(LID_SEAM, LID_BACK_Z, LID_CHAMFER).reverse().map(r => new THREE.Vector2(LID_SIDE_START + BACK_INSET + r.inset, r.z)),
+    ...rings.map(r => new THREE.Vector2(LID_SIDE_START + r.inset, r.z)),
   ];
-  const end = [...arc, ...profile].filter((p, i, all) => p.distanceTo(all[(i + 1) % all.length]!) > 1e-6);
+  const end = [...arc, ...steps].filter((p, i, all) => p.distanceTo(all[(i + 1) % all.length]!) > 1e-6);
   const positions: number[] = [], normals: number[] = [], indices: number[] = [];
   arc.forEach((p, k) => {
     for (const x of [-BARREL_X, BARREL_X]) {

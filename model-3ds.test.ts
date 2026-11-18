@@ -161,7 +161,7 @@ describe('Nintendo 3DS', () => {
         expect(coplanarOverlaps(scene, MM)).toEqual([]);
     });
 
-    test('the lid and its barrel are one shell: nothing shows between them', async () => {
+    test('the lid and its barrel are one closed shell: nothing shows between them or at their ends', async () => {
         const { byName } = await load();
         const barrel = byName.get('hinge_barrel')!, shell = [barrel, byName.get('lid_face')!, byName.get('lid_back')!];
         // The axis runs along x through the barrel's middle, 4.8 mm in from every point of its round side.
@@ -180,28 +180,37 @@ describe('Nintendo 3DS', () => {
         const out = new THREE.Vector3().fromBufferAttribute(cam.geometry.getAttribute('normal'), 0).transformDirection(cam.matrixWorld);
         const along = new THREE.Vector3(1, 0, 0).cross(out).normalize();
         if (along.dot(new THREE.Box3().setFromObject(byName.get('lcd')!).getCenter(new THREE.Vector3()).sub(axis)) < 0) along.negate();
-        // Straight through the lid, from either side, from behind the axis to short of the screen
-        // panel's pocket and the lid's beveled sides: the first face met must be the outside of the
-        // lid or of the barrel, never nothing (a slot) nor one seen from within (an open seam).
+        // The first face a ray meets must be the outside of the lid or of the barrel, never nothing
+        // (a slot) nor one seen from within (an open seam).
         const ray = new THREE.Raycaster(), open: string[] = [];
         let checked = 0;
-        for (let i = 0; i <= 20; i++) {
-            const x = axis.x + (i / 10 - 1) * (halfLen - 2 / MM);
+        const check = (from: THREE.Vector3, dir: THREE.Vector3, where: string) => {
+            ray.set(from, dir);
+            const hit = ray.intersectObjects(shell, false)[0];
+            const inside = hit && hit.face!.normal.clone().transformDirection(hit.object.matrixWorld).dot(dir) > 0;
+            if (!hit || inside) open.push(`${where}: ${hit ? `inside ${hit.object.name}` : 'nothing'}`);
+            checked++;
+        };
+        const at = (x: number, d: number, h: number) => axis.clone().setX(axis.x + x / MM).addScaledVector(along, d / MM).addScaledVector(out, h / MM);
+        // Straight through the lid from either side, from behind the axis to short of the screen
+        // panel's pocket and the steps beside the knuckles: all along the barrel, closely at its ends
+        const ends = [0.05, 0.2, 0.5, 1, 1.5].flatMap((e) => [-1, 1].map((s) => s * (halfLen * MM - e)));
+        const xs = [...Array.from({ length: 21 }, (_, i) => (i / 10 - 1) * (halfLen * MM - 2)), ...ends];
+        for (const x of xs) {
             for (let k = 0; k < 58; k++) {
-                const d = (-4.55 + 0.2 * k) / MM;
-                for (const side of [1, -1]) {
-                    const at = axis.clone().setX(x).addScaledVector(along, d);
-                    ray.set(at.addScaledVector(out, side * 20 / MM), out.clone().multiplyScalar(-side));
-                    const hit = ray.intersectObjects(shell, false)[0];
-                    const inside = hit && hit.face!.normal.clone().transformDirection(hit.object.matrixWorld).dot(ray.ray.direction) > 0;
-                    if (!hit || inside) {
-                        open.push(`x ${((x - axis.x) * MM).toFixed(1)} d ${(d * MM).toFixed(2)} from the ${side > 0 ? 'screen' : 'back'}: ${hit ? `inside ${hit.object.name}` : 'nothing'}`);
-                    }
-                    checked++;
-                }
+                const d = -4.55 + 0.2 * k;
+                for (const side of [1, -1]) check(at(x, d, side * 20), out.clone().multiplyScalar(-side), `x ${x.toFixed(2)} d ${d.toFixed(2)} from the ${side > 0 ? 'screen' : 'back'}`);
             }
         }
-        expect(checked).toBe(21 * 58 * 2);
+        // Along the axis, from beyond either end, at points inside the barrel or the lid's thickness
+        // short of the steps: the ends are closed.
+        for (let d = -4.4; d < 6.1; d += 0.4) {
+            for (let h = -4.6; h < 2.7; h += 0.4) {
+                if (d < 0 && Math.hypot(d, h) > 4.6) continue;
+                for (const s of [1, -1]) check(at(s * (halfLen * MM + 5), d, h), new THREE.Vector3(-s, 0, 0), `end ${s > 0 ? '+x' : '-x'} d ${d.toFixed(1)} h ${h.toFixed(1)}`);
+            }
+        }
+        expect(checked).toBeGreaterThan(xs.length * 58 * 2);
         expect(open).toEqual([]);
     });
 
