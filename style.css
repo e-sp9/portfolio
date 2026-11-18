@@ -438,7 +438,7 @@ body {
     width: calc(var(--sidebar-w) + var(--scrollbar-w));
 }
 
-/* The right sidebar (WORK, PROJECTS, LINKS) is the longer one. Where it does not fit,
+/* The right sidebar (WORK, MAKING, WRITING, LINKS) is the longer one. Where it does not fit,
    it scrolls with its scrollbar showing, so what is below is seen to be there.
    The left sidebar keeps its hidden scrollbar. */
 @supports selector(::-webkit-scrollbar) {
@@ -611,7 +611,7 @@ body.dark-mode .panel:hover {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════════
-   PROJECTS
+   MAKING (one .project-entry per thing I build)
    ═══════════════════════════════════════════════════════════════════════════════ */
 
 .project-entry {
@@ -675,10 +675,13 @@ body.dark-mode .panel:hover {
 }
 
 .project-desc {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, var(--font-ja);
     font-size: calc(14 * var(--text-u));
     color: var(--txt);
     line-height: 1.4;
     margin-bottom: calc(2 * var(--space-u));
+    /* Japanese broken between phrases rather than inside a word, where supported */
+    word-break: auto-phrase;
 }
 
 .project-tech {
@@ -686,6 +689,31 @@ body.dark-mode .panel:hover {
     font-size: calc(12 * var(--text-u));
     color: var(--dim);
     letter-spacing: calc(0.5 * var(--text-u));
+}
+
+/* The repository, when the name links to the site itself */
+.project-repo {
+    float: right;
+    margin-left: 8px;
+    color: var(--accent);
+    text-decoration: none;
+    pointer-events: auto;
+    transition: color 200ms ease-out;
+}
+
+.project-repo::after {
+    content: '\2192';
+    display: inline-block;
+    margin-left: 4px;
+    transition: transform 200ms ease-out;
+}
+
+.project-repo:hover {
+    color: var(--accent-hover);
+}
+
+.project-repo:hover::after {
+    transform: translateX(3px);
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════════
@@ -707,7 +735,7 @@ body.dark-mode .panel:hover {
     color: var(--accent);
 }
 
-/* One card per case, set like the PROJECTS entries; the whole card links to its page */
+/* One card per case, set like the MAKING entries; the whole card links to its page */
 .work-entry {
     display: block;
     margin-bottom: calc(8 * var(--space-u));
@@ -909,16 +937,16 @@ body.dark-mode .panel:hover {
    The header/footer bands stay as they are.
    The frame (--vs-left/right) is capped and centred so the sidebars sit just
    outside the strip kept clear for the model instead of at the screen edges.
-   The tokens are set for every page: /things, /blog and /work take the same
-   text unit and frame, so the header and the frame stay put from page to page. */
+   The tokens are set for every page: /things, /blog, /work and /hire take the
+   same text unit and frame, so the header and the frame stay put from page to page. */
 @media (min-width: 1441px) {
     body {
         /* Text: follows the width, capped; the height term only bites when
            the sidebars would no longer fit (fixed px + text-sized lines).
-           The --fit-* values are measured on the taller sidebar, so a row
-           added to either sidebar means measuring them again. The WRITING
-           panel alone is left out on purpose, so it never makes the text
-           smaller, here or on the other pages: the right sidebar scrolls instead. */
+           The --fit-* values were measured on the taller sidebar, WRITING
+           left out (the right one, while it had PROJECTS). They are never
+           raised to make the text smaller, here or on the other pages: a
+           sidebar that outgrows them scrolls instead. */
         --text-u-max: 1.28px;
         --fit-fixed: 348px;
         --fit-lines: 672;
@@ -948,8 +976,8 @@ body.dark-mode .panel:hover {
     }
 
     /* Line spacing opens up with the space unit (1.4 at the base). Top page
-       only: .link-label is on /things too. */
-    body:not(.things-page):not(.blog-page):not(.work-page) :is(.skill-name, .career-year, .career-role, .career-company,
+       only: .link-label is on /things and /hire too. */
+    body:not(.things-page):not(.blog-page):not(.work-page):not(.hire-page) :is(.skill-name, .career-year, .career-role, .career-company,
         .project-desc, .project-tech, .work-name, .work-desc, .writing-title, .writing-meta, .link-label) {
         line-height: calc(1.4em + 2 * (var(--space-u) - 1px));
     }
@@ -1167,7 +1195,7 @@ body.dark-mode .panel:hover {
         display: contents;
     }
 
-    /* --- Mobile content: 2-column grid for CAREER & PROJECTS --- */
+    /* --- Mobile content: 2-column grid for CAREER & MAKING --- */
     .mobile-content {
         display: grid;
         grid-template-columns: 1fr 1fr;
@@ -1202,7 +1230,7 @@ body.dark-mode .panel:hover {
         order: 3;
     }
 
-    /* PROJECTS panel order */
+    /* MAKING panel order */
     #sidebar-r .panel:nth-child(2) {
         order: 4;
     }
@@ -1262,7 +1290,7 @@ body.dark-mode .panel:hover {
         padding: 2px 0;
     }
 
-    /* --- Non-floating panels (WORK, CAREER & PROJECTS) --- */
+    /* --- Non-floating panels (WORK, CAREER & MAKING) --- */
     #sidebar-r .panel:first-child,
     #sidebar-l .panel:last-child,
     #sidebar-r .panel:nth-child(2) {
@@ -1419,7 +1447,7 @@ body.dark-mode .panel:hover {
         grid-template-columns: 1fr 1fr;
     }
 
-    /* CAREER & PROJECTS span full width on small screens */
+    /* CAREER & MAKING span full width on small screens */
     #sidebar-l .panel:last-child,
     #sidebar-r .panel:nth-child(2) {
         grid-column: 1 / -1;

@@ -28,7 +28,7 @@ bun test        # tests of the blog and /work generators
 ## Build & deploy
 
 ```bash
-bun run build   # bundle index.html + things.html into dist/, generate /blog and /work, copy public/
+bun run build   # bundle index.html + things.html + hire.html into dist/, generate /blog and /work, copy public/
 bun run deploy  # wrangler deploy
 ```
 
@@ -75,6 +75,12 @@ section on the bot operation behind them. Each case gets a page at `/work/<slug>
 [work/cases.ts](work/cases.ts), and the build ([work/build.ts](work/build.ts)) writes static HTML plus
 one stylesheet ([work.css](work.css)). To add a case, add one entry there, and a card for it to the
 WORK panel in `index.html`; the tests check that the top page and the manifest agree.
+
+## Hire
+
+[`/hire`](https://esp-9.dev/hire) is where to ask me for work: what I can take on, the kinds of
+work I accept, and how to reach me. It is a static page, `hire.html` + `hire.css` (plus the theme toggle
+in `hire-page.ts`), built alongside the top page and linked from its LINKS panel.
 
 ## Blog
 
