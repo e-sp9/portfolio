@@ -1,0 +1,276 @@
+/* ═══════════════════════════════════════════════════════════════════════════════
+   /hire — what I can take on and how to reach me, in the same CRT-monitor
+   language as /things. Loaded after style.css; everything here is scoped to
+   body.hire-page.
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+html:has(body.hire-page),
+body.hire-page {
+    height: auto;
+    min-height: 100%;
+    overflow: hidden auto;
+}
+
+body.hire-page {
+    /* Neither web font has Japanese glyphs: --font-ja (style.css) fills in */
+    --font-display: 'Share Tech Mono', 'Courier New', var(--font-ja);
+    --font-read: 'Inter', -apple-system, BlinkMacSystemFont, var(--font-ja);
+
+    font-family: var(--font-display);
+    color: var(--txt-br);
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    min-height: 100dvh;
+}
+
+/* Header stays fixed, like the top page; the screen scrolls underneath. */
+body.hire-page #exp-header {
+    pointer-events: auto;
+    background: linear-gradient(var(--bg) 70%, transparent);
+}
+
+body.hire-page .exp-label:hover {
+    color: var(--accent);
+}
+
+/* ─── Virtual screen ─────────────────────────────────────────────────────── */
+
+#hire-screen {
+    flex: 1;
+    margin: var(--vs-top) var(--vs-right) 0 var(--vs-left);
+    border: 1px solid var(--border);
+    padding: 22px 20px 28px;
+    position: relative;
+    z-index: 2;
+}
+
+/* Corner ticks, as on /things */
+#hire-screen::before,
+#hire-screen::after {
+    content: '';
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    border: 1px solid var(--dim);
+    pointer-events: none;
+}
+
+#hire-screen::before {
+    top: 6px;
+    left: 6px;
+    border-width: 1px 0 0 1px;
+}
+
+#hire-screen::after {
+    bottom: 6px;
+    right: 6px;
+    border-width: 0 1px 1px 0;
+}
+
+.hire-head {
+    margin-bottom: 20px;
+}
+
+.hire-head .ph {
+    font-size: 28px;
+    font-weight: 400;
+    letter-spacing: 3px;
+    margin: 0;
+    padding: 0;
+    border: 0;
+}
+
+/* ─── Panels ─────────────────────────────────────────────────────────────── */
+
+/* The width of a blog article, centred in the screen */
+.hire-column {
+    max-width: 800px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.hire-row {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 14px;
+}
+
+@media (min-width: 640px) {
+    .hire-row {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+.hire-panel {
+    /* inherits .panel: translucent surface, 1px border, blur, hover lift */
+    padding: 14px 16px 16px;
+    animation: fadeSlideIn 0.4s ease-out backwards;
+}
+
+.hire-row .hire-panel:nth-child(1) {
+    animation-delay: 60ms;
+}
+
+.hire-row .hire-panel:nth-child(2) {
+    animation-delay: 120ms;
+}
+
+.hire-panel .ph {
+    font-size: 18px;
+    font-weight: 400;
+    letter-spacing: 1.5px;
+    margin-bottom: 4px;
+    padding-bottom: 8px;
+}
+
+/* The heading of the draft, in Japanese, at the end of the panel header */
+.ph-ja {
+    margin-left: auto;
+    padding-left: 12px;
+    font-family: var(--font-read);
+    font-size: 12px;
+    letter-spacing: 0.04em;
+    color: var(--txt);
+}
+
+/* ─── Lists ──────────────────────────────────────────────────────────────── */
+
+.hire-list {
+    list-style: none;
+    counter-reset: hire;
+}
+
+.hire-list li {
+    counter-increment: hire;
+    position: relative;
+    padding: 10px 0 10px 2.25em;
+    border-bottom: 1px solid var(--border);
+    font-family: var(--font-read);
+    font-size: 15px;
+    line-height: 1.7;
+    color: var(--txt-br);
+    /* Broken between phrases rather than inside a word, and a hair of space
+       between Japanese and Latin text, where supported */
+    word-break: auto-phrase;
+    text-autospace: normal;
+}
+
+.hire-list li:last-child {
+    border-bottom: 0;
+    padding-bottom: 0;
+}
+
+/* 01, 02, … like the numbers of the cards on /things, on the first line */
+.hire-list li::before {
+    content: counter(hire, decimal-leading-zero);
+    position: absolute;
+    left: 0;
+    font-family: var(--fp);
+    font-size: 12px;
+    line-height: calc(15px * 1.7);
+    letter-spacing: 1px;
+    color: var(--accent-secondary);
+}
+
+/* A note in brackets after an item, a step quieter */
+.hire-note {
+    color: var(--txt);
+}
+
+/* ─── Contact ────────────────────────────────────────────────────────────── */
+
+.hire-contact {
+    gap: 10px;
+    padding: 12px 0 0;
+}
+
+.hire-contact .link-icon {
+    font-size: 14px;
+}
+
+.hire-contact .link-label {
+    font-size: 20px;
+    letter-spacing: 1px;
+}
+
+.hire-handle {
+    font-size: 20px;
+    letter-spacing: 1px;
+    color: var(--accent);
+    transition: color 200ms ease-out;
+}
+
+.hire-contact:hover .hire-handle {
+    color: var(--accent-hover);
+}
+
+.hire-contact .link-arrow {
+    font-size: 16px;
+}
+
+/* ─── Footer in flow ─────────────────────────────────────────────────────── */
+
+body.hire-page #exp-footer {
+    position: static;
+    height: var(--vs-bottom);
+    margin: 0 var(--vs-right) 0 var(--vs-left);
+    pointer-events: auto;
+}
+
+/* ─── Responsive ─────────────────────────────────────────────────────────── */
+
+@media (max-width: 1000px) {
+    #hire-screen {
+        padding: 16px 12px 20px;
+    }
+
+    .hire-head .ph {
+        font-size: 20px;
+    }
+}
+
+@media (max-width: 768px) {
+    body.hire-page #exp-header {
+        position: fixed;
+        left: 16px;
+        right: 16px;
+        top: 0;
+        height: 48px;
+        background: var(--bg);
+        z-index: 100;
+    }
+
+    body.hire-page #scanlines,
+    body.hire-page #dither {
+        position: fixed;
+        height: auto;
+    }
+
+    #hire-screen {
+        margin: 56px 8px 0;
+        padding: 14px 10px 18px;
+    }
+
+    .hire-head {
+        margin-bottom: 14px;
+    }
+
+    .hire-panel {
+        padding: 12px 14px 14px;
+    }
+
+    .hire-panel .ph {
+        font-size: 16px;
+    }
+
+    body.hire-page #exp-footer {
+        height: auto;
+        padding: 16px;
+        flex-direction: column;
+        justify-content: center;
+        gap: 4px;
+    }
+}

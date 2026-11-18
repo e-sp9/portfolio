@@ -1,11 +1,13 @@
 import index from "./index.html";
 import things from "./things.html";
+import hire from "./hire.html";
 import { serveBlog } from "./blog/dev";
 
 Bun.serve({
   routes: {
     "/": index,
     "/things": things,
+    "/hire": hire,
     // The blog comes from microCMS: rendered on request here, written to
     // dist/ by the build (blog/build.ts).
     "/blog": serveBlog,

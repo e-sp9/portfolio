@@ -13,6 +13,9 @@
     --dim: #999999;
     --fp: 'Share Tech Mono', 'Courier New', monospace;
     --fm: 'Share Tech Mono', 'Courier New', monospace;
+    /* Neither web font has Japanese glyphs: name the gothic that fills in, rather
+       than leave it to the generic family (MS Gothic for monospace on Windows). */
+    --font-ja: 'Hiragino Sans', 'Noto Sans JP', 'BIZ UDPGothic', Meiryo, sans-serif;
     --vs-top: 72px;
     --vs-left: 64px;
     --vs-right: 64px;
@@ -571,7 +574,7 @@ body.dark-mode .panel:hover {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════════
-   PROJECTS
+   MAKING (one .project-entry per thing I build)
    ═══════════════════════════════════════════════════════════════════════════════ */
 
 .project-entry {
@@ -635,10 +638,13 @@ body.dark-mode .panel:hover {
 }
 
 .project-desc {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, var(--font-ja);
     font-size: calc(14 * var(--text-u));
     color: var(--txt);
     line-height: 1.4;
     margin-bottom: calc(2 * var(--space-u));
+    /* Japanese broken between phrases rather than inside a word, where supported */
+    word-break: auto-phrase;
 }
 
 .project-tech {
@@ -646,6 +652,31 @@ body.dark-mode .panel:hover {
     font-size: calc(12 * var(--text-u));
     color: var(--dim);
     letter-spacing: calc(0.5 * var(--text-u));
+}
+
+/* The repository, when the name links to the site itself */
+.project-repo {
+    float: right;
+    margin-left: 8px;
+    color: var(--accent);
+    text-decoration: none;
+    pointer-events: auto;
+    transition: color 200ms ease-out;
+}
+
+.project-repo::after {
+    content: '\2192';
+    display: inline-block;
+    margin-left: 4px;
+    transition: transform 200ms ease-out;
+}
+
+.project-repo:hover {
+    color: var(--accent-hover);
+}
+
+.project-repo:hover::after {
+    transform: translateX(3px);
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════════
@@ -717,13 +748,13 @@ body.dark-mode .panel:hover {
    RESPONSIVE
    ═══════════════════════════════════════════════════════════════════════════════ */
 
-/* --- Wide screens (index only; /things and /blog keep the base tokens) ---
+/* --- Wide screens (index only; /things, /blog and /hire keep the base tokens) ---
    Text grows gently with the width; the height left over goes to spacing.
    The header/footer bands stay as they are.
    The frame (--vs-left/right) is capped and centred so the sidebars sit just
    outside the strip kept clear for the model instead of at the screen edges. */
 @media (min-width: 1441px) {
-    body:not(.things-page):not(.blog-page) {
+    body:not(.things-page):not(.blog-page):not(.hire-page) {
         /* Text: follows the width, capped; the height term only bites when
            the sidebars would no longer fit (fixed px + text-sized lines). */
         --text-u-max: 1.28px;
@@ -755,7 +786,7 @@ body.dark-mode .panel:hover {
     }
 
     /* Line spacing opens up with the space unit (1.4 at the base) */
-    body:not(.things-page):not(.blog-page) :is(.skill-name, .career-year, .career-role, .career-company,
+    body:not(.things-page):not(.blog-page):not(.hire-page) :is(.skill-name, .career-year, .career-role, .career-company,
         .project-desc, .project-tech, .link-label) {
         line-height: calc(1.4em + 2 * (var(--space-u) - 1px));
     }
@@ -765,7 +796,7 @@ body.dark-mode .panel:hover {
    spare width instead. Wider sidebars, SKILLS in two columns (name over bar,
    as on mobile), CAREER with the year beside the role. --- */
 @media (min-width: 1441px) and (min-aspect-ratio: 15/8) {
-    body:not(.things-page):not(.blog-page) {
+    body:not(.things-page):not(.blog-page):not(.hire-page) {
         --sidebar-w: calc(340 * var(--text-u) + 20 * (var(--space-u) - 1px));
         --fit-fixed: 362px;
         --fit-lines: 380;

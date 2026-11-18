@@ -138,7 +138,8 @@ export const MODELS: ModelDef[] = [
 ## 8. Information Panels
 
 - 左: **SKILLS**(スキル名 + プログレスバー)、**CAREER**(タイムライン形式)
-- 右: **PROJECTS**(名前リンク + 説明 + 技術タグ。WIP は `IN DEV` タグ付き・リンクなし)、**LINKS**(GitHub / X / Blog)
+- 右: **MAKING**(趣味で作っているもの。名前リンク + 説明 + 技術タグ。WIP は `IN DEV` タグ付き・リンクなし)、**LINKS**(GitHub / X / Blog / Hire me)
+- MAKING: 説明は日本語なので、パネルの中身に `lang="ja"` を付け、`--font-ja`(`style.css`)で日本語のゴシック体を指定し、文節で折り返す(`word-break: auto-phrase`、対応ブラウザのみ)。名前は 1 行に収める。名前がサイトに向かう項目は、リポジトリへのリンクを技術タグの行の右端に `REPO →` として置き、行を増やさない
 - パネル共通: 半透明背景 + blur、`1px solid var(--border)`、ヘッダーに pulse する dot indicator + 下線
 - ホバーで `translateY(-2px)` + シャドウ
 
@@ -150,11 +151,11 @@ export const MODELS: ModelDef[] = [
 
 | Breakpoint | Changes |
 |------------|---------|
-| > 1440px | トップのみ。文字の単位 `--text-u`(通常 1px)を幅に応じて `1 + (100vw - 1440px) × 0.00025`、上限 1.28 まで控えめに拡大する(1920px で 1.12倍、2560px で 1.28倍)。文字が使わなかった高さは余白に回す: 余白の単位 `--space-u`(通常 1px、上限 2.5)がサイドバーの内側の余白、パネルの間隔と内側の余白、項目の間隔、行間を広げる。ヘッダー/フッターの帯は変えない。サイドバー幅は `--sidebar-w`(230 × `--text-u` + パネルの余白が増えたぶん)。枠の幅 `--frame-w` は「モデル用に空ける帯 `--model-clear`(84vh)+ 両サイドバー」を目安に頭打ちにして中央に置く。キャンバスは全面のまま。高さの見積もりは `--fit-fixed` / `--fit-lines` / `--fit-space` で持ち、サイドバーが収まらないときは余白、次に文字の拡大を抑える。/things と /blog は基準値のまま |
+| > 1440px | トップのみ。文字の単位 `--text-u`(通常 1px)を幅に応じて `1 + (100vw - 1440px) × 0.00025`、上限 1.28 まで控えめに拡大する(1920px で 1.12倍、2560px で 1.28倍)。文字が使わなかった高さは余白に回す: 余白の単位 `--space-u`(通常 1px、上限 2.5)がサイドバーの内側の余白、パネルの間隔と内側の余白、項目の間隔、行間を広げる。ヘッダー/フッターの帯は変えない。サイドバー幅は `--sidebar-w`(230 × `--text-u` + パネルの余白が増えたぶん)。枠の幅 `--frame-w` は「モデル用に空ける帯 `--model-clear`(84vh)+ 両サイドバー」を目安に頭打ちにして中央に置く。キャンバスは全面のまま。高さの見積もりは `--fit-fixed` / `--fit-lines` / `--fit-space` で持ち、サイドバーが収まらないときは余白、次に文字の拡大を抑える。/things、/blog、/hire は基準値のまま |
 | > 1440px かつ横長(15:8 以上) | 高さが足りないぶん横幅を使う。サイドバーを 340 × `--text-u`(+ 余白ぶん)に広げ、SKILLS は2列(名前の下にバー)、CAREER は年を役職の横に置く |
 | 1000-1440px | フルレイアウト。サイドバー230px、マージン64px/72px |
 | 768-1000px | サイドバー120px、マージン16px/40px、フォントサイズ縮小 |
-| < 768px | 縦スクロール。ヘッダー固定 + 3Dキャンバス(60vh)+ モデルセレクタ + パネル群(SKILLS/LINKS 2カラム → CAREER → PROJECTS)+ フッター |
+| < 768px | 縦スクロール。ヘッダー固定 + 3Dキャンバス(60vh)+ モデルセレクタ + パネル群(SKILLS/LINKS 2カラム → CAREER → MAKING)+ フッター |
 
 ## 11. /things Page
 
@@ -189,7 +190,19 @@ microCMS で書いた記事の一覧(`/blog`)、記事ページ(`/blog/<記事ID
 - テーマ: `localStorage` の `portfolio-theme` をほかのページと共有する
 - 配信: Cloudflare Workers の assets が `/blog` を `blog.html` に、`/blog/<記事ID>` を `blog/<記事ID>.html` に解決する
 
-## 13. Tech Stack
+## 13. /hire Page
+
+仕事の依頼の窓口。できること、受けられる仕事の形、連絡先を載せる。/things と同じ CRT モニターの言語を使い、3D シーンは持たない。トップからは LINKS の `Hire me` で入る。
+
+- レイアウト: ヘッダー(右側は DARK / ← HOME / BLOG)、仮想スクリーン枠、フッターは /things と同じ。ページ全体が縦スクロール。大きい画面でも /things と /blog と同じく基準値のまま
+- 中身: 枠の中央に、記事のシートと同じ最大幅 800px の列を置き、`.panel` を 3 枚並べる。CAPABILITIES(できること)を列の幅いっぱいに、その下に WORK TYPES(受けられる仕事の形)と CONTACT(連絡先)を 2 カラム(640px〜。それより狭い画面では 1 カラム)で置く。パネルの見出しはトップのパネルと同じく英語にし、原稿の日本語の見出しを見出しの右端に小さく添える
+- 項目: 番号(01、02…、Share Tech Mono)と本文(Inter + `--font-ja`、15px)。項目の後ろに付く括弧の補足は一段薄い色(`--txt`)にする。日本語は文節で折り返す(`word-break: auto-phrase`、対応ブラウザのみ)
+- 連絡先: X へのリンク(別タブ)。`.link-row` の文字を大きくしたもの
+- 文章: 用意した原稿のとおりにする
+- テーマ: `localStorage` の `portfolio-theme` をほかのページと共有。初回描画前に `body.dark-mode` を付けてフラッシュを防ぐ。切り替えは `hire-page.ts`
+- 配信: `bun build ./index.html ./things.html ./hire.html` で `dist/hire.html` を出力。Cloudflare Workers の assets が `/hire` を `hire.html` に解決するので、`worker.ts` と `wrangler.jsonc` は変えていない
+
+## 14. Tech Stack
 
 | Layer | Technology |
 |-------|------------|
@@ -198,4 +211,4 @@ microCMS で書いた記事の一覧(`/blog`)、記事ページ(`/blog/<記事ID
 | Styling | Vanilla CSS (CSS Custom Properties) |
 | Blog | microCMS (記事。ビルド時に取得) / Shiki (コードの色付け) |
 | Deploy | Cloudflare Workers (static assets via wrangler) |
-| Build | `bun ./blog/build.ts && bun build ./index.html ./things.html --outdir ./dist && cp -r ./public/* ./dist/` |
+| Build | `bun ./blog/build.ts && bun build ./index.html ./things.html ./hire.html --outdir ./dist && cp -r ./public/* ./dist/` |

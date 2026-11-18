@@ -28,7 +28,7 @@ bun test        # tests of the blog generator
 ## Build & deploy
 
 ```bash
-bun run build   # generate /blog, bundle index.html + things.html into dist/, copy public/
+bun run build   # generate /blog, bundle index.html + things.html + hire.html into dist/, copy public/
 bun run deploy  # wrangler deploy
 ```
 
@@ -66,6 +66,12 @@ footer model selector.
 name, category, a one-liner, and a link. To add one: drop the photo into `public/things/`
 and add one entry to [things.ts](things.ts). The page is `things.html` +
 `things-page.ts` + `things.css`, built alongside the top page.
+
+## Hire
+
+[`/hire`](https://esp-9.dev/hire) is where to ask me for work: what I can take on, the kinds of
+work I accept, and how to reach me. It is a static page, `hire.html` + `hire.css` (plus the theme toggle
+in `hire-page.ts`), built alongside the top page and linked from its LINKS panel.
 
 ## Blog
 

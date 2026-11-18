@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RYOTA KATADA / HIRE</title>
+    <meta name="description" content="受けられる仕事の形は、業務委託の開発、スポットの相談、講師の3つ。連絡先は X（@e___sp9）。">
+    <meta name="theme-color" content="#f5f5f5">
+    <link rel="icon" href="./public/favicon.ico" sizes="32x32">
+    <link rel="icon" href="./public/favicon.svg" type="image/svg+xml">
+    <link rel="icon" href="./public/favicon-32.png" type="image/png" sizes="32x32">
+    <link rel="icon" href="./public/favicon-16.png" type="image/png" sizes="16x16">
+    <link rel="apple-touch-icon" href="./public/apple-touch-icon.png">
+    <link rel="canonical" href="https://esp-9.dev/hire">
+
+    <!-- OGP -->
+    <meta property="og:title" content="RYOTA KATADA / HIRE">
+    <meta property="og:description" content="受けられる仕事の形は、業務委託の開発、スポットの相談、講師の3つ。連絡先は X（@e___sp9）。">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://esp-9.dev/hire">
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:site" content="@e___sp9">
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Inter:wght@300;400&display=swap"
+        rel="stylesheet">
+
+    <!-- Styles -->
+    <link rel="stylesheet" href="./style.css">
+    <link rel="stylesheet" href="./hire.css">
+
+</head>
+
+<body class="hire-page">
+    <!-- Apply saved theme before first paint to avoid a light flash -->
+    <script>
+        try {
+            if (localStorage.getItem('portfolio-theme') === 'dark') document.body.classList.add('dark-mode');
+        } catch (_) { }
+    </script>
+    <!-- CRT Effects -->
+    <div id="scanlines"></div>
+    <div id="dither"></div>
+
+    <!-- Header -->
+    <div id="exp-header">
+        <div class="exp-left">
+            <a class="exp-label" href="/">RYOTA KATADA</a>
+            <span class="exp-sep">/</span>
+            <span class="exp-type">HIRE</span>
+        </div>
+        <div class="exp-right">
+            <button id="theme-toggle" class="exp-btn" aria-label="Toggle dark/light mode">DARK</button>
+            <a id="home-btn" class="exp-btn" href="/">&#x2190; HOME</a>
+            <a id="blog-btn" class="exp-btn" href="/blog">BLOG</a>
+        </div>
+    </div>
+
+    <!-- Virtual Screen -->
+    <main id="hire-screen">
+        <div class="hire-head">
+            <h1 class="ph"><span class="dot b"></span> HIRE</h1>
+        </div>
+
+        <div class="hire-column">
+            <section class="panel hire-panel">
+                <h2 class="ph"><span class="dot g"></span> CAPABILITIES<span class="ph-ja">できること</span></h2>
+                <ol class="hire-list">
+                    <li>顧客の現場に入り、要件の整理から設計・実装まで担うこと<span class="hire-note">（現職の役割はFDE）</span></li>
+                    <li>WebサイトやCMSの設計・実装<span class="hire-note">（自社CMSのプロダクト開発、ヘッドレスCMSのプロダクト開発）</span></li>
+                    <li>フロントエンド（React、TypeScript）と、バックエンド・クラウド（AWSなど）</li>
+                    <li>AIを使った実装と、業務の仕組みを整えること</li>
+                    <li>プログラミングの講師</li>
+                </ol>
+            </section>
+
+            <div class="hire-row">
+                <section class="panel hire-panel">
+                    <h2 class="ph"><span class="dot a"></span> WORK TYPES<span class="ph-ja">受けられる仕事の形</span></h2>
+                    <ol class="hire-list">
+                        <li>業務委託の開発</li>
+                        <li>スポットの相談</li>
+                        <li>講師</li>
+                    </ol>
+                </section>
+
+                <section class="panel hire-panel">
+                    <h2 class="ph"><span class="dot p"></span> CONTACT<span class="ph-ja">連絡先</span></h2>
+                    <a class="link-row hire-contact" href="https://x.com/e___sp9" target="_blank" rel="noopener">
+                        <span class="link-icon">&#9654;</span>
+                        <span class="link-label">X</span>
+                        <span class="hire-handle">@e___sp9</span>
+                        <span class="link-arrow">&#x2197;</span>
+                    </a>
+                </section>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <div id="exp-footer">
+        <span class="ef-credit">Built with Bun</span>
+        <span class="ef-copy">&copy; 2026 RYOTA KATADA</span>
+    </div>
+
+    <script type="module" src="./hire-page.ts"></script>
+</body>
+
+</html>
