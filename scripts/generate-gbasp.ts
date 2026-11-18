@@ -99,18 +99,17 @@ function fixedOutline(arcs: Arc[], step = ARC_STEP): Outline {
   return () => pts;
 }
 
-/**
- * Rounded rectangle with `seg` facets per corner, for plates so small or thin
- * that the facet edges are under a pixel.
- */
-function smallRect(w: number, h: number, r: number, cx = 0, cy = 0, seg = 3): Outline {
-  const hw = w / 2, hh = h / 2;
-  return fixedOutline([
-    { cx: cx + hw - r, cy: cy - hh + r, r, a0: -P / 2, a1: 0 },
-    { cx: cx + hw - r, cy: cy + hh - r, r, a0: 0, a1: P / 2 },
-    { cx: cx - hw + r, cy: cy + hh - r, r, a0: P / 2, a1: P },
-    { cx: cx - hw + r, cy: cy - hh + r, r, a0: P, a1: P * 1.5 },
-  ], P / 2 / seg);
+/** Rectangle with sharp corners. */
+function sharpRect(w: number, h: number, cx = 0, cy = 0): Outline {
+  const pts = [[1, -1], [1, 1], [-1, 1], [-1, -1]].map(([sx, sy]) => new THREE.Vector2(cx + sx! * w / 2, cy + sy! * h / 2));
+  return () => pts;
+}
+
+/** Small round hole: 46 facets keep its wall under the 8-degree edge threshold with fewer points than arcOutline. */
+function circle(r: number, cx: number, cy: number, seg = 46): Outline {
+  const pts = Array.from({ length: seg }, (_, i) =>
+    new THREE.Vector2(cx + r * Math.cos(i / seg * 2 * P), cy + r * Math.sin(i / seg * 2 * P)));
+  return () => pts;
 }
 
 /** Lower half seen from above: the Game Pak slot's mouth is a notch in the front edge. */
@@ -135,8 +134,11 @@ function quad(pts: number[][], n: number[]): THREE.BufferGeometry {
   return indexedGeometry(pts.flat(), pts.flatMap(() => n), [0, 1, 2, 0, 2, 3]);
 }
 
-/** Closed cylinder along +y, centered; fan caps keep it lighter than CylinderGeometry. */
-function drum(r: number, len: number, seg = 48): THREE.BufferGeometry {
+/**
+ * Cylinder along +y, centered; fan caps keep it lighter than CylinderGeometry.
+ * A cap against another part can be left off.
+ */
+function drum(r: number, len: number, { top = true, bottom = true } = {}, seg = 48): THREE.BufferGeometry {
   const positions: number[] = [], normals: number[] = [], indices: number[] = [];
   for (let i = 0; i < seg; i++) {
     const a = i / seg * 2 * P, x = Math.sin(a), z = Math.cos(a);
@@ -147,7 +149,9 @@ function drum(r: number, len: number, seg = 48): THREE.BufferGeometry {
   }
   const ring = Array.from({ length: seg }, (_, i) => new THREE.Vector2(r * Math.sin(i / seg * 2 * P), r * Math.cos(i / seg * 2 * P)));
   const cap = (y: number, n: number) => polygon(ring, p => new THREE.Vector3(p.x, y, p.y), new THREE.Vector3(0, n, 0));
-  return mergeGeometries([indexedGeometry(positions, normals, indices), cap(len / 2, 1), cap(-len / 2, -1)], false)!;
+  return mergeGeometries([
+    indexedGeometry(positions, normals, indices), ...(top ? [cap(len / 2, 1)] : []), ...(bottom ? [cap(-len / 2, -1)] : []),
+  ], false)!;
 }
 
 /**
@@ -224,15 +228,48 @@ function openShell(outline: Outline, zStart: number, zEnd: number, rimR: number,
   ], false)!;
 }
 
-/** The Game Pak slot behind the mouth: side walls, floor and the back wall at the connector. */
-function cartSlot(halfW: number, y0: number, y1: number, z0: number): THREE.BufferGeometry {
+interface Opening { at: THREE.Vector3; w: number; h: number; r: number; depth: number }
+
+/**
+ * Openings cut through a flat wall. The wall (`corners`, in order, model
+ * coordinates) is drawn again with a hole per opening, and each hole gets an
+ * inner wall `depth` deep; its back comes apart, to be dark. `q` turns +z to
+ * the wall's outward normal; w and h run along the wall's local x and y.
+ */
+function cutWall(corners: THREE.Vector3[], q: THREE.Quaternion, openings: Opening[]) {
+  const m = new THREE.Matrix4().compose(corners[0]!, q, new THREE.Vector3(1, 1, 1));
+  const inv = m.clone().invert();
+  const local = (p: THREE.Vector3) => { const l = p.clone().applyMatrix4(inv); return new THREE.Vector2(l.x, l.y); };
+  const holes = openings.map(o => { const c = local(o.at); return roundedRect(o.w, o.h, o.r, c.x, c.y); });
+  const face = polygon(corners.map(local), p => new THREE.Vector3(p.x, p.y, 0), new THREE.Vector3(0, 0, 1), holes.map(h => h(0)));
+  const wall = mergeGeometries([face, ...holes.map((h, i) => recessWall(h, 0, openings[i]!.depth, 0))], false)!.applyMatrix4(m);
+  // The face's first vertices are the corners: put back their exact values,
+  // so they meet the wall around them without a round-trip error.
+  corners.forEach((c, i) => wall.getAttribute('position').setXYZ(i, c.x, c.y, c.z));
+  return {
+    wall,
+    backs: mergeGeometries(holes.map((h, i) => fanCap(h(0), -openings[i]!.depth, 1)), false)!.applyMatrix4(m),
+  };
+}
+
+/**
+ * The Game Pak slot behind the mouth: side walls, floor, and the back wall
+ * with the connector's opening (its back returned apart).
+ */
+function cartSlot(halfW: number, y0: number, y1: number, z0: number) {
   const x = halfW, z1 = SEAM_Z; // its ceiling is the face plate's underside
-  return mergeGeometries([
-    quad([[-x, y0, z0], [-x, y1, z0], [-x, y1, z1], [-x, y0, z1]], [1, 0, 0]),
-    quad([[x, y0, z0], [x, y1, z0], [x, y1, z1], [x, y0, z1]], [-1, 0, 0]),
-    quad([[-x, y0, z0], [x, y0, z0], [x, y1, z0], [-x, y1, z0]], [0, 0, 1]),
-    quad([[-x, y1, z0], [x, y1, z0], [x, y1, z1], [-x, y1, z1]], [0, -1, 0]),
-  ], false)!;
+  const v = (px: number, py: number, pz: number) => new THREE.Vector3(px, py, pz);
+  const back = cutWall([v(-x, y1, z0), v(x, y1, z0), v(x, y1, z1), v(-x, y1, z1)], qToFront,
+    [{ at: v(0, y1, 6), w: 52, h: 2.2, r: 0, depth: 2 }]);
+  return {
+    walls: mergeGeometries([
+      quad([[-x, y0, z0], [-x, y1, z0], [-x, y1, z1], [-x, y0, z1]], [1, 0, 0]),
+      quad([[x, y0, z0], [x, y1, z0], [x, y1, z1], [x, y0, z1]], [-1, 0, 0]),
+      quad([[-x, y0, z0], [x, y0, z0], [x, y1, z0], [-x, y1, z0]], [0, 0, 1]),
+      back.wall,
+    ], false)!,
+    connector: back.backs,
+  };
 }
 
 // ─── Part registry ───────────────────────────────────────────────────────────
@@ -261,7 +298,9 @@ function buildLowerHalf() {
   const light = { x: 0, y: 66.4 };
   const ssX = 7.1, ssY = 10.3;
 
-  // ── Face plate: cut open at every well, which joins its wall and floor ──
+  // ── Face plate: cut open at every well, which joins its wall and floor,
+  // and at the speaker's 4 x 4 holes (between the D-pad and START / SELECT),
+  // 1.2 mm deep to the speaker behind them ──
   const faceOutline = roundedRect(2 * HW, FACE_END, { tl: 3, tr: 3, bl: 5.5, br: 5.5 }, 0, FACE_END / 2);
   const dpadWell = roundedRect(26.5, 26.5, 13.25, dpad.x, dpad.y);
   const abWell = stadium(B, A, 6.3);
@@ -274,10 +313,17 @@ function buildLowerHalf() {
     [ssWell(ssX), 0.8, 0.8],
     [lightWell, 0.5, 0.4],
   ];
+  const SPEAKER_D = 1.2;
+  const speaker: Outline[] = [];
+  for (let i = 0; i < 4; i++) {
+    for (let j = 0; j < 4; j++) speaker.push(circle(0.6, (i - 1.5) * 4.1, 29.7 + (j - 1.5) * 4.1));
+  }
   add('base_face', mergeGeometries([
-    shellGeometry(faceOutline, SEAM_Z, FZ, FACE_RIM, 13, wells.map(([o]) => o)),
+    shellGeometry(faceOutline, SEAM_Z, FZ, FACE_RIM, 13, [...wells.map(([o]) => o), ...speaker]),
     ...wells.map(([o, depth, slope]) => recess(o, FZ, depth, slope)),
+    ...speaker.map(o => recessWall(o, FZ, SPEAKER_D, 0)),
   ], false)!, 'body');
+  add('speaker_holes', mergeGeometries(speaker.map(o => fanCap(o(0), FZ - SPEAKER_D, 1)), false)!, 'hole');
 
   // ── D-pad (18 mm cross), A / B (7.7 mm), START / SELECT, screen light switch ──
   add('dpad', dpadGeometry(9.0, 3.45, 2.4, 0.35, 0, 0), 'keys', [dpad.x, dpad.y, FZ - 1.0]);
@@ -289,17 +335,10 @@ function buildLowerHalf() {
   add('button_start', ssGeo.clone(), 'keys', [ssX, ssY, FZ - 0.8], qX90);
   add('light_switch', buttonGeometry(2.2, 0.9, 0.15, 2), 'keys', [light.x, light.y, FZ - 0.5], qX90);
 
-  // ── Speaker: 4 x 4 holes between the D-pad and START / SELECT ──
-  const holes: { g: THREE.BufferGeometry; at: [number, number, number] }[] = [];
-  for (let i = 0; i < 4; i++) {
-    for (let j = 0; j < 4; j++) holes.push({ g: disc(0.6, 12), at: [(i - 1.5) * 4.1, 29.7 + (j - 1.5) * 4.1, FZ + 0.05] });
-  }
-  add('speaker_holes', mergedAt(holes), 'hole');
-
   // ── Recharge and power LEDs: light pipes on the right edge, by the hinge ──
   const rimX = HW - FACE_RIM * (1 - Math.SQRT1_2), rimZ = FZ - FACE_RIM * (1 - Math.SQRT1_2);
   add('leds', mergedAt([61.5, 66.8].map(y => ({
-    g: plate(smallRect(1.2, 2.4, 0.3), 0.08, 0.25), at: [rimX, y, rimZ] as [number, number, number], rot: axis(0, 1, 0, 45),
+    g: plate(sharpRect(1.2, 2.4), 0.08, 0.25), at: [rimX, y, rimZ] as [number, number, number], rot: axis(0, 1, 0, 45),
   }))), 'led');
 
   // ── Hinge: knuckles on the lower half, the barrel and its rings between ──
@@ -311,12 +350,12 @@ function buildLowerHalf() {
     quad([[-kx, LEN, SEAM_Z], [kx, LEN, SEAM_Z], [kx, LEN, zt], [-kx, LEN, zt]], [0, 1, 0]),
   ], false)!, 'body');
   add('knuckles', mergeGeometries([knuckle(-HW, -kx), knuckle(kx, HW)], false)!, 'body');
-  const cyl = (x0: number, x1: number, r = BARREL_R) => ({
-    g: drum(r, x1 - x0), at: [(x0 + x1) / 2, AXIS_Y, AXIS_Z] as [number, number, number], rot: qYtoX,
+  const cyl = (x0: number, x1: number, r = BARREL_R, caps = {}) => ({
+    g: drum(r, x1 - x0, caps), at: [(x0 + x1) / 2, AXIS_Y, AXIS_Z] as [number, number, number], rot: qYtoX,
   });
   // The lid's half and the hinge cover meet at the center; short rings sit by the knuckles.
   add('hinge_barrel', mergedAt([cyl(-28.2, -0.2), cyl(0.2, 28.2), cyl(-33.9, -28.6), cyl(28.6, 33.9)]), 'body');
-  add('hinge_caps', mergedAt([cyl(-HW - 0.3, -HW, 3.3), cyl(HW, HW + 0.3, 3.3)]), 'body');
+  add('hinge_caps', mergedAt([cyl(-HW - 0.3, -HW, 3.3, { top: false }), cyl(HW, HW + 0.3, 3.3, { bottom: false })]), 'body');
 
   // ── Bottom shell: battery cover, label, screws, strap holes; the Game Pak slot in front ──
   const bottomOutline: Outline = inset => baseOutline(inset + SEAM_INSET);
@@ -343,34 +382,80 @@ function buildLowerHalf() {
   ]);
   const SCREWS: [number, number][] = [[-36.5, 5.0], [36.5, 5.0], [-36.6, 64.6], [36.6, 64.6]];
   const BORE_R = 1.8, BORE_D = 1.5;
-  // Wrist strap attachment: a hole by each back corner, opening into the accessory slot.
+  // Wrist strap attachment: a hole by each back corner, beside the accessory slot.
   const STRAP: [number, number][] = [[-30, 77], [30, 77]];
   const STRAP_R = 1.1, STRAP_D = 2.5;
   const bores = SCREWS.map(([x, y]) => roundedRect(2 * BORE_R, 2 * BORE_R, BORE_R, x, y));
   const strapHoles = STRAP.map(([x, y]) => roundedRect(2 * STRAP_R, 2 * STRAP_R, STRAP_R, x, y));
 
-  // The slot's mouth: the wall across the notch stays open above the bottom rim.
+  // The bottom shell's flat walls take its openings. The slot's mouth stays
+  // open above the bottom rim; the hinge edge and both sides are drawn again
+  // with their ports and switch slots cut through, each with its inner wall.
   const rings = rimRings(SEAM_Z, 0, 2, 13);
+  const zLow = rings[1]!.z; // the flat walls run from the bottom rim to the parting line
   const base = bottomOutline(0);
-  const mouth = base.findIndex((p, i) => {
-    const q = base[(i + 1) % base.length]!;
-    return Math.abs(p.y - q.y) < 1e-3 && p.y < 10 && p.x < -20 && q.x > 20;
-  });
+  const wallX = HW - SEAM_INSET, wallY = LEN - SEAM_INSET;
+  const near = (a: number, b: number) => Math.abs(a - b) < 1e-3;
+  const segment = (test: (p: THREE.Vector2, q: THREE.Vector2) => boolean) =>
+    base.findIndex((p, i) => test(p, base[(i + 1) % base.length]!));
+  const mouth = segment((p, q) => near(p.y, q.y) && p.y < 10 && p.x < -20 && q.x > 20);
+  const hingeWall = segment((p, q) => near(p.y, wallY) && near(q.y, wallY) && p.x > 0 && q.x < 0);
+  const rightWall = segment((p, q) => near(p.x, wallX) && near(q.x, wallX) && q.y - p.y > 50);
+  const leftWall = segment((p, q) => near(p.x, -wallX) && near(q.x, -wallX) && p.y - q.y > 50);
+  const v = (x: number, y: number, z: number) => new THREE.Vector3(x, y, z);
+  const wallQuad = (i: number) => {
+    const p = base[i]!, q = base[(i + 1) % base.length]!;
+    return [v(p.x, p.y, zLow), v(q.x, q.y, zLow), v(q.x, q.y, SEAM_Z), v(p.x, p.y, SEAM_Z)];
+  };
+
+  // ── Hinge edge: EXT. 1 (link), EXT. 2 (power), accessory slots ──
+  const hingeEdge = cutWall(wallQuad(hingeWall), qToBack, [
+    { at: v(-8.8, wallY, 4.6), w: 10.5, h: 4.4, r: 0.8, depth: 5 },
+    { at: v(10.3, wallY, 4.6), w: 12.8, h: 4.2, r: 0.8, depth: 5 },
+    { at: v(-26.9, wallY, 5.8), w: 5.2, h: 6.4, r: 0, depth: 4 },
+    { at: v(26.9, wallY, 5.8), w: 5.2, h: 6.4, r: 0, depth: 4 },
+  ]);
+
+  // ── Sides: power switch (right, toward the front), volume slider (left, by the hinge).
+  // The slot runs through a raised frame and the wall; the nub stands in it. ──
+  const FRAME_T = 0.35, SLOT_D = 1.6;
+  const slider = (sign: number, y: number, len: number, nubY: number) => {
+    const q = sign > 0 ? qToRight : qToLeft;
+    const at = v(sign * wallX, y, 5);
+    const m = new THREE.Matrix4().compose(at, q, new THREE.Vector3(1, 1, 1));
+    const slot = roundedRect(2.0, len - 5, 1.0);
+    return {
+      wall: cutWall(wallQuad(sign > 0 ? rightWall : leftWall), q, [{ at, w: 2.0, h: len - 5, r: 1.0, depth: SLOT_D }]),
+      frame: mergeGeometries([
+        openShell(roundedRect(6, len, 0.8), 0, FRAME_T, 0, [slot]),
+        recessWall(slot, FRAME_T, FRAME_T, 0),
+      ], false)!.applyMatrix4(m),
+      nub: plate(sharpRect(1.8, 3.0, 0, nubY - y), FRAME_T + 0.9, FRAME_T + 0.9 + SLOT_D - 0.1).applyMatrix4(m),
+    };
+  };
+  const power = slider(1, 23, 16, 19.5);   // OFF: slid toward the front
+  const volume = slider(-1, 65.5, 14, 65.5);
+
   add('base_bottom', mergeGeometries([
-    sweepSide(bottomOutline, rings, -1, undefined, (i, r) => i === mouth && r === 0),
+    sweepSide(bottomOutline, rings, -1, undefined, (i, r) => r === 0 && [mouth, hingeWall, rightWall, leftWall].includes(i)),
+    hingeEdge.wall, power.wall.wall, volume.wall.wall,
     flatCap(bottomOutline(rings[rings.length - 1]!.inset), 0, -1, [cover, label, ...bores, ...strapHoles].map(h => h(0))),
     // The face plate closes the parting line in front of the hinge; behind it,
     // under the spine and the knuckles, the bottom shell closes itself.
-    fanCap([new THREE.Vector2(HW - SEAM_INSET, FACE_END), ...base.filter(p => p.y > FACE_END),
-      new THREE.Vector2(-HW + SEAM_INSET, FACE_END)], SEAM_Z, 1),
+    fanCap([new THREE.Vector2(wallX, FACE_END), ...base.filter(p => p.y > FACE_END), new THREE.Vector2(-wallX, FACE_END)], SEAM_Z, 1),
     ...bores.map(o => recess(o, 0, BORE_D, 0, 1)),
     ...strapHoles.map(o => recessWall(o, 0, STRAP_D, 0, 1)),
     recessWall(label, 0, 0.25, 0, 1),
   ], false)!, 'bodyDark');
+  add('ports', hingeEdge.backs, 'hole');
+  add('switch_frames', mergeGeometries([power.frame, volume.frame], false)!, 'body');
+  add('switch_slots', mergeGeometries([power.wall.backs, volume.wall.backs], false)!, 'hole');
+  add('switch_nubs', mergeGeometries([power.nub, volume.nub], false)!, 'keys');
 
   const mouthY = NOTCH_D + SEAM_INSET, slotHW = SLOT_HALF_W + SEAM_INSET, slotEnd = 32;
-  add('cart_slot', cartSlot(slotHW, mouthY, slotEnd, rings[1]!.z), 'inset');
-  add('cart_slit', plate(smallRect(52, 2.2, 0.6), 0.05, 0.05), 'hole', [0, slotEnd, 6], qToFront);
+  const gamePak = cartSlot(slotHW, mouthY, slotEnd, zLow);
+  add('cart_slot', gamePak.walls, 'inset');
+  add('cart_slit', gamePak.connector, 'hole');
 
   add('battery_cover', plate(cover, -0.15, 0.6, -1), 'bodyDark');
   add('cover_panel', openShell(roundedRect(39, 11.7, 1.5, 0, 52.5), -0.15, -0.35, 0), 'body'); // "GAME BOY"
@@ -383,30 +468,7 @@ function buildLowerHalf() {
   add('strap_holes', mergedAt(STRAP.map(([x, y]) =>
     ({ g: disc(STRAP_R, 24), at: [x, y, STRAP_D] as [number, number, number], rot: qY180 }))), 'hole');
 
-  // ── Sides: power switch (right, toward the front), volume slider (left, by the hinge) ──
-  const wallX = HW - SEAM_INSET;
-  const slider = (sign: number, y: number, len: number, nubY: number) => {
-    const at = (yy: number): [number, number, number] => [sign * wallX, yy, 5];
-    const rot = sign > 0 ? qToRight : qToLeft;
-    return {
-      frame: { g: plate(roundedRect(6, len, 0.8), 0.35, 0.35), at: at(y), rot },
-      slot: { g: plate(smallRect(2.0, len - 5, 1.0, 0, 0, 4), 0.4, 0.05), at: at(y), rot },
-      nub: { g: plate(roundedRect(1.8, 3.0, 0.3), 1.3, 0.9), at: at(nubY), rot },
-    };
-  };
-  const power = slider(1, 23, 16, 19.5);   // OFF: slid toward the front
-  const volume = slider(-1, 65.5, 14, 65.5);
-  add('switch_frames', mergedAt([power.frame, volume.frame]), 'body');
-  add('switch_slots', mergedAt([power.slot, volume.slot]), 'hole');
-  add('switch_nubs', mergedAt([power.nub, volume.nub]), 'keys');
-
-  // ── Hinge edge: EXT. 1 (link), EXT. 2 (power), accessory slots, L / R ──
-  const wallY = LEN - SEAM_INSET;
-  const port = (w: number, h: number, x: number, z: number) =>
-    ({ g: plate(smallRect(w, h, 0.8), 0.05, 0.05), at: [x, wallY, z] as [number, number, number], rot: qToBack });
-  add('ports', mergedAt([
-    port(10.5, 4.4, -8.8, 4.6), port(12.8, 4.2, 10.3, 4.6), port(5.2, 6.4, -26.9, 5.8), port(5.2, 6.4, 26.9, 5.8),
-  ]), 'hole');
+  // ── Hinge edge: L / R ──
   add('button_l', shoulder(-1), 'keys');
   add('button_r', shoulder(1), 'keys');
 }
@@ -422,17 +484,37 @@ function buildLid() {
   const pads: [number, number][] = [[-34.5, 4], [0, 4], [34.5, 4], [-34.5, 66.9], [34.5, 66.9]];
   const padWell = ([x, v]: [number, number]) => roundedRect(4.6, 4.6, 2.3, x, yLid(v));
   const wells: [Outline, number, number][] = [[pocket, POCKET_D, 0.1], ...pads.map(p => [padWell(p), 0.4, 0.15] as [Outline, number, number])];
+  // Small slots in both sides at the parting line, near each end: the flat
+  // part of each side wall is drawn again with them cut through.
+  const rings = rimRings(LID_SEAM, LZ, 1.5, 13);
+  const edge = lidOutline(0);
+  const side = (sign: number) => edge.findIndex((p, i) => {
+    const q = edge[(i + 1) % edge.length]!;
+    return Math.abs(p.x - sign * HW) < 1e-3 && Math.abs(q.x - sign * HW) < 1e-3 && sign * (q.y - p.y) > 50;
+  });
+  const slits = (sign: number) => {
+    const i = side(sign), p = edge[i]!, q = edge[(i + 1) % edge.length]!;
+    const v = (x: number, y: number, z: number) => new THREE.Vector3(x, y, z);
+    return cutWall([v(p.x, p.y, LID_SEAM), v(q.x, q.y, LID_SEAM), v(q.x, q.y, rings[1]!.z), v(p.x, p.y, rings[1]!.z)],
+      sign > 0 ? qToRight : qToLeft,
+      [7, 67.4].map(d => ({ at: v(sign * HW, yLid(d), LID_SEAM + 0.85), w: 0.8, h: 2.6, r: 0, depth: 1.2 })));
+  };
+  const right = slits(1), left = slits(-1);
   add('lid_face', mergeGeometries([
-    shellGeometry(lidOutline, LID_SEAM, LZ, 1.5, 13, wells.map(([o]) => o)),
+    sweepSide(lidOutline, rings, 1, undefined, (i, r) => r === 0 && (i === side(1) || i === side(-1))),
+    right.wall, left.wall,
+    flatCap(lidOutline(rings[rings.length - 1]!.inset), LZ, 1, wells.map(([o]) => o(0))),
+    flatCap(lidOutline(0), LID_SEAM, -1),
     ...wells.map(([o, depth, slope]) => recess(o, LZ, depth, slope)),
   ], false)!, 'body', undefined, undefined, lid);
+  add('lid_slits', mergeGeometries([right.backs, left.backs], false)!, 'hole', undefined, undefined, lid);
   add('lens', shellGeometry(lens, LZ - POCKET_D, LENS_TOP, 0), 'screen', undefined, undefined, lid);
 
   // LCD window, a little larger than the 61.2 x 40.8 mm picture
-  add('lcd', plate(smallRect(62.5, 43, 0.8, 0, yLid(33.7), 4), LENS_TOP + 0.27, 0.27), 'lcd', undefined, undefined, lid);
+  add('lcd', plate(sharpRect(62.5, 43, 0, yLid(33.7)), LENS_TOP + 0.27, 0.27), 'lcd', undefined, undefined, lid);
   // "GAME BOY ADVANCE SP" under the picture
-  add('logo_strip', plate(smallRect(38, 3.0, 0.8, 0, yLid(58.4), 4), LENS_TOP + 0.16, 0.16), 'label', undefined, undefined, lid);
-  const padGeo = drum(2.0, 1.0);
+  add('logo_strip', plate(sharpRect(38, 3.0, 0, yLid(58.4)), LENS_TOP + 0.16, 0.16), 'label', undefined, undefined, lid);
+  const padGeo = drum(2.0, 1.0, { bottom: false });
   add('pads', mergedAt(pads.map(([x, v]) => ({ g: padGeo, at: [x, yLid(v), LZ + 0.1] as [number, number, number], rot: qX90 }))),
     'rubber', undefined, undefined, lid);
 
@@ -444,13 +526,6 @@ function buildLid() {
     recessWall(badge, LID_BACK_Z, 0.1, 0.05, 1),
   ], false)!, 'bodyDark', undefined, undefined, lid);
   add('badge', flatCap(badge(0.05), LID_BACK_Z + 0.1, -1), 'badge', undefined, undefined, lid);
-
-  // Small slots in both sides at the parting line, near each end
-  const slitZ = LID_SEAM + 0.85;
-  add('lid_slits', mergedAt([7, 67.4].flatMap(v => [
-    { g: plate(smallRect(0.8, 2.6, 0.2), 0.05, 0.05), at: [HW, yLid(v), slitZ] as [number, number, number], rot: qToRight },
-    { g: plate(smallRect(0.8, 2.6, 0.2), 0.05, 0.05), at: [-HW, yLid(v), slitZ] as [number, number, number], rot: qToLeft },
-  ])), 'hole', undefined, undefined, lid);
 }
 
 // ─── Pose and export ─────────────────────────────────────────────────────────

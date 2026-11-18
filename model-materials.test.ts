@@ -134,4 +134,32 @@ describe('Game Boy Advance SP', () => {
         };
         for (const [name, role] of Object.entries(expected)) expect([name, roleOf(byName.get(name)!)]).toEqual([name, role]);
     });
+
+    test('openings are cut through the shell: no shell face lies across one before its back', async () => {
+        const { scene, meshes, byName } = await load('public/models/gbasp.glb');
+        scene.updateMatrixWorld(true);
+        for (const m of meshes) (m.material as THREE.Material).side = THREE.DoubleSide;
+        const shells = meshes.filter((m) => roleOf(m) === 'shell');
+        const ray = new THREE.Raycaster();
+        const covered: string[] = [];
+        let checked = 0;
+        for (const name of ['speaker_holes', 'ports', 'switch_slots', 'lid_slits', 'cart_slit']) {
+            // Each back is a fan; its center is the vertex every triangle of the fan uses.
+            const back = byName.get(name)!, g = back.geometry, idx = g.index!;
+            const uses = new Map<number, number>();
+            for (let i = 0; i < idx.count; i++) uses.set(idx.getX(i), (uses.get(idx.getX(i)) ?? 0) + 1);
+            for (const [v, n] of uses) {
+                if (n < 4) continue;
+                const at = new THREE.Vector3().fromBufferAttribute(g.getAttribute('position'), v).applyMatrix4(back.matrixWorld);
+                const out = new THREE.Vector3().fromBufferAttribute(g.getAttribute('normal'), v).transformDirection(back.matrixWorld);
+                // From 0.1 unit (8 mm, deeper than any opening) in front of the back, straight in
+                ray.set(at.clone().addScaledVector(out, 0.1), out.clone().negate());
+                const hit = ray.intersectObjects(shells, false)[0];
+                if (hit && hit.distance < 0.1 + 0.005) covered.push(`${name} by ${hit.object.name} at ${hit.distance.toFixed(4)}`);
+                checked++;
+            }
+        }
+        expect(covered).toEqual([]);
+        expect(checked).toBe(16 + 4 + 2 + 4 + 1);
+    });
 });
