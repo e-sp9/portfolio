@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { renderArticle } from './article';
 import { buildBlog } from './build';
+import { picks, writeEntrance } from './entrance';
 import { renderFeed } from './feed';
 import { unesc } from './html';
 import { BlogSourceError, fetchPosts, type Post } from './microcms';
@@ -261,6 +262,64 @@ describe('pages', () => {
     });
 });
 
+describe('top page entrance', () => {
+    let dist: string;
+    /** The slot as the bundled page has it, with what an earlier run put in */
+    const page = '<body><div id="writing-picks" lang="ja">left by an earlier build</div><a href="/blog">All posts</a></body>';
+    const written = () => Bun.file(join(dist, 'index.html')).text();
+
+    beforeEach(async () => {
+        dist = await mkdtemp(join(tmpdir(), 'blog-entrance-'));
+    });
+
+    afterEach(async () => {
+        await rm(dist, { recursive: true, force: true });
+    });
+
+    test('recommends the posts tagged おすすめ, by the name of the tag, newest first', () => {
+        const posts = [
+            post({ id: 'new', tags: ['Remix', 'おすすめ'] }),
+            post({ id: 'other', tags: ['おすすめ記事'] }),
+            post({ id: 'old', tags: ['おすすめ'] }),
+        ];
+        expect(picks(posts).map((pick) => pick.id)).toEqual(['new', 'old']);
+    });
+
+    test('links each pick to its article and escapes what comes from the CMS', async () => {
+        await Bun.write(join(dist, 'index.html'), page);
+        await writeEntrance(dist, [post({ title: '<b>A & B</b>', tags: ['おすすめ'] }), post({ id: 'x', tags: ['Remix'] })]);
+        expect(await written()).toBe(
+            '<body><div id="writing-picks" lang="ja">' +
+                '<a class="writing-entry" href="/blog/abc123"><span class="writing-title">&lt;b&gt;A &amp; B&lt;/b&gt;</span></a>' +
+                '</div><a href="/blog">All posts</a></body>',
+        );
+    });
+
+    test('with no post tagged, or no such tag at all, leaves only the link to /blog', async () => {
+        for (const posts of [[post({ tags: ['Remix'] }), post({ id: 'x', tags: [] })], []]) {
+            await Bun.write(join(dist, 'index.html'), page);
+            await writeEntrance(dist, posts);
+            expect(await written()).toBe('<body><div id="writing-picks" lang="ja"></div><a href="/blog">All posts</a></body>');
+        }
+    });
+
+    test('stops when the top page is not bundled yet, or has no place for the picks', async () => {
+        await expect(writeEntrance(dist, [])).rejects.toThrow('index.html is missing');
+        await Bun.write(join(dist, 'index.html'), '<body></body>');
+        await expect(writeEntrance(dist, [])).rejects.toThrow('The top page has no #writing-picks');
+    });
+
+    test('the top page has the place in its WRITING panel, above the link to /blog and the posts on other sites', async () => {
+        await Bun.write(join(dist, 'index.html'), Bun.file(join(import.meta.dir, '../index.html')));
+        await writeEntrance(dist, [post({ tags: ['おすすめ'] })]);
+        const html = await written();
+        const panel = html.slice(html.indexOf('<div class="panel" id="writing">'), html.indexOf('<!-- LINKS Panel -->'));
+        const [pick, all, elsewhere] = ['href="/blog/abc123"', 'href="/blog"', 'class="writing-elsewhere"'].map((part) => panel.indexOf(part));
+        expect(0 < pick! && pick! < all! && all! < elsewhere!).toBe(true);
+        expect(panel.match(/<a class="writing-entry" href="https:\/\/[^"]+" target="_blank" rel="noopener">/g)).toHaveLength(4);
+    });
+});
+
 const env = { MICROCMS_SERVICE_DOMAIN: 'hidden-domain', MICROCMS_API_KEY: 'hidden-key' };
 const apiPost = { id: 'abc123', title: 'T', content: '<p>c</p>', publishedAt: '2024-08-22T15:00:00.000Z', category: { name: 'テクノロジー', slug: 'technology' }, tags: [{ name: 'Remix' }] };
 
@@ -350,12 +409,23 @@ describe('build', () => {
         expect((await readdir(dist, { recursive: true })).sort()).toEqual(['blog', 'blog/abc123.html']);
     });
 
-    test('with the credentials, writes the list, the articles, the feed and the stylesheet', async () => {
-        spyOn(globalThis, 'fetch').mockResolvedValue(Response.json({ contents: [apiPost], totalCount: 1 }));
+    test('with the credentials, writes the list, the articles, the feed and the stylesheet, and the picks into the top page', async () => {
+        const picked = { ...apiPost, id: 'pick1', tags: [{ name: 'おすすめ' }] };
+        spyOn(globalThis, 'fetch').mockResolvedValue(Response.json({ contents: [picked, apiPost], totalCount: 2 }));
         spyOn(console, 'log').mockImplementation(() => {});
         await Bun.write(join(dist, 'blog/unpublished.html'), 'left by an earlier build');
+        await Bun.write(join(dist, 'index.html'), '<body><div id="writing-picks"></div></body>');
 
         await buildBlog(env, dist);
-        expect((await readdir(dist, { recursive: true })).sort()).toEqual(['blog', 'blog.css', 'blog.html', 'blog/abc123.html', 'blog/feed.xml']);
+        expect((await readdir(dist, { recursive: true })).sort()).toEqual([
+            'blog',
+            'blog.css',
+            'blog.html',
+            'blog/abc123.html',
+            'blog/feed.xml',
+            'blog/pick1.html',
+            'index.html',
+        ]);
+        expect(await Bun.file(join(dist, 'index.html')).text()).toContain('<a class="writing-entry" href="/blog/pick1">');
     });
 });
