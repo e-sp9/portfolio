@@ -20,7 +20,7 @@ rendered as translucent glass with crisp feature edges, framed by status panels.
 ```bash
 bun install
 bun run dev     # http://localhost:3000 with HMR
-bun test        # tests of the blog generator
+bun test        # tests of the blog and /work generators
 ```
 
 `/blog` needs the microCMS credentials in `.env` (see [Blog](#blog)); the other pages work without them.
@@ -28,7 +28,7 @@ bun test        # tests of the blog generator
 ## Build & deploy
 
 ```bash
-bun run build   # generate /blog, bundle index.html + things.html into dist/, copy public/
+bun run build   # bundle index.html + things.html into dist/, generate /blog and /work, copy public/
 bun run deploy  # wrangler deploy
 ```
 
@@ -66,6 +66,14 @@ footer model selector.
 name, category, a one-liner, and a link. To add one: drop the photo into `public/things/`
 and add one entry to [things.ts](things.ts). The page is `things.html` +
 `things-page.ts` + `things.css`, built alongside the top page.
+
+## Work
+
+[`/work`](https://esp-9.dev/work) shows my client work as case studies: a card per case, then a
+section on the bot operation behind them. Each case gets a page at `/work/<slug>`. The text lives in
+[work/cases.ts](work/cases.ts), and the build ([work/build.ts](work/build.ts)) writes static HTML plus
+one stylesheet ([work.css](work.css)). To add a case, add one entry there, and a card for it to the
+WORK panel in `index.html`; the tests check that the top page and the manifest agree.
 
 ## Blog
 

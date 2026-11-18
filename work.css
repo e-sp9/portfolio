@@ -1,0 +1,453 @@
+/* ═══════════════════════════════════════════════════════════════════════════════
+   /work — the cases and one page per case, in the same CRT-monitor language as
+   /things and /blog. Bundled together with style.css into /work.css (work/site.ts);
+   everything here is scoped to body.work-page.
+   As on /things and /blog, type and spacing are multiples of --text-u, so above
+   1440px the pages grow with the text of the top page.
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+@import "./style.css";
+
+html:has(body.work-page),
+body.work-page {
+    height: auto;
+    min-height: 100%;
+    overflow: hidden auto;
+}
+
+body.work-page {
+    /* Width of the text column, as on the blog */
+    --measure: calc(720 * var(--text-u));
+
+    /* Neither web font has Japanese glyphs: --font-ja (style.css) fills in */
+    --font-display: 'Share Tech Mono', 'Courier New', var(--font-ja);
+    --font-read: 'Inter', -apple-system, BlinkMacSystemFont, var(--font-ja);
+
+    /* The .panel surface, but opaque: no dot grid behind long text */
+    --sheet: color-mix(in srgb, var(--surface) 60%, var(--bg));
+
+    font-family: var(--font-display);
+    color: var(--txt-br);
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    min-height: 100dvh;
+}
+
+/* Header stays fixed, like the top page; the screen scrolls underneath. */
+body.work-page #exp-header {
+    pointer-events: auto;
+    background: linear-gradient(var(--bg) 70%, transparent);
+}
+
+body.work-page .exp-type {
+    text-decoration: none;
+    transition: color 200ms ease-out;
+}
+
+body.work-page .exp-label:hover,
+body.work-page .exp-type:hover {
+    color: var(--accent);
+}
+
+/* ─── Virtual screen ─────────────────────────────────────────────────────── */
+
+#work-screen {
+    flex: 1;
+    margin: var(--vs-top) var(--vs-right) 0 var(--vs-left);
+    border: 1px solid var(--border);
+    padding: calc(22 * var(--text-u)) calc(20 * var(--text-u)) calc(28 * var(--text-u));
+    position: relative;
+    z-index: 2;
+}
+
+/* Corner ticks, as on /things */
+#work-screen::before,
+#work-screen::after {
+    content: '';
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    border: 1px solid var(--dim);
+    pointer-events: none;
+}
+
+#work-screen::before {
+    top: 6px;
+    left: 6px;
+    border-width: 1px 0 0 1px;
+}
+
+#work-screen::after {
+    bottom: 6px;
+    right: 6px;
+    border-width: 0 1px 1px 0;
+}
+
+.work-head {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: calc(16 * var(--text-u));
+    margin-bottom: calc(20 * var(--text-u));
+}
+
+.work-head .ph {
+    font-size: calc(28 * var(--text-u));
+    font-weight: 400;
+    letter-spacing: calc(3 * var(--text-u));
+    margin: 0;
+    padding: 0;
+    border: 0;
+}
+
+.work-sub {
+    display: flex;
+    align-items: baseline;
+    gap: calc(14 * var(--text-u));
+    font-size: calc(12 * var(--text-u));
+    letter-spacing: calc(2 * var(--text-u));
+    color: var(--txt);
+    white-space: nowrap;
+}
+
+.work-count::before {
+    content: '[ ';
+}
+
+.work-count::after {
+    content: ' ]';
+}
+
+.work-link {
+    /* Taller than its text, for touch */
+    margin: -8px 0;
+    padding: 8px 0;
+    font-size: calc(12 * var(--text-u));
+    letter-spacing: calc(2 * var(--text-u));
+    color: var(--accent);
+    text-decoration: none;
+    transition: color 200ms ease-out;
+}
+
+.work-link:hover {
+    color: var(--accent-hover);
+}
+
+/* ─── Cases ──────────────────────────────────────────────────────────────── */
+
+/* The cards and the sheet below them share the width of a blog article */
+.work-column,
+.sheet,
+.case-nav {
+    max-width: calc(var(--measure) + 2 * 40 * var(--text-u));
+    margin: 0 auto;
+}
+
+.cases-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: calc(14 * var(--text-u));
+}
+
+@media (min-width: 640px) {
+    .cases-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+.case {
+    /* inherits .panel: translucent surface, 1px border, blur, hover lift */
+    gap: calc(10 * var(--text-u));
+    padding: calc(14 * var(--text-u)) calc(16 * var(--text-u)) calc(16 * var(--text-u));
+    animation: fadeSlideIn 0.4s ease-out backwards;
+}
+
+.case-meta {
+    display: flex;
+    align-items: center;
+    font-size: calc(11 * var(--text-u));
+    letter-spacing: calc(1.5 * var(--text-u));
+}
+
+.case-no {
+    color: var(--accent-secondary);
+    border: 1px solid currentColor;
+    padding: calc(2 * var(--text-u)) calc(6 * var(--text-u));
+    line-height: 1;
+}
+
+.case-title {
+    font: inherit;
+    font-weight: 400;
+    margin: 0;
+    /* Lines of even length, broken between phrases rather than inside a word */
+    text-wrap: balance;
+    word-break: auto-phrase;
+}
+
+.case-link {
+    font-size: calc(17 * var(--text-u));
+    line-height: 1.5;
+    letter-spacing: 0.04em;
+    color: var(--val);
+    text-decoration: none;
+    transition: color 200ms ease-out;
+}
+
+/* The whole card is the link */
+.case-link::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+}
+
+/* Arrow glued to the last word by a no-break space, so it never wraps alone */
+.case-link::after {
+    content: '\a0\2192';
+    position: relative;
+    left: 0;
+    font-size: 0.8em;
+    color: var(--accent);
+    transition: left 200ms ease-out;
+}
+
+.case:hover .case-link {
+    color: var(--accent);
+}
+
+.case:hover .case-link::after {
+    left: 4px;
+}
+
+.case-summary {
+    font-family: var(--font-read);
+    font-size: calc(14 * var(--text-u));
+    font-weight: 400;
+    line-height: 1.7;
+    color: var(--txt);
+    text-autospace: normal;
+}
+
+.work-ops {
+    margin-top: calc(14 * var(--text-u));
+}
+
+/* ─── Sheet ──────────────────────────────────────────────────────────────── */
+
+/* A case, and the closing section of /work: an opaque sheet with a text column
+   set like a blog article */
+.sheet {
+    padding: calc(36 * var(--text-u)) calc(40 * var(--text-u)) calc(48 * var(--text-u));
+    background: var(--sheet);
+    border: 1px solid var(--border);
+    transition: background-color 300ms ease-out, border-color 300ms ease-out;
+}
+
+.sheet-head {
+    display: flex;
+    flex-direction: column;
+    gap: calc(14 * var(--text-u));
+    padding-bottom: calc(20 * var(--text-u));
+    margin-bottom: calc(32 * var(--text-u));
+    border-bottom: 1px solid var(--border);
+}
+
+.sheet-title {
+    font-size: calc(28 * var(--text-u));
+    font-weight: 400;
+    line-height: 1.5;
+    letter-spacing: 0.04em;
+    color: var(--val);
+    text-wrap: balance;
+    word-break: auto-phrase;
+}
+
+.sheet-body {
+    font-family: var(--font-read);
+    font-size: calc(16 * var(--text-u));
+    font-weight: 400;
+    line-height: 1.9;
+    letter-spacing: 0.02em;
+    color: var(--txt-br);
+    line-break: strict;
+    overflow-wrap: anywhere;
+    /* A hair of space between Japanese and Latin text, where supported */
+    text-autospace: normal;
+}
+
+.sheet-body > * + * {
+    margin-top: 1.5em;
+}
+
+.sheet-body h2 {
+    margin-top: 3em;
+    padding-bottom: calc(8 * var(--text-u));
+    border-bottom: 1px solid var(--border);
+    font-size: calc(22 * var(--text-u));
+    font-weight: 600;
+    line-height: 1.5;
+    color: var(--val);
+    word-break: auto-phrase;
+}
+
+/* Square marker, echoing the dot of the panel headers */
+.sheet-body h2::before {
+    content: '';
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    margin-right: calc(10 * var(--text-u));
+    background: var(--accent);
+    vertical-align: 0.2em;
+}
+
+.sheet-body h2 + * {
+    margin-top: 1em;
+}
+
+.sheet-body > :first-child {
+    margin-top: 0;
+}
+
+/* ─── Other cases ────────────────────────────────────────────────────────── */
+
+.case-nav {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: calc(14 * var(--text-u));
+    margin-top: calc(14 * var(--text-u));
+}
+
+.case-nav-link {
+    padding: calc(12 * var(--text-u)) calc(16 * var(--text-u));
+    gap: calc(6 * var(--text-u));
+    text-decoration: none;
+}
+
+.case-nav-link[rel='next'] {
+    grid-column: 2;
+    text-align: right;
+}
+
+.case-nav-label {
+    font-size: calc(11 * var(--text-u));
+    letter-spacing: calc(1.5 * var(--text-u));
+    color: var(--accent);
+}
+
+.case-nav-title {
+    font-family: var(--font-read);
+    font-size: calc(14 * var(--text-u));
+    line-height: 1.6;
+    color: var(--txt-br);
+    text-autospace: normal;
+    text-wrap: balance;
+    word-break: auto-phrase;
+    transition: color 200ms ease-out;
+}
+
+.case-nav-link:hover .case-nav-title {
+    color: var(--accent);
+}
+
+/* ─── Footer in flow ─────────────────────────────────────────────────────── */
+
+body.work-page #exp-footer {
+    position: static;
+    height: var(--vs-bottom);
+    margin: 0 var(--vs-right) 0 var(--vs-left);
+    pointer-events: auto;
+}
+
+/* ─── Responsive ─────────────────────────────────────────────────────────── */
+
+@media (max-width: 1000px) {
+    #work-screen {
+        padding: 16px 12px 20px;
+    }
+
+    .work-head .ph {
+        font-size: 20px;
+    }
+}
+
+@media (max-width: 768px) {
+    body.work-page #exp-header {
+        position: fixed;
+        left: 16px;
+        right: 16px;
+        top: 0;
+        height: 48px;
+        background: var(--bg);
+        z-index: 100;
+    }
+
+    body.work-page #scanlines,
+    body.work-page #dither {
+        position: fixed;
+        height: auto;
+    }
+
+    #work-screen {
+        margin: 56px 8px 0;
+        padding: 14px 10px 18px;
+    }
+
+    .work-head {
+        margin-bottom: 14px;
+    }
+
+    /* The list's heading stacks over its sub line */
+    .work-head:has(.ph) {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 6px;
+    }
+
+    .work-sub,
+    .work-link {
+        font-size: 11px;
+    }
+
+    .sheet {
+        padding: 22px 16px 32px;
+    }
+
+    .sheet-head {
+        margin-bottom: 24px;
+    }
+
+    .sheet-title {
+        font-size: 22px;
+    }
+
+    .sheet-body {
+        line-height: 1.85;
+    }
+
+    .sheet-body h2 {
+        font-size: 20px;
+    }
+
+    .case-nav {
+        grid-template-columns: 1fr;
+    }
+
+    .case-nav-link[rel='next'] {
+        grid-column: auto;
+    }
+
+    /* The first and last case have one neighbour: no empty row */
+    .case-nav > span:empty {
+        display: none;
+    }
+
+    body.work-page #exp-footer {
+        height: auto;
+        padding: 16px;
+        flex-direction: column;
+        justify-content: center;
+        gap: 4px;
+    }
+}
