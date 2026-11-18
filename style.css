@@ -827,19 +827,21 @@ body.dark-mode .panel:hover {
    RESPONSIVE
    ═══════════════════════════════════════════════════════════════════════════════ */
 
-/* --- Wide screens (index only; /things, /blog and /work keep the base tokens) ---
+/* --- Wide screens ---
    Text grows gently with the width; the height left over goes to spacing.
    The header/footer bands stay as they are.
    The frame (--vs-left/right) is capped and centred so the sidebars sit just
-   outside the strip kept clear for the model instead of at the screen edges. */
+   outside the strip kept clear for the model instead of at the screen edges.
+   The tokens are set for every page: /things, /blog and /work take the same
+   text unit and frame, so the header and the frame stay put from page to page. */
 @media (min-width: 1441px) {
-    body:not(.things-page):not(.blog-page):not(.work-page) {
+    body {
         /* Text: follows the width, capped; the height term only bites when
            the sidebars would no longer fit (fixed px + text-sized lines).
-           The --fit-* values are measured on the taller sidebar, the right one
-           since WORK went in; a new panel or row means measuring them again. */
+           The --fit-* values are measured on the taller sidebar, so a row
+           added to either sidebar means measuring them again. */
         --text-u-max: 1.28px;
-        --fit-fixed: 350px;
+        --fit-fixed: 348px;
         --fit-lines: 672;
         --text-u: max(1px, min(1px + (100vw - 1440px) * 0.00025, var(--text-u-max),
                     (100vh - var(--fit-fixed)) / var(--fit-lines)));
@@ -866,7 +868,8 @@ body.dark-mode .panel:hover {
         --vs-right: calc((100vw - var(--frame-w)) / 2);
     }
 
-    /* Line spacing opens up with the space unit (1.4 at the base) */
+    /* Line spacing opens up with the space unit (1.4 at the base). Top page
+       only: .link-label is on /things too. */
     body:not(.things-page):not(.blog-page):not(.work-page) :is(.skill-name, .career-year, .career-role, .career-company,
         .project-desc, .project-tech, .work-name, .work-desc, .link-label) {
         line-height: calc(1.4em + 2 * (var(--space-u) - 1px));
@@ -877,11 +880,11 @@ body.dark-mode .panel:hover {
    spare width instead. Wider sidebars, SKILLS in two columns (name over bar,
    as on mobile), CAREER with the year beside the role. --- */
 @media (min-width: 1441px) and (min-aspect-ratio: 15/8) {
-    body:not(.things-page):not(.blog-page):not(.work-page) {
+    body {
         --sidebar-w: calc(340 * var(--text-u) + 20 * (var(--space-u) - 1px));
-        --fit-fixed: 350px;
-        --fit-lines: 575;
-        --fit-space: 230;
+        --fit-fixed: 348px;
+        --fit-lines: 558;
+        --fit-space: 228;
     }
 
     #sidebar-l .panel:first-child .pc {
@@ -1239,15 +1242,8 @@ body.dark-mode .panel:hover {
         font-size: 11px;
     }
 
-    #theme-toggle,
-    .exp-btn {
-        font-size: 10px;
-        padding: 6px 14px;
-        letter-spacing: 1px;
-    }
-
     .exp-label {
-        font-size: 18px;
+        font-size: 20px;
         letter-spacing: 2px;
         white-space: nowrap;
     }
@@ -1258,13 +1254,29 @@ body.dark-mode .panel:hover {
     }
 
     .exp-right {
-        gap: 6px;
+        gap: 8px;
         flex-shrink: 0;
     }
 
+    /* Header buttons keep the 12px type and 30px frame from the 1000px breakpoint;
+       only the tap area reaches past the frame, to 44px tall */
     #theme-toggle,
     .exp-btn {
+        position: relative;
+        min-width: 44px;
+        text-align: center;
         white-space: nowrap;
+    }
+
+    #theme-toggle::after,
+    .exp-btn::after {
+        content: '';
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 50%;
+        height: 44px;
+        transform: translateY(-50%);
     }
 
     /* --- Dark mode for floating panels --- */
@@ -1283,19 +1295,17 @@ body.dark-mode .panel:hover {
         right: 12px;
     }
 
+    /* The name grows with the width as far as the buttons leave room:
+       15px up to 345px, 16px at 360px, 18px at 390px, 20px from 420px */
     .exp-label {
-        font-size: 15px;
-        letter-spacing: 1px;
-    }
-
-    .exp-right {
-        gap: 4px;
+        font-size: clamp(15px, calc(16px + (100vw - 360px) / 15), 20px);
+        letter-spacing: clamp(1px, calc(1px + (100vw - 360px) / 30), 2px);
     }
 
     #theme-toggle,
     .exp-btn {
-        padding: 6px 8px;
-        letter-spacing: 0.5px;
+        padding: 8px 10px;
+        letter-spacing: 1px;
     }
 
     #sidebar-l .panel:first-child,
@@ -1311,5 +1321,14 @@ body.dark-mode .panel:hover {
     #sidebar-l .panel:last-child,
     #sidebar-r .panel:nth-child(2) {
         grid-column: 1 / -1;
+    }
+}
+
+/* Below 360px the header buttons tighten further, so the name still has room */
+@media (max-width: 359px) {
+    #theme-toggle,
+    .exp-btn {
+        padding: 8px 6px;
+        letter-spacing: 0.5px;
     }
 }

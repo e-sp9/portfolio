@@ -10,6 +10,12 @@ import { esc, unesc } from './html';
 /** Width of the text column in CSS px. Keep in sync with --measure in blog.css. */
 const MEASURE = 720;
 
+/**
+ * Above 1440px the blog grows with the text, up to this factor: --text-u-max in style.css.
+ * Image `sizes` give the widest a frame gets there.
+ */
+export const WIDE_SCALE = 1.28;
+
 const IMAGE_HOST = 'images.microcms-assets.io';
 
 /** The blog these articles were first published on; links to it are brought along */
@@ -60,7 +66,7 @@ export interface Frame {
 /** The text column. Below 860px it is the page less the margins of the screen and the sheet, which narrow at 768px (blog.css). */
 const COLUMN: Frame = {
     widths: [MEASURE, MEASURE * 1.5, MEASURE * 2],
-    sizes: `(min-width: 860px) ${MEASURE}px, (min-width: 769px) calc(100vw - 140px), calc(100vw - 72px)`,
+    sizes: `(min-width: 1441px) ${Math.ceil(MEASURE * WIDE_SCALE)}px, (min-width: 860px) ${MEASURE}px, (min-width: 769px) calc(100vw - 140px), calc(100vw - 72px)`,
 };
 
 /**

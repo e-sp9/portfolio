@@ -2,6 +2,8 @@
    /work — the cases and one page per case, in the same CRT-monitor language as
    /things and /blog. Bundled together with style.css into /work.css (work/site.ts);
    everything here is scoped to body.work-page.
+   As on /things and /blog, type and spacing are multiples of --text-u, so above
+   1440px the pages grow with the text of the top page.
    ═══════════════════════════════════════════════════════════════════════════════ */
 
 @import "./style.css";
@@ -15,7 +17,7 @@ body.work-page {
 
 body.work-page {
     /* Width of the text column, as on the blog */
-    --measure: 720px;
+    --measure: calc(720 * var(--text-u));
 
     /* Neither web font has Japanese glyphs: --font-ja (style.css) fills in */
     --font-display: 'Share Tech Mono', 'Courier New', var(--font-ja);
@@ -54,7 +56,7 @@ body.work-page .exp-type:hover {
     flex: 1;
     margin: var(--vs-top) var(--vs-right) 0 var(--vs-left);
     border: 1px solid var(--border);
-    padding: 22px 20px 28px;
+    padding: calc(22 * var(--text-u)) calc(20 * var(--text-u)) calc(28 * var(--text-u));
     position: relative;
     z-index: 2;
 }
@@ -86,14 +88,14 @@ body.work-page .exp-type:hover {
     display: flex;
     align-items: flex-end;
     justify-content: space-between;
-    gap: 16px;
-    margin-bottom: 20px;
+    gap: calc(16 * var(--text-u));
+    margin-bottom: calc(20 * var(--text-u));
 }
 
 .work-head .ph {
-    font-size: 28px;
+    font-size: calc(28 * var(--text-u));
     font-weight: 400;
-    letter-spacing: 3px;
+    letter-spacing: calc(3 * var(--text-u));
     margin: 0;
     padding: 0;
     border: 0;
@@ -102,9 +104,9 @@ body.work-page .exp-type:hover {
 .work-sub {
     display: flex;
     align-items: baseline;
-    gap: 14px;
-    font-size: 12px;
-    letter-spacing: 2px;
+    gap: calc(14 * var(--text-u));
+    font-size: calc(12 * var(--text-u));
+    letter-spacing: calc(2 * var(--text-u));
     color: var(--txt);
     white-space: nowrap;
 }
@@ -121,8 +123,8 @@ body.work-page .exp-type:hover {
     /* Taller than its text, for touch */
     margin: -8px 0;
     padding: 8px 0;
-    font-size: 12px;
-    letter-spacing: 2px;
+    font-size: calc(12 * var(--text-u));
+    letter-spacing: calc(2 * var(--text-u));
     color: var(--accent);
     text-decoration: none;
     transition: color 200ms ease-out;
@@ -138,14 +140,14 @@ body.work-page .exp-type:hover {
 .work-column,
 .sheet,
 .case-nav {
-    max-width: calc(var(--measure) + 2 * 40px);
+    max-width: calc(var(--measure) + 2 * 40 * var(--text-u));
     margin: 0 auto;
 }
 
 .cases-grid {
     display: grid;
     grid-template-columns: 1fr;
-    gap: 14px;
+    gap: calc(14 * var(--text-u));
 }
 
 @media (min-width: 640px) {
@@ -156,22 +158,22 @@ body.work-page .exp-type:hover {
 
 .case {
     /* inherits .panel: translucent surface, 1px border, blur, hover lift */
-    gap: 10px;
-    padding: 14px 16px 16px;
+    gap: calc(10 * var(--text-u));
+    padding: calc(14 * var(--text-u)) calc(16 * var(--text-u)) calc(16 * var(--text-u));
     animation: fadeSlideIn 0.4s ease-out backwards;
 }
 
 .case-meta {
     display: flex;
     align-items: center;
-    font-size: 11px;
-    letter-spacing: 1.5px;
+    font-size: calc(11 * var(--text-u));
+    letter-spacing: calc(1.5 * var(--text-u));
 }
 
 .case-no {
     color: var(--accent-secondary);
     border: 1px solid currentColor;
-    padding: 2px 6px;
+    padding: calc(2 * var(--text-u)) calc(6 * var(--text-u));
     line-height: 1;
 }
 
@@ -185,7 +187,7 @@ body.work-page .exp-type:hover {
 }
 
 .case-link {
-    font-size: 17px;
+    font-size: calc(17 * var(--text-u));
     line-height: 1.5;
     letter-spacing: 0.04em;
     color: var(--val);
@@ -220,7 +222,7 @@ body.work-page .exp-type:hover {
 
 .case-summary {
     font-family: var(--font-read);
-    font-size: 14px;
+    font-size: calc(14 * var(--text-u));
     font-weight: 400;
     line-height: 1.7;
     color: var(--txt);
@@ -228,7 +230,7 @@ body.work-page .exp-type:hover {
 }
 
 .work-ops {
-    margin-top: 14px;
+    margin-top: calc(14 * var(--text-u));
 }
 
 /* ─── Sheet ──────────────────────────────────────────────────────────────── */
@@ -236,7 +238,7 @@ body.work-page .exp-type:hover {
 /* A case, and the closing section of /work: an opaque sheet with a text column
    set like a blog article */
 .sheet {
-    padding: 36px 40px 48px;
+    padding: calc(36 * var(--text-u)) calc(40 * var(--text-u)) calc(48 * var(--text-u));
     background: var(--sheet);
     border: 1px solid var(--border);
     transition: background-color 300ms ease-out, border-color 300ms ease-out;
@@ -245,14 +247,14 @@ body.work-page .exp-type:hover {
 .sheet-head {
     display: flex;
     flex-direction: column;
-    gap: 14px;
-    padding-bottom: 20px;
-    margin-bottom: 32px;
+    gap: calc(14 * var(--text-u));
+    padding-bottom: calc(20 * var(--text-u));
+    margin-bottom: calc(32 * var(--text-u));
     border-bottom: 1px solid var(--border);
 }
 
 .sheet-title {
-    font-size: 28px;
+    font-size: calc(28 * var(--text-u));
     font-weight: 400;
     line-height: 1.5;
     letter-spacing: 0.04em;
@@ -263,7 +265,7 @@ body.work-page .exp-type:hover {
 
 .sheet-body {
     font-family: var(--font-read);
-    font-size: 16px;
+    font-size: calc(16 * var(--text-u));
     font-weight: 400;
     line-height: 1.9;
     letter-spacing: 0.02em;
@@ -280,9 +282,9 @@ body.work-page .exp-type:hover {
 
 .sheet-body h2 {
     margin-top: 3em;
-    padding-bottom: 8px;
+    padding-bottom: calc(8 * var(--text-u));
     border-bottom: 1px solid var(--border);
-    font-size: 22px;
+    font-size: calc(22 * var(--text-u));
     font-weight: 600;
     line-height: 1.5;
     color: var(--val);
@@ -295,7 +297,7 @@ body.work-page .exp-type:hover {
     display: inline-block;
     width: 6px;
     height: 6px;
-    margin-right: 10px;
+    margin-right: calc(10 * var(--text-u));
     background: var(--accent);
     vertical-align: 0.2em;
 }
@@ -313,13 +315,13 @@ body.work-page .exp-type:hover {
 .case-nav {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 14px;
-    margin-top: 14px;
+    gap: calc(14 * var(--text-u));
+    margin-top: calc(14 * var(--text-u));
 }
 
 .case-nav-link {
-    padding: 12px 16px;
-    gap: 6px;
+    padding: calc(12 * var(--text-u)) calc(16 * var(--text-u));
+    gap: calc(6 * var(--text-u));
     text-decoration: none;
 }
 
@@ -329,14 +331,14 @@ body.work-page .exp-type:hover {
 }
 
 .case-nav-label {
-    font-size: 11px;
-    letter-spacing: 1.5px;
+    font-size: calc(11 * var(--text-u));
+    letter-spacing: calc(1.5 * var(--text-u));
     color: var(--accent);
 }
 
 .case-nav-title {
     font-family: var(--font-read);
-    font-size: 14px;
+    font-size: calc(14 * var(--text-u));
     line-height: 1.6;
     color: var(--txt-br);
     text-autospace: normal;

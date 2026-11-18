@@ -28,7 +28,7 @@ bun test        # tests of the blog and /work generators
 ## Build & deploy
 
 ```bash
-bun run build   # generate /blog and /work, bundle index.html + things.html into dist/, copy public/
+bun run build   # bundle index.html + things.html into dist/, generate /blog and /work, copy public/
 bun run deploy  # wrangler deploy
 ```
 
