@@ -131,4 +131,39 @@ describe('PSP (PSP-1000)', () => {
         const { scene } = await load('public/models/psp.glb');
         expect(coplanarOverlaps(scene, MM)).toEqual([]);
     });
+
+    test('the frame\'s outer wall only folds along the body\'s outline, so its cut-outs draw no stray lines', async () => {
+        const { byName } = await load('public/models/psp.glb');
+        const frame = byName.get('frame')!, pos = frame.geometry.getAttribute('position'), idx = frame.geometry.index!;
+        const at = (i: number) => new THREE.Vector3().fromBufferAttribute(pos, i).applyMatrix4(frame.matrixWorld).multiplyScalar(MM);
+        const verts = Array.from({ length: pos.count }, (_, i) => at(i));
+        // The body's outline: the frame's lowest ring, in order around the middle
+        const zMin = Math.min(...verts.map((p) => p.z));
+        const ring = [...new Map(verts.filter((p) => p.z < zMin + 1e-3).map((p) => [`${p.x.toFixed(3)},${p.y.toFixed(3)}`, new THREE.Vector2(p.x, p.y)])).values()]
+            .sort((a, b) => Math.atan2(a.y, a.x) - Math.atan2(b.y, b.x));
+        const onWall = (p: THREE.Vector3) => ring.some((a, k) => {
+            const b = ring[(k + 1) % ring.length]!, ab = b.clone().sub(a);
+            const t = THREE.MathUtils.clamp(new THREE.Vector2(p.x, p.y).sub(a).dot(ab) / ab.lengthSq(), 0, 1);
+            return a.clone().addScaledVector(ab, t).distanceTo(new THREE.Vector2(p.x, p.y)) < 0.005;
+        });
+        // Triangles lying on the outer wall, and the angle between neighbors across each shared edge
+        const key = (p: THREE.Vector3) => `${p.x.toFixed(3)},${p.y.toFixed(3)},${p.z.toFixed(3)}`;
+        const edges = new Map<string, THREE.Vector3[]>();
+        let walls = 0;
+        for (let i = 0; i < idx.count; i += 3) {
+            const t = [0, 1, 2].map((k) => verts[idx.getX(i + k)]!);
+            if (!t.every(onWall)) continue;
+            const n = new THREE.Triangle(t[0], t[1], t[2]).getNormal(new THREE.Vector3());
+            if (n.lengthSq() < 0.5) continue;
+            walls++;
+            for (let k = 0; k < 3; k++) {
+                const e = [key(t[k]!), key(t[(k + 1) % 3]!)].sort().join('|');
+                edges.set(e, [...(edges.get(e) ?? []), n]);
+            }
+        }
+        const folds = [...edges.values()].filter((ns) => ns.length === 2)
+            .map(([a, b]) => THREE.MathUtils.radToDeg(a!.angleTo(b!))).filter((deg) => deg > 8);
+        expect(walls).toBeGreaterThan(100);
+        expect(folds.map((deg) => Math.round(deg))).toEqual([]);
+    });
 });

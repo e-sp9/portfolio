@@ -66,7 +66,11 @@ const BACK_FLAT = 3.2;
 const FACE_RIM = 1.5;                   // the face's rounded edge
 const BACK_RIM = 2;
 const ZONE_Z = FZ - FACE_RIM;           // 21.5: top of L / R and of the frame's bottom corners
-const DOOR_Z = 2.85;                    // the disc cover, a little proud of the back
+// The disc cover takes the middle of the back from top to bottom: it rounds
+// over both edges and runs up the top and bottom faces to DOOR_TOP_Z, so its
+// side seams reach the back's edges (manual p.21 and the top / bottom drawings).
+const DOOR_HW = 36.9;
+const DOOR_TOP_Z = 8.2;
 
 // Where L / R (top) and the frame's corner pieces (bottom) cut into the face,
 // measured on the front drawing; mirrored for the left.
@@ -125,15 +129,15 @@ function corner(prev: THREE.Vector2, c: THREE.Vector2, next: THREE.Vector2, r = 
   return { cx: c.x + r * m.x, cy: c.y + r * m.y, r, a0, a1 };
 }
 
-/** The body seen from the front, with points where L / R and the corner pieces begin. */
+/** The body seen from the front, with points where L / R, the corner pieces and the disc cover begin. */
 const body = nodeOutline([
   arc(END_CX, 0, END_R, -J, tQ), arc(END_CX, 0, END_R, tQ, tP), arc(END_CX, 0, END_R, tP, J),
   arc(CORNER_CX, CORNER_CY, CORNER_R, J, P / 2),
-  point(P1, P / 2), point(mx(P1), P / 2),
+  point(P1, P / 2), point(v2(DOOR_HW, HH), P / 2), point(v2(-DOOR_HW, HH), P / 2), point(mx(P1), P / 2),
   arc(-CORNER_CX, CORNER_CY, CORNER_R, P / 2, P - J),
   arc(-END_CX, 0, END_R, P - J, P - tP), arc(-END_CX, 0, END_R, P - tP, P - tQ), arc(-END_CX, 0, END_R, P - tQ, P + J),
   arc(-CORNER_CX, -CORNER_CY, CORNER_R, P + J, P * 1.5),
-  point(mx(Q1), P * 1.5), point(Q1, P * 1.5),
+  point(mx(Q1), P * 1.5), point(v2(-DOOR_HW, -HH), P * 1.5), point(v2(DOOR_HW, -HH), P * 1.5), point(Q1, P * 1.5),
   arc(CORNER_CX, -CORNER_CY, CORNER_R, P * 1.5, P * 2 - J),
 ]);
 
@@ -234,21 +238,47 @@ function cutSide(outline: Outline, idx: number[], z0: number, z1: number, openin
     const k = pts.findIndex((p, j) => j < pts.length - 1 && (p.y - y) * (pts[j + 1]!.y - y) <= 0);
     return S[k]! + (S[k + 1]! - S[k]!) * (y - pts[k]!.y) / (pts[k + 1]!.y - pts[k]!.y);
   };
-  const to3 = (q: THREE.Vector2) => { const a = along(q.x); return v3(a.p.x, a.p.y, q.y); };
+  // Points on a fold (s = S[k]) take the outline's own point, so the patch meets the sweep around it exactly.
+  const to3 = (q: THREE.Vector2) => {
+    const k = S.findIndex(s => Math.abs(s - q.x) < 1e-7);
+    if (k >= 0) return v3(pts[k]!.x, pts[k]!.y, q.y);
+    const a = along(q.x);
+    return v3(a.p.x, a.p.y, q.y);
+  };
   const nAt = (s: number) => { const n = along(s).n; return v3(n.x, n.y, 0); };
 
   const boundary = [...S.map(s => v2(s, z0)), ...[...S].reverse().map(s => v2(s, z1))];
-  const holes = openings.map(o => roundedRect(o.len, o.h, o.r, sAt(o.y), o.z)(0));
-  const flat = [...boundary, ...holes.flat()];
-  const faces = THREE.ShapeUtils.triangulateShape(boundary, holes);
-  const positions: number[] = [], normals: number[] = [];
-  flat.forEach(q => { const p = to3(q), n = nAt(q.x); positions.push(p.x, p.y, p.z); normals.push(n.x, n.y, n.z); });
-  const wall = indexedGeometry(positions, normals, faces.flat());
-  // Exact edge points, so the patch meets the sweep around it.
-  boundary.forEach((q, i) => {
-    const k = i < S.length ? i : boundary.length - 1 - i;
-    wall.getAttribute('position').setXYZ(i, pts[k]!.x, pts[k]!.y, q.y);
+  // Each hole's outline gets a point where it crosses a fold, so each of its edges lies on one facet.
+  const folds = S.slice(1, -1);
+  const holes = openings.map(o => {
+    const h = roundedRect(o.len, o.h, o.r, sAt(o.y), o.z)(0);
+    return h.flatMap((a, i) => {
+      const b = h[(i + 1) % h.length]!;
+      const cross = folds.filter(f => (f - a.x) * (f - b.x) < 0).sort((u, w) => (u - w) * Math.sign(b.x - a.x));
+      return [a, ...cross.map(f => v2(f, a.y + (b.y - a.y) * (f - a.x) / (b.x - a.x)))];
+    });
   });
+  // Earcut works in the unrolled plane, where a triangle may span a fold;
+  // wrapped back, it would cut across the fold and draw a line. So every
+  // triangle is cut along the folds into pieces that each lie on one facet.
+  const flat = [...boundary, ...holes.flat()];
+  const verts: THREE.Vector2[] = [], ids = new Map<string, number>();
+  const vid = (q: THREE.Vector2) => {
+    const key = `${q.x.toFixed(5)},${q.y.toFixed(5)}`;
+    if (!ids.has(key)) { ids.set(key, verts.length); verts.push(q); }
+    return ids.get(key)!;
+  };
+  const faces: number[] = [];
+  for (const tri of THREE.ShapeUtils.triangulateShape(boundary, holes)) {
+    const t = tri.map(i => flat[i]!);
+    for (let k = 0; k < S.length - 1; k++) {
+      const piece = clipStrip(t, S[k]!, S[k + 1]!).map(vid).filter((v, i, all) => v !== all[(i + 1) % all.length]);
+      for (let i = 1; i < piece.length - 1; i++) faces.push(piece[0]!, piece[i]!, piece[i + 1]!);
+    }
+  }
+  const positions: number[] = [], normals: number[] = [];
+  verts.forEach(q => { const p = to3(q), n = nAt(q.x); positions.push(p.x, p.y, p.z); normals.push(n.x, n.y, n.z); });
+  const wall = indexedGeometry(positions, normals, faces);
 
   const inner: THREE.BufferGeometry[] = [], backs: THREE.BufferGeometry[] = [];
   holes.forEach((h, j) => {
@@ -275,6 +305,15 @@ function cutSide(outline: Outline, idx: number[], z0: number, z1: number, openin
     return { at: v3(a.p.x, a.p.y, z), x: v3(a.d.x, a.d.y, 0), y: v3(0, 0, 1), z: nAt(s) };
   };
   return { wall: mergeGeometries([wall, ...inner], false)!, backs: mergeGeometries(backs, false)!, frame };
+}
+
+/** The part of a convex polygon (in s, z) between s = lo and s = hi, with exact s on the cuts. */
+function clipStrip(poly: THREE.Vector2[], lo: number, hi: number): THREE.Vector2[] {
+  const clip = (pts: THREE.Vector2[], at: number, side: number) => pts.flatMap((p, i) => {
+    const q = pts[(i + 1) % pts.length]!, dp = side * (p.x - at), dq = side * (q.x - at);
+    return [...(dp >= 0 ? [p] : []), ...((dp >= 0) !== (dq >= 0) ? [v2(at, p.y + (q.y - p.y) * dp / (dp - dq))] : [])];
+  });
+  return clip(clip(poly, lo, 1), hi, -1);
 }
 
 /**
@@ -551,26 +590,33 @@ function buildFrame() {
 // ─── Back ────────────────────────────────────────────────────────────────────
 
 function buildBack(strap: Outline, ports: THREE.BufferGeometry[]) {
-  const door = roundedRect(73.8, 61.6, 1.0, 0, -0.2);
   const cover = grip(1), left = grip(-1);
 
   // ── Back shell: its sides from the frame back, round over onto the back;
-  // L / R stand on it in the top corners. Headphone / remote jack underneath ──
+  // L / R stand on it in the top corners, the disc cover takes its middle
+  // below DOOR_TOP_Z. Headphone / remote jack underneath ──
   const rings = rimRings(BACK_Z, BACK_FLAT, BACK_RIM, 13);
-  rings.splice(1, 0, { inset: 0, z: SHOULDER_Z, blend: 0 });
+  rings.splice(1, 0, { inset: 0, z: DOOR_TOP_Z, blend: 0 }, { inset: 0, z: SHOULDER_Z, blend: 0 });
   const jackSeg = segs(bodyPts, m => Math.abs(m.y + HH) < 1e-6 && m.x < -Q1.x);
+  const doorSegs = segs(bodyPts, m => Math.abs(Math.abs(m.y) - HH) < 1e-6 && Math.abs(m.x) < DOOR_HW);
   const jacks = cutWall([
     v3(-CORNER_CX, -HH, BACK_FLAT + BACK_RIM), v3(-Q1.x, -HH, BACK_FLAT + BACK_RIM), v3(-Q1.x, -HH, SHOULDER_Z),
-    v3(-Q1.x, -HH, BACK_Z), v3(-CORNER_CX, -HH, BACK_Z), v3(-CORNER_CX, -HH, SHOULDER_Z),
+    v3(-Q1.x, -HH, DOOR_TOP_Z), v3(-Q1.x, -HH, BACK_Z), v3(-CORNER_CX, -HH, BACK_Z), v3(-CORNER_CX, -HH, DOOR_TOP_Z),
+    v3(-CORNER_CX, -HH, SHOULDER_Z),
   ], qToFront, [
     // Shallow: the strap holder's slot passes just above them
     { at: v3(-63.8, -HH, 7.6), w: 3.4, h: 3.4, r: 1.7, depth: 2.0 },
     { at: v3(-58.0, -HH, 7.6), w: 6.0, h: 2.4, r: 0.5, depth: 2.0 },
   ]);
+  // The flat back, a piece on each side of the disc cover
+  const backPts = body(BACK_RIM);
+  const flatBack = (a: THREE.Vector2, b: THREE.Vector2) => chain(bodyPts, a, b).map(i => backPts[i]!);
   add('back_shell', mergeGeometries([
-    sweepSide(body, rings, -1, undefined, (i, r) => (r === 0 && inShoulder[i]!) || (r <= 1 && jackSeg.includes(i))),
+    sweepSide(body, rings, -1, undefined, (i, r) =>
+      (r <= 1 && inShoulder[i]!) || (r <= 2 && jackSeg.includes(i)) || (r >= 1 && doorSegs.includes(i))),
     jacks.wall,
-    flatCap(body(BACK_RIM), BACK_FLAT, -1, [door(0), cover.edge, left.edge, strap(0)]),
+    flatCap(flatBack(v2(DOOR_HW, -HH), v2(DOOR_HW, HH)), BACK_FLAT, -1, [cover.edge]),
+    flatCap(flatBack(v2(-DOOR_HW, HH), v2(-DOOR_HW, -HH)), BACK_FLAT, -1, [left.edge, strap(0)]),
   ], false)!, 'bodyDark');
   add('ports', mergeGeometries([...ports, jacks.backs], false)!, 'hole');
 
@@ -578,7 +624,14 @@ function buildBack(strap: Outline, ports: THREE.BufferGeometry[]) {
   // disc cover between them ──
   add('battery_cover', cover.geometry, 'cover');
   add('grip_left', left.geometry, 'bodyDark');
-  add('umd_door', openShell(door, BACK_FLAT, DOOR_Z, 0), 'cover');
+  // The disc cover: up the top and bottom faces from DOOR_TOP_Z, over both
+  // rounded edges and across the back; its sides are the seams
+  const doorTop = chain(bodyPts, v2(DOOR_HW, HH), v2(-DOOR_HW, HH));
+  const doorBottom = chain(bodyPts, v2(-DOOR_HW, -HH), v2(DOOR_HW, -HH));
+  add('umd_door', mergeGeometries([
+    sweepSide(body, rings.slice(1), -1, doorTop), sweepSide(body, rings.slice(1), -1, doorBottom),
+    flatCap([...doorTop, ...doorBottom].map(i => backPts[i]!), BACK_FLAT, -1),
+  ], false)!, 'cover');
 
   // PUSH, the battery cover's latch at its outer edge, standing out of the dome
   const u = (78.95 - GRIP_X0) / (gripX1(0) - GRIP_X0), v = (0 - GRIP_Y0) / (GRIP_Y1 - GRIP_Y0);
@@ -593,8 +646,8 @@ function buildBack(strap: Outline, ports: THREE.BufferGeometry[]) {
   // ── Printing: the ring and PSP on the disc cover, UMD and SONY above ──
   const ringPts = (r: number) => circle(r, 0, 0, 72)(0);
   add('back_print', mergeGeometries([
-    print(ringPts(26.35), DOOR_Z - 0.05, -1, [ringPts(19.0)]),
-    ...pspLogo(1.3, 0, -1, 0.3).map(g => print(g, DOOR_Z - 0.05, -1)),
+    print(ringPts(26.35), BACK_FLAT - 0.05, -1, [ringPts(19.0)]),
+    ...pspLogo(1.3, 0, -1, 0.3).map(g => print(g, BACK_FLAT - 0.05, -1)),
     print(roundedRect(7.1, 1.8, 0, -29.45, 31.9)(0), BACK_FLAT - 0.05, -1),
     print(roundedRect(12.0, 2.1, 0, 44.1, 32.55)(0), BACK_FLAT - 0.05, -1),
   ], false)!, 'label');
