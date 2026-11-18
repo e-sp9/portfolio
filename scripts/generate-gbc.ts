@@ -161,9 +161,12 @@ function rimRings(zStart: number, zEnd: number, rimR: number, rimSteps: number):
 
 /**
  * Side surface swept through `rings` of an outline. `chain` picks an open run
- * of outline points; without it the whole outline is swept closed.
+ * of outline points; without it the whole outline is swept closed. `cut`
+ * drops the quad after chain point i between rings r and r + 1.
  */
-function sweepSide(outline: Outline, rings: Ring[], dir: number, chain?: number[]): THREE.BufferGeometry {
+function sweepSide(
+  outline: Outline, rings: Ring[], dir: number, chain?: number[], cut?: (i: number, r: number) => boolean,
+): THREE.BufferGeometry {
   const base = outline(0);
   const wall = outlineNormals(base);
   const ids = chain ?? base.map((_, i) => i);
@@ -181,6 +184,7 @@ function sweepSide(outline: Outline, rings: Ring[], dir: number, chain?: number[
   const m = ids.length;
   for (let r = 0; r < rings.length - 1; r++) {
     for (let i = 0; i < (closed ? m : m - 1); i++) {
+      if (cut?.(i, r)) continue;
       const a = r * m + i, b = r * m + (i + 1) % m, c = a + m, d = b + m;
       indices.push(a, b, c, b, d, c);
     }
@@ -199,33 +203,43 @@ function fanCap(pts: THREE.Vector2[], z: number, faceDir: number): THREE.BufferG
   return indexedGeometry(positions, normals, indices);
 }
 
-/** Planar polygon (earcut), mapped into 3D by `to3d` and given one normal. */
-function polygon(pts: THREE.Vector2[], to3d: (p: THREE.Vector2) => THREE.Vector3, normal: THREE.Vector3): THREE.BufferGeometry {
-  const faces = THREE.ShapeUtils.triangulateShape(pts, []);
+/**
+ * Planar polygon with optional holes (earcut), mapped into 3D by `to3d` and
+ * given one normal. Hole outlines are reused as-is, so walls built from the
+ * same points join the face edge to edge.
+ */
+function polygon(
+  pts: THREE.Vector2[], to3d: (p: THREE.Vector2) => THREE.Vector3, normal: THREE.Vector3, holes: THREE.Vector2[][] = [],
+): THREE.BufferGeometry {
+  const faces = THREE.ShapeUtils.triangulateShape(pts, holes);
   const positions: number[] = [], normals: number[] = [];
-  for (const p of pts) { const v = to3d(p); positions.push(v.x, v.y, v.z); normals.push(normal.x, normal.y, normal.z); }
+  for (const p of [...pts, ...holes.flat()]) {
+    const v = to3d(p); positions.push(v.x, v.y, v.z); normals.push(normal.x, normal.y, normal.z);
+  }
   return indexedGeometry(positions, normals, faces.flat());
 }
 
-/** Flat cap: a fan when the outline is convex, earcut otherwise. */
-function flatCap(pts: THREE.Vector2[], z: number, faceDir: number): THREE.BufferGeometry {
+/** Flat cap: a fan when the outline is convex and whole, earcut otherwise. */
+function flatCap(pts: THREE.Vector2[], z: number, faceDir: number, holes: THREE.Vector2[][] = []): THREE.BufferGeometry {
   const n = pts.length;
   const convex = pts.every((p, i) => {
     const q = pts[(i + 1) % n]!, r = pts[(i + 2) % n]!;
     return (q.x - p.x) * (r.y - q.y) - (q.y - p.y) * (r.x - q.x) >= -1e-12;
   });
-  return convex ? fanCap(pts, z, faceDir)
-    : polygon(pts, p => new THREE.Vector3(p.x, p.y, z), new THREE.Vector3(0, 0, faceDir));
+  return convex && !holes.length ? fanCap(pts, z, faceDir)
+    : polygon(pts, p => new THREE.Vector3(p.x, p.y, z), new THREE.Vector3(0, 0, faceDir), holes);
 }
 
-/** Swept outline with flat caps at both ends; the zEnd end gets the rim. */
-function shellGeometry(outline: Outline, zStart: number, zEnd: number, rimR: number, rimSteps = 13): THREE.BufferGeometry {
+/** Swept outline with flat caps at both ends; the zEnd end gets the rim and any `holes`. */
+function shellGeometry(
+  outline: Outline, zStart: number, zEnd: number, rimR: number, rimSteps = 13, holes: Outline[] = [],
+): THREE.BufferGeometry {
   const dir = Math.sign(zEnd - zStart);
   const rings = rimRings(zStart, zEnd, rimR, rimSteps);
   return mergeGeometries([
     sweepSide(outline, rings, dir),
-    flatCap(outline(rings[rings.length - 1]!.inset), zEnd, dir),  // outer face
-    flatCap(outline(0), zStart, -dir),                              // seam face
+    flatCap(outline(rings[rings.length - 1]!.inset), zEnd, dir, holes.map(h => h(0))),  // outer face
+    flatCap(outline(0), zStart, -dir),                                                  // seam face
   ], false)!;
 }
 
@@ -266,22 +280,33 @@ function recess(outline: Outline, zTop: number, depth: number, slope: number, in
   ], false)!;
 }
 
+interface BackShell {
+  zSeam: number; zHigh: number; zLow: number; yStep: number; rimR: number; rimSteps: number;
+  /** Cartridge slot behind the strip: open to the back and the top above yStep. */
+  slot: { halfW: number; depth: number };
+  /** Openings in the strip's and the hump's back faces (recess rims, the battery cover). */
+  stripHoles: Outline[]; humpHoles: Outline[];
+}
+
 /**
  * Back shell whose upper strip (y > yStep) is thinner than the hump below.
  * Both chains share the outline and the wall up to the strip's rim; the step
  * between them is one planar face, so only the step and the parting line
- * draw edges.
+ * draw edges. The cartridge slot cuts the strip's back face, the top rim and
+ * the top face; its walls are a separate part that meets these cut edges.
  */
-function steppedBackShell(
-  outline: Outline, zSeam: number, zHigh: number, zLow: number, yStep: number, rimR: number, rimSteps: number,
-): THREE.BufferGeometry {
-  // Split both straight sides at yStep.
+function steppedBackShell(outline: Outline, o: BackShell): THREE.BufferGeometry {
+  const { zSeam, zHigh, zLow, yStep, rimR, rimSteps, slot } = o;
+  // Split both straight sides at yStep, and the top edge where the slot cuts it.
   const split: Outline = inset => {
     const pts = outline(inset);
     return pts.flatMap((p, i) => {
       const q = pts[(i + 1) % pts.length]!;
-      const crosses = (p.y - yStep) * (q.y - yStep) < 0 && Math.abs(p.x - q.x) < 1e-9;
-      return crosses ? [p, new THREE.Vector2(p.x, yStep)] : [p];
+      if ((p.y - yStep) * (q.y - yStep) < 0 && Math.abs(p.x - q.x) < 1e-9) return [p, new THREE.Vector2(p.x, yStep)];
+      if (p.x > slot.halfW && q.x < -slot.halfW && Math.abs(p.y - q.y) < 1e-9) {
+        return [p, new THREE.Vector2(slot.halfW, p.y), new THREE.Vector2(-slot.halfW, p.y)];
+      }
+      return [p];
     });
   };
   const base = split(0);
@@ -290,25 +315,38 @@ function steppedBackShell(
   const iL = base.findIndex(p => p.y === yStep && p.x < 0);
   const upper = Array.from({ length: iL - iR + 1 }, (_, k) => iR + k);
   const lower = Array.from({ length: n - iL + iR + 1 }, (_, k) => (iL + k) % n);
+  const kSlot = upper.indexOf(base.findIndex(p => p.x === slot.halfW)); // top edge across the slot
 
-  const ringsU = rimRings(zSeam, zHigh, rimR, rimSteps);
-  const ringsL = [ringsU[0]!, ringsU[1]!, ...rimRings(zSeam, zLow, rimR, rimSteps).slice(1)];
+  // The extra wall ring at the slot's front face lets the top face stop there.
+  const [r0, ...upperRim] = rimRings(zSeam, zHigh, rimR, rimSteps);
+  const atSlot: Ring = { inset: 0, z: zHigh + slot.depth, blend: 0 };
+  const ringsU = [r0!, atSlot, ...upperRim];
+  const ringsL = [r0!, atSlot, upperRim[0]!, ...rimRings(zSeam, zLow, rimR, rimSteps).slice(1)];
   const at = (ring: Ring, i: number) => { const p = split(ring.inset)[i]!; return new THREE.Vector2(p.x, ring.z); };
 
   const innerU = split(ringsU[ringsU.length - 1]!.inset);
   const innerL = split(ringsL[ringsL.length - 1]!.inset);
   const stepProfile = [
-    ...ringsU.slice(1).map(r => at(r, iR)),
-    ...ringsU.slice(1).reverse().map(r => at(r, iL)),
-    ...ringsL.slice(2).map(r => at(r, iL)),
-    ...ringsL.slice(2).reverse().map(r => at(r, iR)),
+    ...ringsU.slice(2).map(r => at(r, iR)),
+    new THREE.Vector2(slot.halfW, zHigh), new THREE.Vector2(-slot.halfW, zHigh),
+    ...ringsU.slice(2).reverse().map(r => at(r, iL)),
+    ...ringsL.slice(3).map(r => at(r, iL)),
+    ...ringsL.slice(3).reverse().map(r => at(r, iR)),
   ];
+
+  // The slot splits the strip's back face into a left and a right piece.
+  const right = [...upper.slice(0, kSlot + 1).map(i => innerU[i]!), new THREE.Vector2(slot.halfW, yStep)];
+  const left = [...upper.slice(kSlot + 1).map(i => innerU[i]!), new THREE.Vector2(-slot.halfW, yStep)];
+  const stripHoles = o.stripHoles.map(h => h(0));
+  const side = (sign: number) => stripHoles.filter(h => Math.sign(h[0]!.x) === sign);
+
   return mergeGeometries([
-    sweepSide(split, ringsU, -1, upper),
+    sweepSide(split, ringsU, -1, upper, (i, r) => i === kSlot && r >= 1),
     sweepSide(split, ringsL, -1, lower),
     fanCap(base, zSeam, 1),
-    fanCap(upper.map(i => innerU[i]!), zHigh, -1),
-    fanCap(lower.map(i => innerL[i]!), zLow, -1),
+    flatCap(right, zHigh, -1, side(1)),
+    flatCap(left, zHigh, -1, side(-1)),
+    flatCap(lower.map(i => innerL[i]!), zLow, -1, o.humpHoles.map(h => h(0))),
     polygon(stepProfile, p => new THREE.Vector3(p.x, yStep, p.y), new THREE.Vector3(0, 1, 0)),
   ], false)!;
 }
@@ -386,41 +424,65 @@ function buildParts() {
   const bPos: [number, number] = [0.1725, yTop(0.682)];
   const ssY = yTop(0.829), ssX = 0.0724;
 
-  // ── Body shells — parting seam ring shows as the case split line ──
-  // Recesses in the front face. Their floors are separate meshes below.
-  const DPAD_WELL = 0.010, BTN_WELL = 0.008;
-  const dpadWell = roundedRect(0.316, 0.316, 0.158, dpadX, dpadY);
-  const btnWell = (p: [number, number]) => roundedRect(0.142, 0.142, 0.071, p[0], p[1]);
-  const ssWell = (x: number) => roundedRect(0.141, 0.082, 0.041, x, ssY);
-
-  add('body_front', mergeGeometries([
-    shellGeometry(bodyOutline, SEAM_Z, FZ, 0.030),
-    recessWall(dpadWell, FZ, DPAD_WELL, 0.012),
-    recessWall(btnWell(aPos), FZ, BTN_WELL, 0.007),
-    recessWall(btnWell(bPos), FZ, BTN_WELL, 0.007),
-    recessWall(ssWell(-ssX), FZ, BTN_WELL, 0.005),
-    recessWall(ssWell(ssX), FZ, BTN_WELL, 0.005),
-  ], false)!, 'body');
-
-  // Back shell, inset slightly so the seam reads as a groove. Screw counterbores
-  // drop to one common depth: shallow on the strip, deep in the hump.
-  const backOutline: Outline = inset => bodyOutline(inset + 0.0045);
-  const SCREW_Z = BZ + 0.038;
-  const screwsTop: [number, number][] = [[-0.404, yTop(0.105)], [0.404, yTop(0.105)]];
-  const screwsMid: [number, number][] = [[-0.415, yTop(0.418)], [0.415, yTop(0.418)]];
-  add('body_back', mergeGeometries([
-    steppedBackShell(backOutline, SEAM_Z, STRIP_Z, BZ, STEP_Y, 0.052, 13),
-    ...screwsTop.map(([x, y]) => recessWall(roundedRect(0.06, 0.06, 0.03, x, y), STRIP_Z, SCREW_Z - STRIP_Z, 0, 1)),
-    ...screwsMid.map(([x, y]) => recessWall(roundedRect(0.052, 0.052, 0.026, x, y), BZ, SCREW_Z - BZ, 0, 1)),
-  ], false)!, 'bodyDark');
-
-  // ── Screen area ──
   // Lens: black print 67 x 60.5 mm, its bottom edge a 225 mm arc. It sits
   // 0.3 mm below the face in a pocket 1.2 mm larger all round.
   const lens = archedOutline(0.860, yTop(0.053), yTop(0.5065), 0.038, 0.035, 2.885);
   const POCKET = 0.016, LENS_TOP = FZ - 0.004;
   const pocket: Outline = inset => lens(inset - 0.015);
-  add('screen_bezel', recess(pocket, FZ, POCKET, 0.002), 'body');
+
+  // ── Body shells — parting seam ring shows as the case split line ──
+  // The front face is cut open at every recess and joins its walls. The
+  // floors are separate meshes below, so each keeps its glass tier.
+  const DPAD_WELL = 0.010, BTN_WELL = 0.008;
+  const dpadWell = roundedRect(0.316, 0.316, 0.158, dpadX, dpadY);
+  const btnWell = (p: [number, number]) => roundedRect(0.142, 0.142, 0.071, p[0], p[1]);
+  const ssWell = (x: number) => roundedRect(0.141, 0.082, 0.041, x, ssY);
+  const frontRecesses: [Outline, number, number][] = [ // outline, depth, slope
+    [pocket, POCKET, 0.002],
+    [dpadWell, DPAD_WELL, 0.012],
+    [btnWell(aPos), BTN_WELL, 0.007],
+    [btnWell(bPos), BTN_WELL, 0.007],
+    [ssWell(-ssX), BTN_WELL, 0.005],
+    [ssWell(ssX), BTN_WELL, 0.005],
+  ];
+  add('body_front', mergeGeometries([
+    shellGeometry(bodyOutline, SEAM_Z, FZ, 0.030, 13, frontRecesses.map(([o]) => o)),
+    ...frontRecesses.map(([o, depth, slope]) => recessWall(o, FZ, depth, slope)),
+  ], false)!, 'body');
+
+  // Back shell, inset slightly so the seam reads as a groove. Its faces are
+  // cut open at the cartridge slot, the screw counterbores, the label recess
+  // and the battery cover. Counterbores drop to one common depth: shallow on
+  // the strip, deep in the hump.
+  const backOutline: Outline = inset => bodyOutline(inset + 0.0045);
+  const SLOT = { halfW: 0.368, depth: 0.105 };
+  const SCREW_Z = BZ + 0.038;
+  const screwsTop: [number, number][] = [[-0.404, yTop(0.105)], [0.404, yTop(0.105)]];
+  const screwsMid: [number, number][] = [[-0.415, yTop(0.418)], [0.415, yTop(0.418)]];
+  const boreTop = screwsTop.map(([x, y]) => roundedRect(0.06, 0.06, 0.03, x, y));
+  const boreMid = screwsMid.map(([x, y]) => roundedRect(0.052, 0.052, 0.026, x, y));
+  const label = roundedRect(0.70, 0.32, 0.015, 0, yTop(0.4075));
+
+  // The cover's latch tab is part of its outline (one line, not a second part
+  // that would show through the glass on top of SELECT / START). Crisp plate,
+  // so the outline is only ever taken at inset 0.
+  const covH = 0.555, covCY = yTop(0.525) - covH / 2, covBottom = covCY - covH / 2;
+  const coverRect = roundedRect(0.82, covH, { tl: 0.035, tr: 0.035, bl: 0.075, br: 0.075 }, 0, covCY);
+  const tab = [[-0.05, covBottom], [-0.05, covBottom - 0.03], [0.05, covBottom - 0.03], [0.05, covBottom]];
+  const cover: Outline = () => [...coverRect(0), ...tab.map(([x, y]) => new THREE.Vector2(x!, y!))];
+
+  add('body_back', mergeGeometries([
+    steppedBackShell(backOutline, {
+      zSeam: SEAM_Z, zHigh: STRIP_Z, zLow: BZ, yStep: STEP_Y, rimR: 0.052, rimSteps: 13,
+      slot: SLOT, stripHoles: boreTop, humpHoles: [...boreMid, label, cover],
+    }),
+    ...boreTop.map(o => recess(o, STRIP_Z, SCREW_Z - STRIP_Z, 0, 1)),
+    ...boreMid.map(o => recess(o, BZ, SCREW_Z - BZ, 0, 1)),
+    recessWall(label, BZ, 0.003, 0.002, 1),
+  ], false)!, 'bodyDark');
+
+  // ── Screen area ──
+  add('screen_bezel', plate(inset => pocket(inset + 0.002), FZ - POCKET, 0.001), 'body'); // pocket floor
   add('screen', shellGeometry(lens, FZ - POCKET, LENS_TOP, 0), 'screen');
 
   // LCD window: 44 x 40 mm
@@ -430,7 +492,7 @@ function buildParts() {
   add('logo_strip', plate(roundedRect(0.48, 0.050, 0.010, 0, yTop(0.4515)), LENS_TOP + 0.002, 0.002), 'label');
 
   // Power LED, upper-left inside the lens
-  add('power_led', new THREE.CylinderGeometry(0.0095, 0.0095, 0.003, 32), 'led',
+  add('power_led', new THREE.CylinderGeometry(0.0095, 0.0095, 0.003, 48), 'led',
     [-0.402, yTop(0.192), LENS_TOP + 0.0015], qX90);
 
   // ── D-pad (19 mm cross in a 25 mm well) ──
@@ -496,8 +558,10 @@ function buildParts() {
   add('power_nub', box(0.016, 0.052, 0.020), 'dark', [0.504, powY, 0]);
 
   // ── Top edge: empty cartridge slot (open to the back above the hump) + IR window ──
-  add('cart_slot', cartSlotWalls(0.368, STRIP_Z + 0.105), 'inset');
-  add('cart_slit', box(0.72, 0.012, 0.097), 'dark', [0, STEP_Y - 0.006, STRIP_Z + 0.0515]);
+  // The slot runs down to the cartridge connector at the bottom of the cartridge.
+  const SLOT_BOTTOM = yTop(0.46);
+  add('cart_slot', cartSlot(SLOT.halfW, SLOT.depth, SLOT_BOTTOM), 'inset');
+  add('cart_slit', box(0.72, 0.012, 0.097), 'dark', [0, SLOT_BOTTOM + 0.006, STRIP_Z + 0.0515]);
   add('ir_window', plate(roundedRect(0.165, 0.08, 0.012), 0.003, 0.007), 'ir', [-0.283, HH, 0.075], qToTop);
 
   // ── Bottom edge: headphone jack (right of center) and DC input (left) ──
@@ -506,23 +570,15 @@ function buildParts() {
     g: new THREE.CylinderGeometry(r, r, 0.006, 48), at: [x, bottomY(x) + 0.0005, -0.01] as [number, number, number],
   }))), 'body');
   add('phone_hole', mergedAt(jacks.map(([x, , r]) => ({
-    g: new THREE.CylinderGeometry(r, r, 0.002, 32), at: [x, bottomY(x) - 0.0025, -0.01] as [number, number, number],
+    g: new THREE.CylinderGeometry(r, r, 0.002, 48), at: [x, bottomY(x) - 0.0025, -0.01] as [number, number, number],
   }))), 'dark');
 
-  // ── Back: label recess, battery cover with its latch tab, screws ──
-  add('back_label', recess(roundedRect(0.70, 0.32, 0.015, 0, yTop(0.4075)), BZ, 0.003, 0.002, 1), 'shade');
-
-  // The tab is part of the cover's outline (one line, not a second part that
-  // would show through the glass on top of SELECT / START). Crisp plate, so
-  // the outline is only ever taken at inset 0.
-  const covH = 0.555, covCY = yTop(0.525) - covH / 2, covBottom = covCY - covH / 2;
-  const coverRect = roundedRect(0.82, covH, { tl: 0.035, tr: 0.035, bl: 0.075, br: 0.075 }, 0, covCY);
-  const tab = [[-0.05, covBottom], [-0.05, covBottom - 0.03], [0.05, covBottom - 0.03], [0.05, covBottom]];
-  const cover: Outline = () => [...coverRect(0), ...tab.map(([x, y]) => new THREE.Vector2(x, y))];
+  // ── Back: label recess floor, battery cover, screw heads on the counterbore floors ──
+  add('back_label', plate(inset => label(inset + 0.002), BZ + 0.003, 0.003, -1), 'shade');
   add('battery_cover', plate(cover, BZ - 0.002, 0.006, -1), 'bodyDark');
 
   add('screws', mergedAt([...screwsTop, ...screwsMid].map(([x, y]) =>
-    ({ g: disc(0.020, 24), at: [x, y, SCREW_Z] as [number, number, number], rot: qY180 }))), 'dark');
+    ({ g: disc(0.020, 24), at: [x, y, SCREW_Z - 0.0005] as [number, number, number], rot: qY180 }))), 'dark');
 
   // ── Embossed Nintendo stadium outline on the front shell ──
   const ringOuter = roundedRect(0.273, 0.0565, 0.02825, 0, 0);
@@ -619,25 +675,31 @@ function buttonGeometry(r: number, wallH: number, sag: number): THREE.BufferGeom
 }
 
 /**
- * The empty cartridge slot behind the top strip: two side walls and the
- * front wall. Its back and top are open, so their outlines are the slot's
- * mouth; the side walls follow the back shell's top rim.
+ * The empty cartridge slot: side walls, front wall, the back wall inside the
+ * hump and the floor at the connector. Above the hump it is open to the back
+ * and the top; those open edges meet the cuts in the back shell, and the side
+ * walls follow the shell's top rim.
  */
-function cartSlotWalls(halfW: number, zFront: number): THREE.BufferGeometry {
-  const yT = HH - 0.0045, r = 0.052;
+function cartSlot(halfW: number, depth: number, yBottom: number): THREE.BufferGeometry {
+  const yT = HH - 0.0045, r = 0.052, zB = STRIP_Z, zF = STRIP_Z + depth;
   const side: THREE.Vector2[] = [ // (z, y)
-    new THREE.Vector2(STRIP_Z, STEP_Y), new THREE.Vector2(zFront, STEP_Y),
-    new THREE.Vector2(zFront, yT),
+    new THREE.Vector2(zB, yBottom), new THREE.Vector2(zF, yBottom), new THREE.Vector2(zF, yT),
   ];
   for (let i = 0; i <= 13; i++) {
     const a = (i / 13) * (Math.PI / 2);
-    side.push(new THREE.Vector2(STRIP_Z + r * (1 - Math.sin(a)), yT - r * (1 - Math.cos(a))));
+    side.push(new THREE.Vector2(zB + r * (1 - Math.sin(a)), yT - r * (1 - Math.cos(a))));
   }
-  const front = [[-halfW, STEP_Y], [halfW, STEP_Y], [halfW, yT], [-halfW, yT]].map(([x, y]) => new THREE.Vector2(x, y));
+  side.push(new THREE.Vector2(zB, STEP_Y)); // where the back wall inside the hump begins
+  const rect = (pts: number[][]) => pts.map(([a, b]) => new THREE.Vector2(a!, b!));
   return mergeGeometries([
     polygon(side, p => new THREE.Vector3(-halfW, p.y, p.x), new THREE.Vector3(1, 0, 0)),
     polygon(side, p => new THREE.Vector3(halfW, p.y, p.x), new THREE.Vector3(-1, 0, 0)),
-    polygon(front, p => new THREE.Vector3(p.x, p.y, zFront), new THREE.Vector3(0, 0, -1)),
+    polygon(rect([[-halfW, yBottom], [halfW, yBottom], [halfW, yT], [-halfW, yT]]),
+      p => new THREE.Vector3(p.x, p.y, zF), new THREE.Vector3(0, 0, -1)),
+    polygon(rect([[-halfW, yBottom], [halfW, yBottom], [halfW, STEP_Y], [-halfW, STEP_Y]]),
+      p => new THREE.Vector3(p.x, p.y, zB), new THREE.Vector3(0, 0, 1)),
+    polygon(rect([[-halfW, zB], [halfW, zB], [halfW, zF], [-halfW, zF]]),
+      p => new THREE.Vector3(p.x, yBottom, p.y), new THREE.Vector3(0, 1, 0)),
   ], false)!;
 }
 
