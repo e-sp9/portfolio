@@ -161,6 +161,50 @@ describe('Nintendo 3DS', () => {
         expect(coplanarOverlaps(scene, MM)).toEqual([]);
     });
 
+    test('the lid and its barrel are one shell: nothing shows between them', async () => {
+        const { byName } = await load();
+        const barrel = byName.get('hinge_barrel')!, shell = [barrel, byName.get('lid_face')!, byName.get('lid_back')!];
+        // The axis runs along x through the barrel's middle, 4.8 mm in from every point of its round side.
+        const box = new THREE.Box3().setFromObject(barrel), halfLen = box.getSize(new THREE.Vector3()).x / 2;
+        const g = barrel.geometry, axis = new THREE.Vector3();
+        let n = 0;
+        for (let i = 0; i < g.getAttribute('position').count; i++) {
+            const normal = new THREE.Vector3().fromBufferAttribute(g.getAttribute('normal'), i).transformDirection(barrel.matrixWorld);
+            if (Math.abs(normal.x) > 0.5) continue;
+            axis.add(new THREE.Vector3().fromBufferAttribute(g.getAttribute('position'), i).applyMatrix4(barrel.matrixWorld).addScaledVector(normal, -4.8 / MM));
+            n++;
+        }
+        axis.divideScalar(n).setX(box.getCenter(new THREE.Vector3()).x);
+        // "Out" is the lid's screen side; "along" runs in the lid's plane, from the axis toward the screen.
+        const cam = byName.get('inner_camera')!;
+        const out = new THREE.Vector3().fromBufferAttribute(cam.geometry.getAttribute('normal'), 0).transformDirection(cam.matrixWorld);
+        const along = new THREE.Vector3(1, 0, 0).cross(out).normalize();
+        if (along.dot(new THREE.Box3().setFromObject(byName.get('lcd')!).getCenter(new THREE.Vector3()).sub(axis)) < 0) along.negate();
+        // Straight through the lid, from either side, from behind the axis to short of the screen
+        // panel's pocket and the lid's beveled sides: the first face met must be the outside of the
+        // lid or of the barrel, never nothing (a slot) nor one seen from within (an open seam).
+        const ray = new THREE.Raycaster(), open: string[] = [];
+        let checked = 0;
+        for (let i = 0; i <= 20; i++) {
+            const x = axis.x + (i / 10 - 1) * (halfLen - 2 / MM);
+            for (let k = 0; k < 58; k++) {
+                const d = (-4.55 + 0.2 * k) / MM;
+                for (const side of [1, -1]) {
+                    const at = axis.clone().setX(x).addScaledVector(along, d);
+                    ray.set(at.addScaledVector(out, side * 20 / MM), out.clone().multiplyScalar(-side));
+                    const hit = ray.intersectObjects(shell, false)[0];
+                    const inside = hit && hit.face!.normal.clone().transformDirection(hit.object.matrixWorld).dot(ray.ray.direction) > 0;
+                    if (!hit || inside) {
+                        open.push(`x ${((x - axis.x) * MM).toFixed(1)} d ${(d * MM).toFixed(2)} from the ${side > 0 ? 'screen' : 'back'}: ${hit ? `inside ${hit.object.name}` : 'nothing'}`);
+                    }
+                    checked++;
+                }
+            }
+        }
+        expect(checked).toBe(21 * 58 * 2);
+        expect(open).toEqual([]);
+    });
+
     test('the open lid stays clear of the lower half', async () => {
         const { meshes, byName } = await load();
         const lower = meshes.filter((m) => !LID_PARTS.includes(m.name));
