@@ -20,4 +20,5 @@ export const MODELS: ModelDef[] = [
     { path: '/models/gbc.glb', label: 'GAME BOY COLOR', fit: 1.35 },
     { path: '/models/gbasp.glb', label: 'GAME BOY ADVANCE SP', fit: 1.4 },
     { path: '/models/ds.glb', label: 'NINTENDO DS', fit: 1.34 },
+    { path: '/models/3ds.glb', label: 'NINTENDO 3DS', fit: 1.22 },
 ];
