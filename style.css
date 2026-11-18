@@ -24,8 +24,8 @@
        Stays 1px up to 1440px wide; see "Wide screens" under RESPONSIVE. */
     --text-u: 1px;
     /* Body text unit: the descriptions, meta and labels of the right sidebar use
-       it instead. Equal to --text-u, except in the right sidebar on wide
-       screens, where it stops at --body-u-max; see "Wide screens". */
+       it instead. Equal to --text-u, except in the right sidebar on screens
+       wider than 1920px, where it stops at --body-u-max; see RESPONSIVE. */
     --body-u: 1px;
     /* Space unit: sidebar and panel spacing are multiples of it. Same rule. */
     --space-u: 1px;
@@ -980,14 +980,6 @@ body.dark-mode .panel:hover {
         --vs-right: calc((100vw - var(--frame-w)) / 2);
     }
 
-    /* Right sidebar (WORK, MAKING, WRITING, LINKS): its body text grows with
-       the text only so far. Past that the blue titles keep growing and the
-       descriptions leave room around them. 1920 x 1080 stays under the cap. */
-    #sidebar-r {
-        --body-u-max: 1.1px;
-        --body-u: min(var(--text-u), var(--body-u-max));
-    }
-
     /* Line spacing opens up with the space unit (1.4 at the base). Top page
        only: .link-label is on /things and /hire too. */
     body:not(.things-page):not(.blog-page):not(.work-page):not(.hire-page) :is(.skill-name, .career-year, .career-role, .career-company,
@@ -1039,6 +1031,18 @@ body.dark-mode .panel:hover {
 
     .career-year {
         grid-row: 1 / span 2;
+    }
+}
+
+/* --- Wider than 1920px: in the right sidebar (WORK, MAKING, WRITING, LINKS)
+   the body text stops growing at --body-u-max, while the blue titles keep
+   growing; the descriptions leave room around them. Up to 1920px wide, where
+   --text-u reaches 1.12 (1920 x 1200, and 1920 x 1024 by the wide-and-short
+   rule), nothing changes. --- */
+@media (min-width: 1921px) {
+    #sidebar-r {
+        --body-u-max: 1.1px;
+        --body-u: min(var(--text-u), var(--body-u-max));
     }
 }
 
