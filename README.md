@@ -49,6 +49,7 @@ to `.glb` with glTF Transform:
 
 ```bash
 bun scripts/generate-gbc.ts   # -> public/models/gbc.glb
+bun scripts/generate-gbasp.ts # -> public/models/gbasp.glb
 bun scripts/generate-ds4.ts   # -> public/models/ds4.glb
 ```
 
@@ -57,7 +58,8 @@ lines with an 8° threshold, so smooth surfaces stay clean while deliberate feat
 edges read as crisp outlines. A glTF material can name its finish with the extra
 `{ "role": "shell" }` (or `lens`, `lcd`, `print`, `button`, `rubber`, `cavity`), and
 the part gets that surface from [model-materials.ts](model-materials.ts).
-`generate-gbc.ts` writes these roles. Parts without a role fall back to translucent
+`generate-gbc.ts` and `generate-gbasp.ts` write these roles (their shared geometry helpers
+are in [scripts/model-geometry.ts](scripts/model-geometry.ts)). Parts without a role fall back to translucent
 glass in three tiers by size, and a mesh named `screen` to the dark glossy screen.
 
 To add a model to the rotation: drop the `.glb` into `public/models/` and add one
