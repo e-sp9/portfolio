@@ -1100,13 +1100,6 @@ body.dark-mode .panel:hover {
         font-size: 11px;
     }
 
-    #theme-toggle,
-    .exp-btn {
-        font-size: 10px;
-        padding: 6px 14px;
-        letter-spacing: 1px;
-    }
-
     .exp-label {
         font-size: 18px;
         letter-spacing: 2px;
@@ -1119,13 +1112,29 @@ body.dark-mode .panel:hover {
     }
 
     .exp-right {
-        gap: 6px;
+        gap: 8px;
         flex-shrink: 0;
     }
 
+    /* Header buttons keep the 12px type and 30px frame from the 1000px breakpoint;
+       only the tap area reaches past the frame, to 44px tall */
     #theme-toggle,
     .exp-btn {
+        position: relative;
+        min-width: 44px;
+        text-align: center;
         white-space: nowrap;
+    }
+
+    #theme-toggle::after,
+    .exp-btn::after {
+        content: '';
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 50%;
+        height: 44px;
+        transform: translateY(-50%);
     }
 
     /* --- Dark mode for floating panels --- */
@@ -1149,14 +1158,10 @@ body.dark-mode .panel:hover {
         letter-spacing: 1px;
     }
 
-    .exp-right {
-        gap: 4px;
-    }
-
     #theme-toggle,
     .exp-btn {
-        padding: 6px 8px;
-        letter-spacing: 0.5px;
+        padding: 8px 10px;
+        letter-spacing: 1px;
     }
 
     #sidebar-l .panel:first-child,
@@ -1172,5 +1177,14 @@ body.dark-mode .panel:hover {
     #sidebar-l .panel:last-child,
     #sidebar-r .panel:first-child {
         grid-column: 1 / -1;
+    }
+}
+
+/* Below 360px the header buttons tighten further, so the name still has room */
+@media (max-width: 359px) {
+    #theme-toggle,
+    .exp-btn {
+        padding: 8px 6px;
+        letter-spacing: 0.5px;
     }
 }
