@@ -432,7 +432,44 @@ body {
 }
 
 #sidebar-r {
-    right: calc(var(--vs-right) + 6 * var(--space-u));
+    /* Width of its scrollbar (below), added to the box so the panels keep their place */
+    --scrollbar-w: 0px;
+    right: calc(var(--vs-right) + 6 * var(--space-u) - var(--scrollbar-w));
+    width: calc(var(--sidebar-w) + var(--scrollbar-w));
+}
+
+/* The right sidebar (WORK, PROJECTS, LINKS) is the longer one. Where it does not fit,
+   it scrolls with its scrollbar showing, so what is below is seen to be there.
+   The left sidebar keeps its hidden scrollbar. */
+@supports selector(::-webkit-scrollbar) {
+    /* Chrome and Safari: a thin bar in the gap between the panels and the frame. It is
+       always there, so the panels do not move; the thumb shows only when there is more. */
+    #sidebar-r {
+        --scrollbar-w: 4px;
+        overflow-y: scroll;
+        scrollbar-width: auto;
+    }
+
+    #sidebar-r::-webkit-scrollbar {
+        display: block;
+        width: 4px;
+    }
+
+    #sidebar-r::-webkit-scrollbar-thumb {
+        background: var(--dim);
+    }
+
+    #sidebar-r::-webkit-scrollbar-thumb:hover {
+        background: var(--txt);
+    }
+}
+
+@supports not selector(::-webkit-scrollbar) {
+    /* Firefox: its own thin scrollbar */
+    #sidebar-r {
+        scrollbar-width: thin;
+        scrollbar-color: var(--dim) transparent;
+    }
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════════
@@ -893,6 +930,10 @@ body.dark-mode .panel:hover {
     #sidebar-l,
     #sidebar-r {
         width: 120px;
+    }
+
+    #sidebar-r {
+        width: calc(120px + var(--scrollbar-w));
     }
 
     .ph {

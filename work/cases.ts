@@ -11,8 +11,9 @@ export interface WorkCase {
     /** The heading of the case */
     title: string;
     /**
-     * A line or two for the cards on /work and on the top page, put together from the
-     * sentences below. index.html carries a copy of it; work.test.ts keeps them the same.
+     * For the cards on /work and on the top page: a passage of the text below, word for
+     * word, short enough for two lines on the top page. index.html carries a copy of it;
+     * work.test.ts keeps them the same.
      */
     summary: string;
     /** 先方の困りごと, one string per paragraph */
@@ -27,7 +28,7 @@ export const CASES: WorkCase[] = [
     {
         slug: 'staffing-db',
         title: '大手人材会社向けの人材紹介データベース',
-        summary: 'Excel運用が中心でミスの多かった業務を標準化する。',
+        summary: '独自のExcel運用が中心になり、業務のミスが多い状態だった。',
         problem: [
             '全国の現場で、独自のExcel運用が中心になり、業務のミスが多い状態だった。人材紹介の責任者は、紹介業務を支える基幹システムを置き、求人票・求職票・職業紹介の契約と請求に使う帳票の出力を含む業務を標準化して、ミスをなくし、紹介の売上を伸ばすことを求めていた。あわせて、派遣登録者の履歴書や職務経歴書が社内の共有フォルダに置かれ、社内から容易にダウンロードできる状態への危機感から、個人情報を保護することも、同じプロジェクトの目的になっている。',
         ],
@@ -42,7 +43,7 @@ export const CASES: WorkCase[] = [
     {
         slug: 'vc-crm',
         title: 'ベンチャーキャピタル向けCRM',
-        summary: 'Notionや表計算に分かれた情報を、企業のページへ集約する。',
+        summary: '企業のページへ情報を集約する方針になった。',
         problem: [
             'ベンチャーキャピタルでは、企業との面談、投資の検討、モニタリングの情報が、既存のNotionや表計算などに分かれており、手動の転記が多い、という状況が要件の説明で共有された。担当者はそれぞれの情報の在処を把握していても、全体としては見通せず、問い合わせが来ても情報が散らばって大変だ、という課題である。新しい専用画面は作らず、日常使っているNotionを中心に、カレンダー、会議記録、生成AI、ファイル保管をつないで、企業のページへ情報を集約する方針になった。先方にエンジニアはおらず、普段見るのはNotionだけ、という前提もある。',
         ],

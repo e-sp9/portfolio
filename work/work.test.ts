@@ -27,6 +27,12 @@ describe('text', () => {
         }
     });
 
+    test('each summary is a passage of its own case, word for word', () => {
+        for (const item of CASES) {
+            expect([...item.problem, ...item.work, ...item.outcome].join('\n')).toContain(item.summary);
+        }
+    });
+
     test('every case has a page of its own', () => {
         const slugs = CASES.map((item) => item.slug);
         expect(new Set(slugs).size).toBe(slugs.length);
@@ -69,13 +75,13 @@ describe('pages', () => {
         expect(last).not.toContain('rel="next"');
     });
 
-    test('the top page shows every case with the same summary and links to /work', async () => {
+    test('the top page has a card per case, in order, each with its own link, title and summary', async () => {
         const top = await Bun.file(join(import.meta.dir, '../index.html')).text();
-        for (const item of CASES) {
-            expect(top).toContain(`<a class="work-entry" href="/work/${item.slug}">`);
-            expect(top).toContain(`<span class="work-name">${item.title}</span>`);
-            expect(top).toContain(`<span class="work-desc">${item.summary}</span>`);
-        }
+        const card = /<a class="work-entry" href="([^"]*)">\s*<span class="work-name">([^<]*)<\/span>\s*<span class="work-desc">([^<]*)<\/span>\s*<\/a>/g;
+        const cards = [...top.matchAll(card)].map(([, href, title, summary]) => [href, unesc(title!), unesc(summary!)]);
+        expect(cards).toEqual(CASES.map((item) => [`/work/${item.slug}`, item.title, item.summary]));
+        // A card written differently would slip past the pattern: count them all
+        expect(top.split('class="work-entry"').length - 1).toBe(CASES.length);
         expect(top).toContain('<a class="ph-link" href="/work">');
     });
 });
