@@ -33,9 +33,9 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import {
-  arcOutline, buttonGeometry, circle, cutWall, disc, dpadGeometry, drum, exportGLB, fanCap, fixedOutline, flatCap,
+  arcOutline, buttonGeometry, circle, cutWall, disc, dpadGeometry, exportGLB, fanCap, fixedOutline, flatCap,
   indexedGeometry, mergedAt, openShell, plate, polygon, poseClamshell, qToFront, qToLeft, qToRight, qToTop, qX90,
-  qY180, qYtoX, quad, recess, recessWall, rimRings, roundedRect, sharpRect, shoulderBand, srgb, sweepSide,
+  qY180, quad, recess, recessWall, rimRings, roundedRect, sharpRect, shoulderBand, srgb, sweepSide,
   type MaterialDefs, type Outline, type Part, type Ring,
 } from './model-geometry';
 
@@ -70,18 +70,27 @@ const OPEN_DEG = 150;
 // lid then leans 23 deg toward the camera.
 const STAND_DEG = 7;
 
-// Lid, opened flat: turned about the axis, screen face up. Closed, it covers
-// the face up to 63.8 mm between the knuckles and 63 mm beside them: any
-// longer there, its corners would touch the knuckles' rounded backs when open.
+// Lid, opened flat: turned about the axis, screen face up. Beside the knuckles
+// it covers the face up to 63 mm when closed: any longer there, its corners
+// would touch the knuckles' rounded backs when open. Between them it is one
+// shell with its barrel: the screen face runs into the barrel's side, the flat
+// outer face meets the barrel along its bottom line. Neither has an end
+// there, nor the barrel a side inside the lid, since the clear plastic would
+// show them.
 const LID_GAP = 0.2;
 const LID_TOP = 2 * AXIS_Y;                     // 138.4, the lid's far edge (the closed front edge)
-const LID_START = LID_TOP - 63.8;               // 74.6, between the knuckles
-const LID_SIDE_START = LID_TOP - 63;            // 75.4, beside them
+const LID_SIDE_START = LID_TOP - 63;            // 75.4, beside the knuckles
 const LZ = 2 * AXIS_Z - (FZ + LID_GAP);         // 19, screen face
-const LID_BACK_Z = 2 * AXIS_Z - TOTAL_H;        // 11.4, outer face
+const LID_BACK_Z = 2 * AXIS_Z - TOTAL_H;        // 11.4, outer face, level with the barrel's bottom
 const LID_SEAM = LZ - 3.2;                      // a thin face plate on a deeper back
 const LID_RIM = 1;                              // rounded edge around the screen face
 const LID_CHAMFER = 1.4;                        // the outer face's bevel
+const BACK_INSET = 0.3;                         // the outer face's plate, inside the face plate's edge
+// Between the knuckles, inside the barrel: where the face plate's flat top
+// and the back's flat outer face (inside their rim and bevel) meet the barrel
+const CREASE_Y = AXIS_Y + Math.sqrt(BARREL_R ** 2 - (LZ - AXIS_Z) ** 2);  // 73.1
+const FACE_START = CREASE_Y - LID_RIM;                                    // 72.1, the face plate
+const BACK_START = AXIS_Y - BACK_INSET - LID_CHAMFER;                     // 67.5, the back
 
 /** y on the open lid, `v` mm down from its top edge */
 const yLid = (v: number) => LID_TOP - v;
@@ -108,18 +117,42 @@ const faceOutline: Outline = inset => {
   return pts;
 };
 
-/** The lid, opened flat: the middle reaches 0.8 mm further toward the barrel. */
-const lidOutline = arcOutline([
-  { cx: HW, cy: LID_SIDE_START, r: 0, a0: -P / 2, a1: 0 },
-  { cx: HW - FRONT_R, cy: LID_TOP - FRONT_R, r: FRONT_R, a0: 0, a1: P / 2 },
-  { cx: -HW + FRONT_R, cy: LID_TOP - FRONT_R, r: FRONT_R, a0: P / 2, a1: P },
-  { cx: -HW, cy: LID_SIDE_START, r: 0, a0: P, a1: P * 1.5 },
-  // The middle: sharp corners, the outer two turning inward.
-  { cx: -BARREL_X, cy: LID_SIDE_START, r: 0, a0: -P / 2, a1: -P },
-  { cx: -BARREL_X, cy: LID_START, r: 0, a0: -P, a1: -P / 2 },
-  { cx: BARREL_X, cy: LID_START, r: 0, a0: -P / 2, a1: 0 },
-  { cx: BARREL_X, cy: LID_SIDE_START, r: 0, a0: 0, a1: -P / 2 },
-]);
+/**
+ * The lid, opened flat: the middle starts at `start`, in the barrel. Its
+ * sides stay square with the barrel's ends at any inset: the rim and the
+ * bevel run along the steps beside the knuckles but not along those sides. A
+ * sharp corner is one point, whose normal leans to its longer edge; points
+ * 0.01 mm from the steps' inner corners keep the steps lit square.
+ */
+function lidOutline(start: number): Outline {
+  const outline = arcOutline([
+    { cx: HW, cy: LID_SIDE_START, r: 0, a0: -P / 2, a1: 0 },
+    { cx: HW - FRONT_R, cy: LID_TOP - FRONT_R, r: FRONT_R, a0: 0, a1: P / 2 },
+    { cx: -HW + FRONT_R, cy: LID_TOP - FRONT_R, r: FRONT_R, a0: P / 2, a1: P },
+    { cx: -HW, cy: LID_SIDE_START, r: 0, a0: P, a1: P * 1.5 },
+    // The middle: sharp corners, the outer two turning inward.
+    { cx: -BARREL_X, cy: LID_SIDE_START, r: 0, a0: -P / 2, a1: -P },
+    { cx: -BARREL_X, cy: start, r: 0, a0: -P, a1: -P / 2 },
+    { cx: BARREL_X, cy: start, r: 0, a0: -P / 2, a1: 0 },
+    { cx: BARREL_X, cy: LID_SIDE_START, r: 0, a0: 0, a1: -P / 2 },
+  ]);
+  const c = outline(0).findIndex(p => Math.abs(p.x + BARREL_X) < 1e-3 && Math.abs(p.y - start) < 1e-3);
+  return inset => {
+    const pts = outline(inset);
+    // The middle's corners are c - 1 to c + 2, left knuckle to right
+    for (let i = c - 1; i <= c + 2; i++) pts[i]!.x = Math.sign(pts[i]!.x) * BARREL_X;
+    const near = (i: number, j: number) => pts[i]!.clone().add(pts[j]!.clone().sub(pts[i]!).setLength(0.01));
+    pts.splice(c + 2, 0, near(c + 2, c + 1));
+    pts.splice(c, 0, near(c - 1, c));
+    return pts;
+  };
+}
+
+/** Picks the outline's segments around its middle (both points on the barrel's ends), which the barrel closes. */
+function middle(outline: Outline): (i: number) => boolean {
+  const pts = outline(0), onEnd = (p: THREE.Vector2) => Math.abs(Math.abs(p.x) - BARREL_X) < 1e-6;
+  return i => onEnd(pts[i]!) && onEnd(pts[(i + 1) % pts.length]!);
+}
 
 /** Plus sign of half-span s and half-width t around (cx, cy): sharp corners, the inner four turning inward. */
 function cross(s: number, t: number, cx: number, cy: number): Outline {
@@ -401,7 +434,8 @@ function buildLid() {
   }
 
   const rings = rimRings(LID_SEAM, LZ, LID_RIM, 13);
-  const edge = lidOutline(0);
+  const outline = lidOutline(FACE_START), inMiddle = middle(outline);
+  const edge = outline(0);
   const rightSide = edge.findIndex((p, i) => {
     const q = edge[(i + 1) % edge.length]!;
     return Math.abs(p.x - HW) < 1e-3 && Math.abs(q.x - HW) < 1e-3 && q.y - p.y > 50;
@@ -411,10 +445,10 @@ function buildLid() {
   const slot = cutWall([v(p0.x, p0.y, LID_SEAM), v(p1.x, p1.y, LID_SEAM), v(p1.x, p1.y, rings[1]!.z), v(p0.x, p0.y, rings[1]!.z)],
     qToRight, [{ at: SLIDER, w: 1.2, h: 14, r: 0, depth: 1.2 }]);
   add('lid_face', mergeGeometries([
-    sweepSide(lidOutline, rings, 1, undefined, (i, r) => r === 0 && i === rightSide),
+    sweepSide(outline, rings, 1, undefined, (i, r) => (r === 0 && i === rightSide) || inMiddle(i)),
     slot.wall,
-    flatCap(lidOutline(LID_RIM), LZ, 1, [pocket(0)]),
-    flatCap(lidOutline(0), LID_SEAM, -1),
+    flatCap(outline(LID_RIM), LZ, 1, [pocket(0)]),
+    flatCap(outline(0), LID_SEAM, -1),
     recessWall(pocket, LZ, POCKET_D, 0.1),
     // The pocket's floor is the ring around the panel: under the panel, the panel's own back closes it.
     flatCap(pocket(0.1), LZ - POCKET_D, 1, [lens(0)]),
@@ -445,11 +479,13 @@ function buildLid() {
 
   // ── Outer face: a glossy plate with a beveled edge; the two outer cameras
   // 35 mm apart near the far edge, their LED beside the right one ──
-  const outer: Outline = inset => lidOutline(inset + 0.3);
+  const backOutline = lidOutline(BACK_START);
+  const outer: Outline = inset => backOutline(inset + BACK_INSET);
+  const backInMiddle = middle(outer);
   const cams = [-17.5, 17.5].map(x => circle(2.6, x, yLid(8.5)));
   const CAM_D = 0.35;
   add('lid_back', mergeGeometries([
-    sweepSide(outer, chamferRings(LID_SEAM, LID_BACK_Z, LID_CHAMFER), -1),
+    sweepSide(outer, chamferRings(LID_SEAM, LID_BACK_Z, LID_CHAMFER), -1, undefined, backInMiddle),
     flatCap(outer(LID_CHAMFER), LID_BACK_Z, -1, cams.map(c => c(0))),
     ...cams.map(c => recessWall(c, LID_BACK_Z, CAM_D, 0, 1)),
   ], false)!, 'lidBack', undefined, undefined, lid);
@@ -458,8 +494,34 @@ function buildLid() {
     'hole', undefined, undefined, lid);
   add('camera_led', fanCap(circle(0.45, 24.5, yLid(7.5))(0), LID_BACK_Z - 0.05, -1), 'led', undefined, undefined, lid);
 
-  // ── Hinge barrel between the knuckles ──
-  add('hinge_barrel', drum(BARREL_R, 2 * BARREL_X), 'body', [0, AXIS_Y, AXIS_Z], qYtoX, lid);
+  // ── Hinge barrel between the knuckles, outside the lid: from the crease
+  // where the screen face runs into it, over the top and the back, to its
+  // bottom line, 48 sides to a turn. Its ends are the flat sides of the lid's
+  // middle as well: round the barrel, then along the outer face, up the back's
+  // bevel and the face plate's rim at the steps, and back along the screen
+  // face to the crease. ──
+  // Angles run from the top toward the back; the crease is in front of the top.
+  const onBarrel = (a: number) => new THREE.Vector2(AXIS_Y - BARREL_R * Math.sin(a), AXIS_Z + BARREL_R * Math.cos(a));
+  const a0 = -Math.asin((CREASE_Y - AXIS_Y) / BARREL_R);
+  const arc = [onBarrel(a0)];
+  for (let k = Math.floor(a0 / (2 * P) * 48) + 1; k <= 24; k++) arc.push(onBarrel(k / 48 * 2 * P));
+  const steps = [
+    ...chamferRings(LID_SEAM, LID_BACK_Z, LID_CHAMFER).reverse().map(r => new THREE.Vector2(LID_SIDE_START + BACK_INSET + r.inset, r.z)),
+    ...rings.map(r => new THREE.Vector2(LID_SIDE_START + r.inset, r.z)),
+  ];
+  const end = [...arc, ...steps].filter((p, i, all) => p.distanceTo(all[(i + 1) % all.length]!) > 1e-6);
+  const positions: number[] = [], normals: number[] = [], indices: number[] = [];
+  arc.forEach((p, k) => {
+    for (const x of [-BARREL_X, BARREL_X]) {
+      positions.push(x, p.x, p.y);
+      normals.push(0, (p.x - AXIS_Y) / BARREL_R, (p.y - AXIS_Z) / BARREL_R);
+    }
+    if (k) indices.push(2 * k - 2, 2 * k - 1, 2 * k, 2 * k - 1, 2 * k + 1, 2 * k);
+  });
+  add('hinge_barrel', mergeGeometries([
+    indexedGeometry(positions, normals, indices),
+    ...[-1, 1].map(s => polygon(end, p => v(s * BARREL_X, p.x, p.y), v(s, 0, 0))),
+  ], false)!, 'body', undefined, undefined, lid);
 }
 
 /** Colors (Aqua Blue, a launch color) are for other glTF viewers; the portfolio uses `role`. */
