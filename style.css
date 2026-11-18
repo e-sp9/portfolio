@@ -725,17 +725,19 @@ body.dark-mode .panel:hover {
 @media (min-width: 1441px) {
     body:not(.things-page):not(.blog-page) {
         /* Text: follows the width, capped; the height term only bites when
-           the sidebars would no longer fit (fixed px + text-sized lines). */
+           the sidebars would no longer fit (fixed px + text-sized lines).
+           The --fit-* values are measured on the taller sidebar, so a row
+           added to either sidebar means measuring them again. */
         --text-u-max: 1.28px;
-        --fit-fixed: 286px;
-        --fit-lines: 614;
+        --fit-fixed: 293px;
+        --fit-lines: 704;
         --text-u: max(1px, min(1px + (100vw - 1440px) * 0.00025, var(--text-u-max),
                     (100vh - var(--fit-fixed)) / var(--fit-lines)));
 
         /* Space: whatever height the text leaves free, spread over the
            sidebar's spacing (--fit-space px per unit), capped. */
         --space-u-max: 2.5px;
-        --fit-space: 190;
+        --fit-space: 205;
         --space-u: clamp(1px, 1px + (100vh - var(--fit-fixed)
                     - var(--fit-lines) * var(--text-u)) / var(--fit-space), var(--space-u-max));
         /* Wider by the extra panel padding, so the text column keeps its measure */
@@ -767,9 +769,9 @@ body.dark-mode .panel:hover {
 @media (min-width: 1441px) and (min-aspect-ratio: 15/8) {
     body:not(.things-page):not(.blog-page) {
         --sidebar-w: calc(340 * var(--text-u) + 20 * (var(--space-u) - 1px));
-        --fit-fixed: 362px;
-        --fit-lines: 380;
-        --fit-space: 175;
+        --fit-fixed: 317px;
+        --fit-lines: 458;
+        --fit-space: 187;
     }
 
     #sidebar-l .panel:first-child .pc {
