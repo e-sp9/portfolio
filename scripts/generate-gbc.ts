@@ -2,14 +2,17 @@
  * Generate a faithful Game Boy Color (CGB-001) 3D model (.glb).
  *
  * Geometry is built with three.js math (no DOM), exported via @gltf-transform.
- * Proportions measured from reference photography of the real hardware:
+ * Proportions measured from reference photography of the real hardware
+ * (straight-on front and back shots, the main board for side/bottom ports):
  *   body 78 x 133.5 x 27.4 mm  ->  1.0 x 1.712 x 0.351 world units (1 unit = 78 mm).
  *
  * The portfolio viewer (main.ts) re-materializes every mesh as translucent
  * glass and draws EdgesGeometry lines with an 8-degree threshold, so:
  *   - smooth surfaces keep facet angles < 8 deg (no stray lines),
- *   - deliberate feature edges (caps, rims, insets) read as crisp outlines,
- *   - the mesh named "screen" receives the dark glossy screen material.
+ *   - deliberate feature edges (caps, rims, recesses, steps) read as crisp outlines,
+ *   - the mesh named "screen" receives the dark glossy screen material,
+ *   - the other meshes get one of three glass tiers by bounding-box volume rank,
+ *     so part sizes are chosen to keep every part in the tier it had.
  *
  * Run: bun scripts/generate-gbc.ts
  */
@@ -26,160 +29,288 @@ const HW = W / 2;               // 0.5
 const HH = H / 2;               // 0.856
 const HD = D / 2;               // 0.1755
 const FZ = HD;                  // front face z
-const BZ = -HD;                 // back face z
+const BZ = -HD;                 // back face z (battery / cartridge hump)
 const SEAM_Z = 0.03;            // shell parting line, slightly front of middle
+
+// The back is 2.5 mm thinner above the hump, where the cartridge shows.
+const STEP_Y = HH - 0.150 * H;  // hump's top edge
+const STRIP_Z = BZ + 0.032;     // back face of the strip above it
 
 /** y coordinate from "fraction of body height measured from the top edge" */
 const yTop = (frac: number) => HH - frac * H;
 
-// ─── Rounded-rect outline with per-corner radii ──────────────────────────────
+/** Arc facet angle: 6.4 deg keeps curved walls under the 8-degree edge threshold. */
+const ARC_STEP = Math.PI / 28;
+
+// ─── Outlines: convex arcs joined by straight tangents ───────────────────────
 
 interface Corners { tl: number; tr: number; bl: number; br: number }
+interface Arc { cx: number; cy: number; r: number; a0: number; a1: number }
+
+/** CCW outline at a given inward offset; every inset yields the same point count. */
+type Outline = (inset: number) => THREE.Vector2[];
 
 /**
- * Counter-clockwise rounded-rect outline centered at (cx, cy).
- * Arc facets stay < 8 deg so corner walls never trigger edge lines.
+ * Insetting shrinks every radius around its center, so tangents stay tangent.
+ * An arc smaller than the inset keeps a tiny radius and moves its center
+ * instead, so the straight edges on either side still move by the full inset.
+ * Points where two arcs meet without a straight between them are dropped.
  */
-function roundedRectPoints(
-  w: number, h: number, r: Corners, cx = 0, cy = 0, arcSteps = 14,
-): THREE.Vector2[] {
-  const hw = w / 2, hh = h / 2;
-  const pts: THREE.Vector2[] = [];
-  const corner = (ccx: number, ccy: number, from: number, to: number, rad: number) => {
-    for (let i = 0; i <= arcSteps; i++) {
-      const a = from + (to - from) * (i / arcSteps);
-      pts.push(new THREE.Vector2(ccx + Math.cos(a) * rad, ccy + Math.sin(a) * rad));
-    }
-  };
-  // CCW: BR -> TR -> TL -> BL
-  corner(cx + hw - r.br, cy - hh + r.br, -Math.PI / 2, 0, r.br);
-  corner(cx + hw - r.tr, cy + hh - r.tr, 0, Math.PI / 2, r.tr);
-  corner(cx - hw + r.tl, cy + hh - r.tl, Math.PI / 2, Math.PI, r.tl);
-  corner(cx - hw + r.bl, cy - hh + r.bl, Math.PI, Math.PI * 1.5, r.bl);
-  return pts;
-}
-
-/** Same outline shrunk inward by `inset` (radii shrink too, clamped). */
-function insetCorners(r: Corners, inset: number): Corners {
-  const m = (v: number) => Math.max(v - inset, 0.002);
-  return { tl: m(r.tl), tr: m(r.tr), bl: m(r.bl), br: m(r.br) };
-}
-
-// ─── Shell sweep: wall + one rounded rim + flat caps, analytic normals ───────
-
-/**
- * Extrudes a rounded-rect outline from zStart to zEnd (zEnd is the "outer"
- * face). The outer face meets the wall through a quarter-round rim of radius
- * rimR (rimSteps facets, < 8 deg each). Both ends get flat caps.
- */
-function shellGeometry(
-  w: number, h: number, corners: Corners,
-  zStart: number, zEnd: number, rimR: number,
-  cx = 0, cy = 0, rimSteps = 13,
-): THREE.BufferGeometry {
-  const dir = Math.sign(zEnd - zStart); // +1 rim faces +z, -1 faces -z
-  const positions: number[] = [];
-  const normals: number[] = [];
-  const indices: number[] = [];
-
-  // Ring definitions: [inset, z, blend] — blend 0 = wall normal, 1 = face normal
-  const rings: { inset: number; z: number; blend: number }[] = [];
-  rings.push({ inset: 0, z: zStart, blend: 0 });
-  rings.push({ inset: 0, z: zEnd - dir * rimR, blend: 0 });
-  for (let i = 1; i <= rimSteps; i++) {
-    const a = (i / rimSteps) * (Math.PI / 2);
-    rings.push({
-      inset: rimR * (1 - Math.cos(a)),
-      z: zEnd - dir * rimR * (1 - Math.sin(a)),
-      blend: a / (Math.PI / 2),
+function arcOutline(arcs: Arc[]): Outline {
+  const MIN_R = 0.0005;
+  const steps = arcs.map(a => Math.max(1, Math.ceil((a.a1 - a.a0) / ARC_STEP - 1e-9)));
+  const raw = (inset: number) => arcs.flatMap((a, k) => {
+    const r = Math.max(a.r - inset, MIN_R);
+    // Shift d with d·n0 = d·n1 = (a.r - inset) - r, n0/n1 the normals at the arc ends.
+    const short = Math.min(a.r - inset - MIN_R, 0);
+    const det = Math.sin(a.a1 - a.a0);
+    const dx = short / det * (Math.sin(a.a1) - Math.sin(a.a0));
+    const dy = short / det * (Math.cos(a.a0) - Math.cos(a.a1));
+    return Array.from({ length: steps[k]! + 1 }, (_, i) => {
+      const t = a.a0 + (a.a1 - a.a0) * (i / steps[k]!);
+      return new THREE.Vector2(a.cx + dx + Math.cos(t) * r, a.cy + dy + Math.sin(t) * r);
     });
-  }
-
-  const base = roundedRectPoints(w, h, corners, cx, cy);
-  const n = base.length;
-  // Outline normal per point (2D, outward)
-  const outNorm: THREE.Vector2[] = base.map((p, i) => {
-    const prev = base[(i - 1 + n) % n]!, next = base[(i + 1) % n]!;
-    const t = new THREE.Vector2(next.x - prev.x, next.y - prev.y).normalize();
-    return new THREE.Vector2(t.y, -t.x); // rotate -90: outward for CCW outline
   });
+  const base = raw(0);
+  const keep = base.map((p, i) => p.distanceTo(base[(i - 1 + base.length) % base.length]!) > 1e-7);
+  return inset => raw(inset).filter((_, i) => keep[i]);
+}
 
+function roundedRect(w: number, h: number, radius: number | Corners, cx = 0, cy = 0): Outline {
+  const r = typeof radius === 'number' ? { tl: radius, tr: radius, bl: radius, br: radius } : radius;
+  const hw = w / 2, hh = h / 2, P = Math.PI;
+  return arcOutline([
+    { cx: cx + hw - r.br, cy: cy - hh + r.br, r: r.br, a0: -P / 2, a1: 0 },
+    { cx: cx + hw - r.tr, cy: cy + hh - r.tr, r: r.tr, a0: 0, a1: P / 2 },
+    { cx: cx - hw + r.tl, cy: cy + hh - r.tl, r: r.tl, a0: P / 2, a1: P },
+    { cx: cx - hw + r.bl, cy: cy - hh + r.bl, r: r.bl, a0: P, a1: P * 1.5 },
+  ]);
+}
+
+/**
+ * Rounded rectangle whose bottom edge is a shallow arc of radius `arcR`
+ * (lowest at x = 0), blended into the straight sides by `fillet` corners.
+ * The GBC body and its screen lens both have this "smile" at the bottom.
+ */
+function archedOutline(w: number, top: number, bottom: number, topR: number, fillet: number, arcR: number): Outline {
+  const hw = w / 2, P = Math.PI;
+  const acy = bottom + arcR;
+  const fx = hw - fillet;
+  const fy = acy - Math.sqrt((arcR - fillet) ** 2 - fx * fx);
+  const t = Math.atan2(fy - acy, fx); // where the fillet touches the arc, just right of -90 deg
+  return arcOutline([
+    { cx: 0, cy: acy, r: arcR, a0: -P - t, a1: t },
+    { cx: fx, cy: fy, r: fillet, a0: t, a1: 0 },
+    { cx: hw - topR, cy: top - topR, r: topR, a0: 0, a1: P / 2 },
+    { cx: -hw + topR, cy: top - topR, r: topR, a0: P / 2, a1: P },
+    { cx: -fx, cy: fy, r: fillet, a0: P, a1: P - t },
+  ]);
+}
+
+/** Outward 2D normal at each point of a closed CCW outline. */
+function outlineNormals(pts: THREE.Vector2[]): THREE.Vector2[] {
+  const n = pts.length;
+  return pts.map((_, i) => {
+    const prev = pts[(i - 1 + n) % n]!, next = pts[(i + 1) % n]!;
+    const t = new THREE.Vector2(next.x - prev.x, next.y - prev.y).normalize();
+    return new THREE.Vector2(t.y, -t.x);
+  });
+}
+
+// ─── Mesh builders ───────────────────────────────────────────────────────────
+
+function indexedGeometry(positions: number[], normals: number[], indices: number[]): THREE.BufferGeometry {
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  g.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
+  g.setIndex(indices);
+  return orient(g);
+}
+
+/**
+ * Rewinds every triangle so its face agrees with its vertex normals. Edge
+ * lines pair each edge with its reverse in the neighbouring triangle, so one
+ * flipped triangle would draw its whole outline.
+ */
+function orient(g: THREE.BufferGeometry): THREE.BufferGeometry {
+  const pos = g.getAttribute('position'), nor = g.getAttribute('normal'), idx = g.index!;
+  const a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3(), n = new THREE.Vector3();
+  for (let i = 0; i < idx.count; i += 3) {
+    const [ia, ib, ic] = [idx.getX(i), idx.getX(i + 1), idx.getX(i + 2)];
+    a.fromBufferAttribute(pos, ia); b.fromBufferAttribute(pos, ib); c.fromBufferAttribute(pos, ic);
+    const face = new THREE.Triangle(a, b, c).getNormal(new THREE.Vector3());
+    n.set(0, 0, 0);
+    for (const v of [ia, ib, ic]) n.add(new THREE.Vector3().fromBufferAttribute(nor, v));
+    if (face.dot(n) < 0) { idx.setX(i + 1, ic); idx.setX(i + 2, ib); }
+  }
+  return g;
+}
+
+interface Ring { inset: number; z: number; blend: number } // blend 0 = wall normal, 1 = face normal
+
+/** Wall from zStart, then a quarter-round rim (rimSteps facets) onto the face at zEnd. */
+function rimRings(zStart: number, zEnd: number, rimR: number, rimSteps: number): Ring[] {
+  const dir = Math.sign(zEnd - zStart);
+  const rings: Ring[] = [{ inset: 0, z: zStart, blend: 0 }, { inset: 0, z: zEnd - dir * rimR, blend: 0 }];
+  for (let i = 1; i <= rimSteps && rimR > 0; i++) {
+    const a = (i / rimSteps) * (Math.PI / 2);
+    rings.push({ inset: rimR * (1 - Math.cos(a)), z: zEnd - dir * rimR * (1 - Math.sin(a)), blend: i / rimSteps });
+  }
+  return rings;
+}
+
+/**
+ * Side surface swept through `rings` of an outline. `chain` picks an open run
+ * of outline points; without it the whole outline is swept closed.
+ */
+function sweepSide(outline: Outline, rings: Ring[], dir: number, chain?: number[]): THREE.BufferGeometry {
+  const base = outline(0);
+  const wall = outlineNormals(base);
+  const ids = chain ?? base.map((_, i) => i);
+  const closed = !chain;
+  const positions: number[] = [], normals: number[] = [], indices: number[] = [];
   for (const ring of rings) {
-    const shrunk = roundedRectPoints(
-      w - ring.inset * 2, h - ring.inset * 2, insetCorners(corners, ring.inset), cx, cy,
-    );
-    for (let i = 0; i < n; i++) {
-      const p = shrunk[i]!;
-      positions.push(p.x, p.y, ring.z);
-      const wall = outNorm[i]!;
-      const cosA = Math.cos(ring.blend * Math.PI / 2);
-      const sinA = Math.sin(ring.blend * Math.PI / 2);
-      const nx = wall.x * cosA, ny = wall.y * cosA, nz = dir * sinA;
-      const len = Math.hypot(nx, ny, nz) || 1;
-      normals.push(nx / len, ny / len, nz / len);
+    const pts = outline(ring.inset);
+    const c = Math.cos(ring.blend * Math.PI / 2), s = Math.sin(ring.blend * Math.PI / 2);
+    for (const i of ids) {
+      positions.push(pts[i]!.x, pts[i]!.y, ring.z);
+      const v = new THREE.Vector3(wall[i]!.x * c, wall[i]!.y * c, dir * s).normalize();
+      normals.push(v.x, v.y, v.z);
     }
   }
-
+  const m = ids.length;
   for (let r = 0; r < rings.length - 1; r++) {
-    for (let i = 0; i < n; i++) {
-      const a = r * n + i, b = r * n + ((i + 1) % n);
-      const c = (r + 1) * n + i, d = (r + 1) * n + ((i + 1) % n);
-      if (dir > 0) indices.push(a, b, c, b, d, c);
-      else indices.push(a, c, b, b, c, d);
+    for (let i = 0; i < (closed ? m : m - 1); i++) {
+      const a = r * m + i, b = r * m + (i + 1) % m, c = a + m, d = b + m;
+      indices.push(a, b, c, b, d, c);
     }
   }
+  return indexedGeometry(positions, normals, indices);
+}
 
-  const side = new THREE.BufferGeometry();
-  side.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-  side.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
-  side.setIndex(indices);
+/** Flat cap over a convex polygon, fanned from its centroid. */
+function fanCap(pts: THREE.Vector2[], z: number, faceDir: number): THREE.BufferGeometry {
+  const c = pts.reduce((s, p) => s.add(p), new THREE.Vector2()).divideScalar(pts.length);
+  const positions = [c.x, c.y, z], normals = [0, 0, faceDir], indices: number[] = [];
+  pts.forEach((p, i) => {
+    positions.push(p.x, p.y, z); normals.push(0, 0, faceDir);
+    indices.push(0, 1 + i, 1 + (i + 1) % pts.length);
+  });
+  return indexedGeometry(positions, normals, indices);
+}
 
-  // Flat caps (outer face + start face), triangulated as fans from centroid.
-  const cap = (ringIdx: number, faceDir: number) => {
-    const ring = rings[ringIdx]!;
-    const shrunk = roundedRectPoints(
-      w - ring.inset * 2, h - ring.inset * 2, insetCorners(corners, ring.inset), cx, cy,
-    );
-    const g = new THREE.BufferGeometry();
-    const pos: number[] = [cx, cy, ring.z];
-    const nor: number[] = [0, 0, faceDir];
-    const idx: number[] = [];
-    shrunk.forEach(p => { pos.push(p.x, p.y, ring.z); nor.push(0, 0, faceDir); });
-    for (let i = 0; i < n; i++) {
-      const a = 1 + i, b = 1 + ((i + 1) % n);
-      if (faceDir > 0) idx.push(0, a, b);
-      else idx.push(0, b, a);
-    }
-    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-    g.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
-    g.setIndex(idx);
-    return g;
-  };
+/** Planar polygon (earcut), mapped into 3D by `to3d` and given one normal. */
+function polygon(pts: THREE.Vector2[], to3d: (p: THREE.Vector2) => THREE.Vector3, normal: THREE.Vector3): THREE.BufferGeometry {
+  const faces = THREE.ShapeUtils.triangulateShape(pts, []);
+  const positions: number[] = [], normals: number[] = [];
+  for (const p of pts) { const v = to3d(p); positions.push(v.x, v.y, v.z); normals.push(normal.x, normal.y, normal.z); }
+  return indexedGeometry(positions, normals, faces.flat());
+}
 
+/** Flat cap: a fan when the outline is convex, earcut otherwise. */
+function flatCap(pts: THREE.Vector2[], z: number, faceDir: number): THREE.BufferGeometry {
+  const n = pts.length;
+  const convex = pts.every((p, i) => {
+    const q = pts[(i + 1) % n]!, r = pts[(i + 2) % n]!;
+    return (q.x - p.x) * (r.y - q.y) - (q.y - p.y) * (r.x - q.x) >= -1e-12;
+  });
+  return convex ? fanCap(pts, z, faceDir)
+    : polygon(pts, p => new THREE.Vector3(p.x, p.y, z), new THREE.Vector3(0, 0, faceDir));
+}
+
+/** Swept outline with flat caps at both ends; the zEnd end gets the rim. */
+function shellGeometry(outline: Outline, zStart: number, zEnd: number, rimR: number, rimSteps = 13): THREE.BufferGeometry {
+  const dir = Math.sign(zEnd - zStart);
+  const rings = rimRings(zStart, zEnd, rimR, rimSteps);
   return mergeGeometries([
-    side,
-    cap(rings.length - 1, dir),   // outer face
-    cap(0, -dir),                 // seam face
+    sweepSide(outline, rings, dir),
+    flatCap(outline(rings[rings.length - 1]!.inset), zEnd, dir),  // outer face
+    flatCap(outline(0), zStart, -dir),                              // seam face
   ], false)!;
 }
 
-// ─── Small-part helpers ──────────────────────────────────────────────────────
+/** Thin plate: outer face at zOut, `thick` deep toward -dir. Crisp unless a rim is given. */
+function plate(outline: Outline, zOut: number, thick: number, dir = 1, rimR = 0, rimSteps = 0): THREE.BufferGeometry {
+  return shellGeometry(outline, zOut - dir * thick, zOut, rimR, rimSteps);
+}
 
-/** Thin rounded-rect plate: outer face at zOut, extends `thick` toward body. */
-function plate(
-  w: number, h: number, radius: number, zOut: number, thick: number,
-  opts: { rim?: number; rimSteps?: number; cx?: number; cy?: number } = {},
+/**
+ * Wall of a recess cut into a face at zTop: it runs `depth` into the body
+ * (intoDir) while stepping in by `slope`. Its normals face into the recess.
+ */
+function recessWall(outline: Outline, zTop: number, depth: number, slope: number, intoDir = -1): THREE.BufferGeometry {
+  const base = outline(0);
+  const wall = outlineNormals(base);
+  const bottom = outline(slope);
+  const positions: number[] = [], normals: number[] = [], indices: number[] = [];
+  for (const [pts, z] of [[base, zTop], [bottom, zTop + intoDir * depth]] as const) {
+    pts.forEach((p, i) => {
+      positions.push(p.x, p.y, z);
+      const v = new THREE.Vector3(-wall[i]!.x * depth, -wall[i]!.y * depth, -intoDir * slope).normalize();
+      normals.push(v.x, v.y, v.z);
+    });
+  }
+  const m = base.length;
+  for (let i = 0; i < m; i++) {
+    const a = i, b = (i + 1) % m;
+    indices.push(a, b, a + m, b, b + m, a + m);
+  }
+  return indexedGeometry(positions, normals, indices);
+}
+
+/** Recess with its floor: wall plus a flat cap at the bottom. */
+function recess(outline: Outline, zTop: number, depth: number, slope: number, intoDir = -1): THREE.BufferGeometry {
+  return mergeGeometries([
+    recessWall(outline, zTop, depth, slope, intoDir),
+    fanCap(outline(slope), zTop + intoDir * depth, -intoDir),
+  ], false)!;
+}
+
+/**
+ * Back shell whose upper strip (y > yStep) is thinner than the hump below.
+ * Both chains share the outline and the wall up to the strip's rim; the step
+ * between them is one planar face, so only the step and the parting line
+ * draw edges.
+ */
+function steppedBackShell(
+  outline: Outline, zSeam: number, zHigh: number, zLow: number, yStep: number, rimR: number, rimSteps: number,
 ): THREE.BufferGeometry {
-  const r = Math.min(radius, Math.min(w, h) / 2 - 0.001);
-  const c = { tl: r, tr: r, bl: r, br: r };
-  const dir = Math.sign(zOut) || 1;
-  return shellGeometry(
-    w, h, c,
-    zOut - dir * thick, zOut,
-    opts.rim ?? Math.min(thick * 0.6, 0.004),
-    opts.cx ?? 0, opts.cy ?? 0,
-    opts.rimSteps ?? 4,
-  );
+  // Split both straight sides at yStep.
+  const split: Outline = inset => {
+    const pts = outline(inset);
+    return pts.flatMap((p, i) => {
+      const q = pts[(i + 1) % pts.length]!;
+      const crosses = (p.y - yStep) * (q.y - yStep) < 0 && Math.abs(p.x - q.x) < 1e-9;
+      return crosses ? [p, new THREE.Vector2(p.x, yStep)] : [p];
+    });
+  };
+  const base = split(0);
+  const n = base.length;
+  const iR = base.findIndex(p => p.y === yStep && p.x > 0);
+  const iL = base.findIndex(p => p.y === yStep && p.x < 0);
+  const upper = Array.from({ length: iL - iR + 1 }, (_, k) => iR + k);
+  const lower = Array.from({ length: n - iL + iR + 1 }, (_, k) => (iL + k) % n);
+
+  const ringsU = rimRings(zSeam, zHigh, rimR, rimSteps);
+  const ringsL = [ringsU[0]!, ringsU[1]!, ...rimRings(zSeam, zLow, rimR, rimSteps).slice(1)];
+  const at = (ring: Ring, i: number) => { const p = split(ring.inset)[i]!; return new THREE.Vector2(p.x, ring.z); };
+
+  const innerU = split(ringsU[ringsU.length - 1]!.inset);
+  const innerL = split(ringsL[ringsL.length - 1]!.inset);
+  const stepProfile = [
+    ...ringsU.slice(1).map(r => at(r, iR)),
+    ...ringsU.slice(1).reverse().map(r => at(r, iL)),
+    ...ringsL.slice(2).map(r => at(r, iL)),
+    ...ringsL.slice(2).reverse().map(r => at(r, iR)),
+  ];
+  return mergeGeometries([
+    sweepSide(split, ringsU, -1, upper),
+    sweepSide(split, ringsL, -1, lower),
+    fanCap(base, zSeam, 1),
+    fanCap(upper.map(i => innerU[i]!), zHigh, -1),
+    fanCap(lower.map(i => innerL[i]!), zLow, -1),
+    polygon(stepProfile, p => new THREE.Vector3(p.x, yStep, p.y), new THREE.Vector3(0, 1, 0)),
+  ], false)!;
 }
 
 /** Flat disc (single face) — reads as a crisp circle outline. */
@@ -217,104 +348,123 @@ function add(
   parts.push({ name, geometry, material, position, rotation });
 }
 
-/** Merge many geometries, each pre-translated, into one named mesh. */
+/** Merge many geometries, each pre-transformed, into one named mesh. */
 function mergedAt(
-  geos: { g: THREE.BufferGeometry; at: [number, number, number]; rot?: THREE.Quaternion }[],
+  geos: { g: THREE.BufferGeometry; at?: [number, number, number]; rot?: THREE.Quaternion }[],
 ): THREE.BufferGeometry {
-  const list = geos.map(({ g, at, rot }) => {
+  const list = geos.map(({ g, at = [0, 0, 0], rot }) => {
     const m = new THREE.Matrix4();
     if (rot) m.makeRotationFromQuaternion(rot);
     m.setPosition(at[0], at[1], at[2]);
     const c = g.clone().applyMatrix4(m);
-    return c.index ? c.toNonIndexed() : c;
+    c.deleteAttribute('uv');
+    return c;
   });
-  return mergeGeometries(list, false)!;
+  const indexed = list.every(c => c.index);
+  return mergeGeometries(indexed ? list : list.map(c => c.index ? c.toNonIndexed() : c), false)!;
 }
 
-const qX90 = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI / 2);
-const qZ90 = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), Math.PI / 2);
+const axis = (x: number, y: number, z: number, deg: number) =>
+  new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(x, y, z), deg * Math.PI / 180);
+const qX90 = axis(1, 0, 0, 90);    // +y -> +z (lathes, cylinders facing front)
+const qToTop = axis(1, 0, 0, -90); // +z -> +y (plates on the top edge)
+const qToLeft = axis(0, 1, 0, -90); // +z -> -x (plates on the left side)
+const qY180 = axis(0, 1, 0, 180);  // +z -> -z (discs on the back)
 
 // ─── Parts (positions measured from reference photos, front view fractions) ──
 
-function buildParts() {
-  const bodyCorners: Corners = { tl: 0.052, tr: 0.052, bl: 0.135, br: 0.135 };
+/** Body outline: small top corners, a 140 mm arc along the bottom, 9.5 mm fillets. */
+const bodyOutline = archedOutline(W, HH, -HH, 0.052, 0.122, 1.795);
 
-  // Body shells — parting seam ring shows as the case split line
-  add('body_front',
-    shellGeometry(W, H, bodyCorners, SEAM_Z, FZ, 0.030), 'body');
-  add('body_back',
-    shellGeometry(W - 0.009, H - 0.009, insetCorners(bodyCorners, 0.0045), SEAM_Z, BZ, 0.052), 'bodyDark');
+/** y of the arched bottom edge at x. */
+const bottomY = (x: number) => -HH + 1.795 - Math.sqrt(1.795 ** 2 - x * x);
+
+function buildParts() {
+  // Controls, measured on a straight-on front photo.
+  const dpadX = -0.286, dpadY = yTop(0.665);
+  const aPos: [number, number] = [0.350, yTop(0.6505)];
+  const bPos: [number, number] = [0.1725, yTop(0.682)];
+  const ssY = yTop(0.829), ssX = 0.0724;
+
+  // ── Body shells — parting seam ring shows as the case split line ──
+  // Recesses in the front face. Their floors are separate meshes below.
+  const DPAD_WELL = 0.010, BTN_WELL = 0.008;
+  const dpadWell = roundedRect(0.316, 0.316, 0.158, dpadX, dpadY);
+  const btnWell = (p: [number, number]) => roundedRect(0.142, 0.142, 0.071, p[0], p[1]);
+  const ssWell = (x: number) => roundedRect(0.141, 0.082, 0.041, x, ssY);
+
+  add('body_front', mergeGeometries([
+    shellGeometry(bodyOutline, SEAM_Z, FZ, 0.030),
+    recessWall(dpadWell, FZ, DPAD_WELL, 0.012),
+    recessWall(btnWell(aPos), FZ, BTN_WELL, 0.007),
+    recessWall(btnWell(bPos), FZ, BTN_WELL, 0.007),
+    recessWall(ssWell(-ssX), FZ, BTN_WELL, 0.005),
+    recessWall(ssWell(ssX), FZ, BTN_WELL, 0.005),
+  ], false)!, 'body');
+
+  // Back shell, inset slightly so the seam reads as a groove. Screw counterbores
+  // drop to one common depth: shallow on the strip, deep in the hump.
+  const backOutline: Outline = inset => bodyOutline(inset + 0.0045);
+  const SCREW_Z = BZ + 0.038;
+  const screwsTop: [number, number][] = [[-0.404, yTop(0.105)], [0.404, yTop(0.105)]];
+  const screwsMid: [number, number][] = [[-0.415, yTop(0.418)], [0.415, yTop(0.418)]];
+  add('body_back', mergeGeometries([
+    steppedBackShell(backOutline, SEAM_Z, STRIP_Z, BZ, STEP_Y, 0.052, 13),
+    ...screwsTop.map(([x, y]) => recessWall(roundedRect(0.06, 0.06, 0.03, x, y), STRIP_Z, SCREW_Z - STRIP_Z, 0, 1)),
+    ...screwsMid.map(([x, y]) => recessWall(roundedRect(0.052, 0.052, 0.026, x, y), BZ, SCREW_Z - BZ, 0, 1)),
+  ], false)!, 'bodyDark');
 
   // ── Screen area ──
-  // Lens: 87% of body width, top edge 5.4% from body top
-  const lensW = 0.87, lensH = 0.428 * H;
-  const lensCY = yTop(0.054) - lensH / 2;
-  add('screen', plate(lensW, lensH, 0.032, FZ + 0.005, 0.008, { cy: lensCY }), 'screen');
+  // Lens: black print 67 x 60.5 mm, its bottom edge a 225 mm arc. It sits
+  // 0.3 mm below the face in a pocket 1.2 mm larger all round.
+  const lens = archedOutline(0.860, yTop(0.053), yTop(0.5065), 0.038, 0.035, 2.885);
+  const POCKET = 0.016, LENS_TOP = FZ - 0.004;
+  const pocket: Outline = inset => lens(inset - 0.015);
+  add('screen_bezel', recess(pocket, FZ, POCKET, 0.002), 'body');
+  add('screen', shellGeometry(lens, FZ - POCKET, LENS_TOP, 0), 'screen');
 
-  // LCD active area: 44 x 40 mm real
-  const lcdH = 0.288 * H;
-  add('lcd', plate(0.554, lcdH, 0.010, FZ + 0.009, 0.005, { cy: yTop(0.101) - lcdH / 2 }), 'lcd');
+  // LCD window: 44 x 40 mm
+  add('lcd', plate(roundedRect(0.564, 0.513, 0.008, 0, yTop(0.102) - 0.2565), LENS_TOP + 0.0035, 0.0035), 'lcd');
 
   // "GAME BOY COLOR" logo strip on the lens
-  add('logo_strip', plate(0.46, 0.046, 0.010, FZ + 0.0075, 0.003, { cy: yTop(0.44) }), 'label');
+  add('logo_strip', plate(roundedRect(0.48, 0.050, 0.010, 0, yTop(0.4515)), LENS_TOP + 0.002, 0.002), 'label');
 
   // Power LED, upper-left inside the lens
-  add('power_led', new THREE.CylinderGeometry(0.0125, 0.0125, 0.008, 48), 'led',
-    [-0.402, yTop(0.187), FZ + 0.009], qX90);
+  add('power_led', new THREE.CylinderGeometry(0.0095, 0.0095, 0.003, 32), 'led',
+    [-0.402, yTop(0.192), LENS_TOP + 0.0015], qX90);
 
-  // ── D-pad (center x -0.281, 64.2% down) ──
-  const dpadX = -0.281, dpadY = yTop(0.642);
-  add('dpad_well', disc(0.138, 64), 'inset', [dpadX, dpadY, FZ + 0.0015]);
+  // ── D-pad (19 mm cross in a 25 mm well) ──
+  add('dpad_well', disc(0.146, 64), 'inset', [dpadX, dpadY, FZ - DPAD_WELL]);
+  const S = 0.1205, T = 0.0405, DPAD_H = 0.036;
+  add('dpad', dpadGeometry(S, T, DPAD_H, 0.005, 0.023, 0.003), 'dark', [dpadX, dpadY, FZ - DPAD_WELL]);
+  add('dpad_marks', dpadArrows(S, T, DPAD_H - 0.0022), 'dark', [dpadX, dpadY, FZ - DPAD_WELL]);
 
-  const S = 0.1205, T = 0.040; // cross half-span / half-arm-width
-  const cross = new THREE.Shape([
-    [S, -T], [S, T], [T, T], [T, S], [-T, S], [-T, T],
-    [-S, T], [-S, -T], [-T, -T], [-T, -S], [T, -S], [T, -T],
-  ].map(([x, y]) => new THREE.Vector2(x, y)));
-  add('dpad', new THREE.ExtrudeGeometry(cross, {
-    depth: 0.020, bevelEnabled: true, bevelThickness: 0.006, bevelSize: 0.005, bevelSegments: 4,
-  }), 'dark', [dpadX, dpadY, FZ - 0.004]);
-  add('dpad_dimple', disc(0.030, 48), 'dark', [dpadX, dpadY, FZ + 0.0225]);
-
-  // ── A / B buttons (8 mm domes, axis tilted ~22 deg) ──
-  const btnProfile: THREE.Vector2[] = [new THREE.Vector2(0.049, 0), new THREE.Vector2(0.049, 0.014)];
-  for (let i = 1; i <= 6; i++) {
-    const a = (i / 6) * (Math.PI / 2);
-    btnProfile.push(new THREE.Vector2(0.042 + 0.007 * Math.cos(a), 0.014 + 0.007 * Math.sin(a)));
-  }
-  btnProfile.push(new THREE.Vector2(0, 0.021));
-  const btnGeo = new THREE.LatheGeometry(btnProfile, 48);
-
-  const aPos: [number, number, number] = [0.344, yTop(0.624), FZ - 0.001];
-  const bPos: [number, number, number] = [0.156, yTop(0.668), FZ - 0.001];
-  add('button_a', btnGeo, 'dark', aPos, qX90);
-  add('button_b', btnGeo.clone(), 'dark', bPos, qX90);
+  // ── A / B buttons (8.5 mm domes on a line rising ~17 deg) ──
+  const btnGeo = buttonGeometry(0.0545, 0.028, 0.006);
+  add('button_a', btnGeo, 'dark', [aPos[0], aPos[1], FZ - BTN_WELL], qX90);
+  add('button_b', btnGeo.clone(), 'dark', [bPos[0], bPos[1], FZ - BTN_WELL], qX90);
   add('button_wells', mergedAt([
-    { g: disc(0.076, 56), at: [aPos[0], aPos[1], FZ + 0.001] },
-    { g: disc(0.076, 56), at: [bPos[0], bPos[1], FZ + 0.001] },
+    { g: disc(0.064, 48), at: [aPos[0], aPos[1], FZ - BTN_WELL] },
+    { g: disc(0.064, 48), at: [bPos[0], bPos[1], FZ - BTN_WELL] },
   ]), 'inset');
 
-  // ── SELECT / START (horizontal pills in stadium wells) ──
-  const ssY = yTop(0.798);
-  const wellGeo = () => plate(0.129, 0.0668, 0.0324, FZ + 0.0015, 0.003, { rimSteps: 4 });
-  add('sel_start_wells', mergedAt([
-    { g: wellGeo(), at: [-0.080, ssY, 0] },
-    { g: wellGeo(), at: [0.058, ssY, 0] },
-  ]), 'inset');
-  const pillGeo = new THREE.CapsuleGeometry(0.0155, 0.058, 8, 48);
-  add('select_pill', pillGeo, 'dark', [-0.080, ssY, FZ + 0.009], qZ90);
-  add('start_pill', pillGeo.clone(), 'dark', [0.058, ssY, FZ + 0.009], qZ90);
+  // ── SELECT / START (rubber pills in side-by-side stadium wells) ──
+  add('sel_start_wells', mergeGeometries([-ssX, ssX].map(x =>
+    plate(inset => ssWell(x)(inset + 0.005), FZ - BTN_WELL, 0.003)), false)!, 'inset');
+  const pillGeo = shellGeometry(roundedRect(0.087, 0.0346, 0.0173), FZ - BTN_WELL, FZ + 0.014, 0.012, 12);
+  add('select_pill', pillGeo, 'dark', [-ssX, ssY, 0]);
+  add('start_pill', pillGeo.clone(), 'dark', [ssX, ssY, 0]);
 
   // ── Speaker: hex-packed hole cluster, bottom right ──
-  const spX = 0.313, spY = yTop(0.855);
+  const spX = 0.324, spY = yTop(0.876);
   const holes: { g: THREE.BufferGeometry; at: [number, number, number] }[] = [];
-  const pitch = 0.030, rowH = pitch * Math.sqrt(3) / 2, R = 0.107;
+  const pitch = 0.030, rowH = pitch * Math.sqrt(3) / 2, R = 0.105;
   for (let j = -4; j <= 4; j++) {
     const off = (j % 2 !== 0) ? pitch / 2 : 0;
     for (let i = -4; i <= 4; i++) {
       const x = i * pitch + off, y = j * rowH;
       if (Math.hypot(x, y) <= R) {
-        holes.push({ g: disc(0.0075, 16), at: [spX + x, spY + y, FZ + 0.0008] });
+        holes.push({ g: disc(0.0062, 12), at: [spX + x, spY + y, FZ + 0.0008] });
       }
     }
   }
@@ -323,63 +473,172 @@ function buildParts() {
   // ── Side-wall grip ridges (5 short bars near the top, both sides) ──
   const ridges: { g: THREE.BufferGeometry; at: [number, number, number] }[] = [];
   for (let i = 0; i < 5; i++) {
-    const y = yTop(0.20) + (i / 4) * (yTop(0.11) - yTop(0.20));
-    ridges.push({ g: box(0.010, 0.012, 0.130), at: [-HW, y, 0.095] });
-    ridges.push({ g: box(0.010, 0.012, 0.130), at: [HW, y, 0.095] });
+    const y = yTop(0.175) + (i / 4) * (yTop(0.085) - yTop(0.175));
+    ridges.push({ g: box(0.008, 0.013, 0.105), at: [-HW, y, 0.0875] });
+    ridges.push({ g: box(0.008, 0.013, 0.105), at: [HW, y, 0.0875] });
   }
   add('grip_ridges', mergedAt(ridges), 'body');
 
-  // ── Left side: EXT link port + volume wheel ──
-  const extY = yTop(0.215);
-  add('ext_frame', box(0.014, 0.105, 0.105), 'bodyDark', [-HW, extY, 0]);
-  add('ext_inner', box(0.010, 0.075, 0.075), 'dark', [-0.498, extY, 0]);
+  // ── Left side: EXT link port (raised bezel) + volume wheel ──
+  const extY = yTop(0.235);
+  add('ext_frame', plate(roundedRect(0.077, 0.128, 0.02), 0.006, 0.010), 'bodyDark', [-HW, extY, 0], qToLeft);
+  add('ext_inner', plate(roundedRect(0.051, 0.103, 0.012), 0.004, 0.010), 'dark', [-HW, extY, 0], qToLeft);
 
-  // Thumbwheel spins about Z; only its knurled rim pokes through the slot.
+  // Thumbwheel spins about Z; only its rim pokes through the slot.
   const volY = yTop(0.34);
   add('vol_slot', box(0.012, 0.128, 0.030), 'dark', [-0.499, volY, 0]);
   add('vol_wheel', new THREE.CylinderGeometry(0.083, 0.083, 0.018, 64), 'dark',
     [-0.422, volY, 0], qX90);
 
   // ── Right side: power slide switch ──
-  const powY = yTop(0.30);
+  const powY = yTop(0.28);
   add('power_slot', box(0.012, 0.128, 0.026), 'dark', [0.499, powY, 0]);
   add('power_nub', box(0.016, 0.052, 0.020), 'dark', [0.504, powY, 0]);
 
-  // ── Top edge: cartridge slot (back half) + IR window (front half) ──
-  add('cart_slot', box(0.80, 0.024, 0.20), 'inset', [0, HH - 0.0115, -0.070]);
-  add('cart_slit', box(0.70, 0.020, 0.085), 'dark', [0, HH - 0.009, -0.070]);
-  add('ir_window', box(0.080, 0.014, 0.135), 'ir', [0.115, HH - 0.0055, 0.0775]);
+  // ── Top edge: empty cartridge slot (open to the back above the hump) + IR window ──
+  add('cart_slot', cartSlotWalls(0.368, STRIP_Z + 0.105), 'inset');
+  add('cart_slit', box(0.72, 0.012, 0.097), 'dark', [0, STEP_Y - 0.006, STRIP_Z + 0.0515]);
+  add('ir_window', plate(roundedRect(0.165, 0.08, 0.012), 0.003, 0.007), 'ir', [-0.283, HH, 0.075], qToTop);
 
-  // ── Bottom edge: headphone jack ──
-  add('phone_ring', new THREE.CylinderGeometry(0.045, 0.045, 0.006, 48), 'body',
-    [-0.15, -HH + 0.0005, 0]);
-  add('phone_hole', new THREE.CylinderGeometry(0.028, 0.028, 0.005, 32), 'dark',
-    [-0.15, -HH + 0.0012, 0]);
+  // ── Bottom edge: headphone jack (right of center) and DC input (left) ──
+  const jacks: [number, number, number][] = [[0.077, 0.045, 0.028], [-0.064, 0.030, 0.017]];
+  add('phone_ring', mergedAt(jacks.map(([x, r]) => ({
+    g: new THREE.CylinderGeometry(r, r, 0.006, 48), at: [x, bottomY(x) + 0.0005, -0.01] as [number, number, number],
+  }))), 'body');
+  add('phone_hole', mergedAt(jacks.map(([x, , r]) => ({
+    g: new THREE.CylinderGeometry(r, r, 0.002, 32), at: [x, bottomY(x) - 0.0025, -0.01] as [number, number, number],
+  }))), 'dark');
 
-  // ── Back: cartridge bay recess, battery cover, screws ──
-  const bayH = 0.7575, bayCY = 0.0685 + bayH / 2;
-  add('cart_bay', plate(0.82, bayH, 0.040, BZ - 0.004, 0.008, { cy: bayCY, rimSteps: 4 }), 'shade');
-  add('connector_slit', box(0.70, 0.030, 0.010), 'dark', [0, 0.775, BZ - 0.007]);
+  // ── Back: label recess, battery cover with its latch tab, screws ──
+  add('back_label', recess(roundedRect(0.70, 0.32, 0.015, 0, yTop(0.4075)), BZ, 0.003, 0.002, 1), 'shade');
 
-  const covH = 0.6506, covCY = -0.0856 - covH / 2;
-  add('battery_cover', plate(0.68, covH, 0.075, BZ - 0.006, 0.007, { cy: covCY, rimSteps: 4 }), 'bodyDark');
-  add('battery_latch', box(0.055, 0.022, 0.010), 'dark', [0, -0.715, BZ - 0.009]);
+  // The tab is part of the cover's outline (one line, not a second part that
+  // would show through the glass on top of SELECT / START). Crisp plate, so
+  // the outline is only ever taken at inset 0.
+  const covH = 0.555, covCY = yTop(0.525) - covH / 2, covBottom = covCY - covH / 2;
+  const coverRect = roundedRect(0.82, covH, { tl: 0.035, tr: 0.035, bl: 0.075, br: 0.075 }, 0, covCY);
+  const tab = [[-0.05, covBottom], [-0.05, covBottom - 0.03], [0.05, covBottom - 0.03], [0.05, covBottom]];
+  const cover: Outline = () => [...coverRect(0), ...tab.map(([x, y]) => new THREE.Vector2(x, y))];
+  add('battery_cover', plate(cover, BZ - 0.002, 0.006, -1), 'bodyDark');
 
-  const qY180 = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI);
-  add('screws', mergedAt([
-    { g: disc(0.018, 24), at: [-0.37, 0.728, BZ - 0.001], rot: qY180 },
-    { g: disc(0.018, 24), at: [0.37, 0.728, BZ - 0.001], rot: qY180 },
-    { g: disc(0.018, 24), at: [-0.405, -0.034, BZ - 0.001], rot: qY180 },
-    { g: disc(0.018, 24), at: [0.405, -0.034, BZ - 0.001], rot: qY180 },
-  ]), 'dark');
+  add('screws', mergedAt([...screwsTop, ...screwsMid].map(([x, y]) =>
+    ({ g: disc(0.020, 24), at: [x, y, SCREW_Z] as [number, number, number], rot: qY180 }))), 'dark');
 
   // ── Embossed Nintendo stadium outline on the front shell ──
-  const ringOuter = roundedRectPoints(0.24, 0.0445, { tl: 0.0222, tr: 0.0222, bl: 0.0222, br: 0.0222 }, 0, 0, 10);
-  const ringInner = roundedRectPoints(0.224, 0.0285, { tl: 0.0142, tr: 0.0142, bl: 0.0142, br: 0.0142 }, 0, 0, 10);
-  const ringShape = new THREE.Shape(ringOuter);
-  ringShape.holes.push(new THREE.Path(ringInner.slice().reverse()));
-  add('nintendo_ring', new THREE.ExtrudeGeometry(ringShape, { depth: 0.003, bevelEnabled: false }),
-    'emboss', [0, yTop(0.549), FZ - 0.0005]);
+  const ringOuter = roundedRect(0.273, 0.0565, 0.02825, 0, 0);
+  const ringShape = new THREE.Shape(ringOuter(0));
+  ringShape.holes.push(new THREE.Path(ringOuter(0.006).reverse()));
+  add('nintendo_ring', new THREE.ExtrudeGeometry(ringShape, { depth: 0.0022, bevelEnabled: false }),
+    'emboss', [0, yTop(0.561), FZ]);
+}
+
+/**
+ * D-pad cross, base at z = 0: arms slope down toward their tips, the center
+ * square stays flat around a shallow dimple. The slopes stay under the edge
+ * threshold, so only the outline, the corners and the dimple draw lines.
+ */
+function dpadGeometry(S: number, T: number, h: number, drop: number, dimpleR: number, dimpleD: number): THREE.BufferGeometry {
+  const zAt = (x: number, y: number) => h - drop * Math.max(0, (Math.max(Math.abs(x), Math.abs(y)) - T) / (S - T));
+  const cross = [
+    [S, -T], [S, T], [T, T], [T, S], [-T, S], [-T, T],
+    [-S, T], [-S, -T], [-T, -T], [-T, -S], [T, -S], [T, -T],
+  ].map(([x, y]) => new THREE.Vector2(x, y));
+  const pieces: THREE.BufferGeometry[] = [];
+
+  // Center square with the dimple cut out, then the dimple bowl.
+  const rim = Array.from({ length: 64 }, (_, i) =>
+    new THREE.Vector2(Math.cos(i / 64 * Math.PI * 2) * dimpleR, Math.sin(i / 64 * Math.PI * 2) * dimpleR));
+  const square = [[T, -T], [T, T], [-T, T], [-T, -T]].map(([x, y]) => new THREE.Vector2(x, y));
+  const faces = THREE.ShapeUtils.triangulateShape(square, [rim]);
+  const sq = [...square, ...rim];
+  pieces.push(indexedGeometry(sq.flatMap(p => [p.x, p.y, h]), sq.flatMap(() => [0, 0, 1]), faces.flat()));
+
+  const RINGS = 6, positions: number[] = [], normals: number[] = [], indices: number[] = [];
+  for (let k = 0; k <= RINGS; k++) {
+    const rho = dimpleR * (1 - k / RINGS);
+    const z = h - dimpleD * (1 - (rho / dimpleR) ** 2);
+    const slope = 2 * dimpleD * rho / dimpleR ** 2;
+    for (let i = 0; i < 64; i++) {
+      const a = i / 64 * Math.PI * 2;
+      positions.push(Math.cos(a) * rho, Math.sin(a) * rho, z);
+      const n = new THREE.Vector3(-slope * Math.cos(a), -slope * Math.sin(a), 1).normalize();
+      normals.push(n.x, n.y, n.z);
+    }
+  }
+  for (let k = 0; k < RINGS; k++) {
+    for (let i = 0; i < 64; i++) {
+      const a = k * 64 + i, b = k * 64 + (i + 1) % 64;
+      indices.push(a, b, a + 64, b, b + 64, a + 64);
+    }
+  }
+  pieces.push(indexedGeometry(positions, normals, indices));
+
+  // Arms: one sloped quad each, sharing the square's sides.
+  for (const [ux, uy] of [[1, 0], [0, 1], [-1, 0], [0, -1]] as const) {
+    const px = -uy, py = ux; // across the arm
+    const pts = ([[T, -T], [S, -T], [S, T], [T, T]] as const).map(([u, v]) => [ux * u + px * v, uy * u + py * v] as const);
+    const n = new THREE.Vector3(ux * drop / (S - T), uy * drop / (S - T), 1).normalize();
+    pieces.push(indexedGeometry(
+      pts.flatMap(([x, y]) => [x, y, zAt(x, y)]), pts.flatMap(() => [n.x, n.y, n.z]), [0, 1, 2, 0, 2, 3]));
+  }
+
+  // Walls and base.
+  cross.forEach((p, i) => {
+    const q = cross[(i + 1) % cross.length]!;
+    const n = new THREE.Vector3(q.y - p.y, -(q.x - p.x), 0).normalize();
+    pieces.push(indexedGeometry(
+      [p.x, p.y, 0, q.x, q.y, 0, q.x, q.y, zAt(q.x, q.y), p.x, p.y, zAt(p.x, p.y)],
+      Array.from({ length: 4 }, () => [n.x, n.y, n.z]).flat(), [0, 1, 2, 0, 2, 3]));
+  });
+  pieces.push(polygon(cross, p => new THREE.Vector3(p.x, p.y, 0), new THREE.Vector3(0, 0, -1)));
+  return mergeGeometries(pieces, false)!;
+}
+
+/** Arrow marks near each arm tip, all on one plane just above the sloped arms. */
+function dpadArrows(S: number, T: number, z: number): THREE.BufferGeometry {
+  const near = T + (S - T) * 0.5, far = T + (S - T) * 0.72, half = 0.0115;
+  const tri = [[near, -half], [far, 0], [near, half]] as const;
+  const positions: number[] = [], normals: number[] = [], indices: number[] = [];
+  ([[1, 0], [0, 1], [-1, 0], [0, -1]] as const).forEach(([ux, uy], k) => {
+    for (const [u, v] of tri) { positions.push(ux * u - uy * v, uy * u + ux * v, z); normals.push(0, 0, 1); }
+    indices.push(k * 3, k * 3 + 1, k * 3 + 2);
+  });
+  return indexedGeometry(positions, normals, indices);
+}
+
+/** A/B cap along +y from its base: straight wall, crisp shoulder, low spherical dome. */
+function buttonGeometry(r: number, wallH: number, sag: number): THREE.BufferGeometry {
+  const sphereR = (r * r + sag * sag) / (2 * sag);
+  const a0 = Math.asin(r / sphereR);
+  const profile = [new THREE.Vector2(r, 0), new THREE.Vector2(r, wallH)];
+  for (let i = 1; i <= 6; i++) {
+    const a = a0 * (1 - i / 6);
+    profile.push(new THREE.Vector2(sphereR * Math.sin(a), wallH + sphereR * (Math.cos(a) - Math.cos(a0))));
+  }
+  return new THREE.LatheGeometry(profile, 48);
+}
+
+/**
+ * The empty cartridge slot behind the top strip: two side walls and the
+ * front wall. Its back and top are open, so their outlines are the slot's
+ * mouth; the side walls follow the back shell's top rim.
+ */
+function cartSlotWalls(halfW: number, zFront: number): THREE.BufferGeometry {
+  const yT = HH - 0.0045, r = 0.052;
+  const side: THREE.Vector2[] = [ // (z, y)
+    new THREE.Vector2(STRIP_Z, STEP_Y), new THREE.Vector2(zFront, STEP_Y),
+    new THREE.Vector2(zFront, yT),
+  ];
+  for (let i = 0; i <= 13; i++) {
+    const a = (i / 13) * (Math.PI / 2);
+    side.push(new THREE.Vector2(STRIP_Z + r * (1 - Math.sin(a)), yT - r * (1 - Math.cos(a))));
+  }
+  const front = [[-halfW, STEP_Y], [halfW, STEP_Y], [halfW, yT], [-halfW, yT]].map(([x, y]) => new THREE.Vector2(x, y));
+  return mergeGeometries([
+    polygon(side, p => new THREE.Vector3(-halfW, p.y, p.x), new THREE.Vector3(1, 0, 0)),
+    polygon(side, p => new THREE.Vector3(halfW, p.y, p.x), new THREE.Vector3(-1, 0, 0)),
+    polygon(front, p => new THREE.Vector3(p.x, p.y, zFront), new THREE.Vector3(0, 0, -1)),
+  ], false)!;
 }
 
 // ─── Export via gltf-transform ───────────────────────────────────────────────
