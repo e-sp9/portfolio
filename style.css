@@ -23,6 +23,10 @@
     /* Text unit: font sizes and letter-spacing are multiples of it.
        Stays 1px up to 1440px wide; see "Wide screens" under RESPONSIVE. */
     --text-u: 1px;
+    /* Body text unit: the descriptions, meta and labels of the right sidebar use
+       it instead. Equal to --text-u, except in the right sidebar on wide
+       screens, where it stops at --body-u-max; see "Wide screens". */
+    --body-u: 1px;
     /* Space unit: sidebar and panel spacing are multiples of it. Same rule. */
     --space-u: 1px;
     --sidebar-w: 230px;
@@ -676,7 +680,7 @@ body.dark-mode .panel:hover {
 
 .project-desc {
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, var(--font-ja);
-    font-size: calc(14 * var(--text-u));
+    font-size: calc(14 * var(--body-u));
     color: var(--txt);
     line-height: 1.4;
     margin-bottom: calc(2 * var(--space-u));
@@ -686,9 +690,9 @@ body.dark-mode .panel:hover {
 
 .project-tech {
     font-family: var(--fp);
-    font-size: calc(12 * var(--text-u));
+    font-size: calc(12 * var(--body-u));
     color: var(--dim);
-    letter-spacing: calc(0.5 * var(--text-u));
+    letter-spacing: calc(0.5 * var(--body-u));
 }
 
 /* The repository, when the name links to the site itself */
@@ -781,7 +785,7 @@ body.dark-mode .panel:hover {
 .work-desc {
     display: block;
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, var(--font-ja);
-    font-size: calc(14 * var(--text-u));
+    font-size: calc(14 * var(--body-u));
     line-height: 1.4;
     color: var(--txt);
 }
@@ -806,19 +810,19 @@ body.dark-mode .panel:hover {
 }
 
 .link-icon {
-    font-size: calc(12 * var(--text-u));
+    font-size: calc(12 * var(--body-u));
     color: var(--accent-secondary);
     flex-shrink: 0;
 }
 
 .link-label {
-    font-size: calc(16 * var(--text-u));
-    letter-spacing: calc(1 * var(--text-u));
+    font-size: calc(16 * var(--body-u));
+    letter-spacing: calc(1 * var(--body-u));
 }
 
 .link-arrow {
     margin-left: auto;
-    font-size: calc(14 * var(--text-u));
+    font-size: calc(14 * var(--body-u));
     opacity: 0;
     transform: translateX(-4px);
     transition: opacity 200ms ease-out, transform 200ms ease-out;
@@ -868,7 +872,7 @@ body.dark-mode .panel:hover {
 .writing-title {
     display: block;
     font-family: 'Share Tech Mono', 'Courier New', var(--font-ja);
-    font-size: calc(14 * var(--text-u));
+    font-size: calc(14 * var(--body-u));
     line-height: 1.4;
     color: var(--txt-br);
     word-break: auto-phrase;
@@ -901,9 +905,9 @@ body.dark-mode .panel:hover {
     display: block;
     margin-top: calc(1 * var(--space-u));
     font-family: var(--fp);
-    font-size: calc(12 * var(--text-u));
+    font-size: calc(12 * var(--body-u));
     color: var(--dim);
-    letter-spacing: calc(0.5 * var(--text-u));
+    letter-spacing: calc(0.5 * var(--body-u));
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════════
@@ -952,6 +956,7 @@ body.dark-mode .panel:hover {
         --fit-lines: 672;
         --text-u: max(1px, min(1px + (100vw - 1440px) * 0.00025, var(--text-u-max),
                     (100vh - var(--fit-fixed)) / var(--fit-lines)));
+        --body-u: var(--text-u);
 
         /* Space: whatever height the text leaves free, spread over the
            sidebar's spacing (--fit-space px per unit), capped. */
@@ -973,6 +978,14 @@ body.dark-mode .panel:hover {
                     var(--model-clear) + 2 * (var(--sidebar-w) + var(--sidebar-inset))));
         --vs-left: calc((100vw - var(--frame-w)) / 2);
         --vs-right: calc((100vw - var(--frame-w)) / 2);
+    }
+
+    /* Right sidebar (WORK, MAKING, WRITING, LINKS): its body text grows with
+       the text only so far. Past that the blue titles keep growing and the
+       descriptions leave room around them. 1920 x 1080 stays under the cap. */
+    #sidebar-r {
+        --body-u-max: 1.1px;
+        --body-u: min(var(--text-u), var(--body-u-max));
     }
 
     /* Line spacing opens up with the space unit (1.4 at the base). Top page
