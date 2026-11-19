@@ -8,7 +8,7 @@ import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
 import { MODELS, type ModelDef } from './models';
 import { applyMaterialTheme, assignMaterials, type ModelMaterials } from './model-materials';
 import { CAMERA, MOBILE_BP, MOBILE_CANVAS, floatHeight, frameZoom, placeModel } from './view';
-import { idleMotion } from './idle-motion';
+import { idleMotion, shouldClearMomentum } from './idle-motion';
 import './theme-switch';
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -41,6 +41,7 @@ let applied = 0;
 const clock = new THREE.Clock();
 const reducedMotionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
 let reducedMotion = reducedMotionQuery.matches;
+let previousReducedMotion: boolean | undefined;
 reducedMotionQuery.addEventListener('change', (event) => {
     reducedMotion = event.matches;
 });
@@ -314,6 +315,10 @@ function animate() {
     // inertia) within the polar limits; the model's angle goes on top, cut at
     // the limits. Switching back leaves the user's angle as it would have been.
     lowerCamera(-applied);
+    if (shouldClearMomentum(previousReducedMotion, reducedMotion)) {
+        (controls as OrbitControls & { _sphericalDelta: THREE.Spherical })._sphericalDelta.set(0, 0, 0);
+    }
+    previousReducedMotion = reducedMotion;
     controls.update();
     applied = lowerCamera(lookUp);
     camera.lookAt(controls.target);
