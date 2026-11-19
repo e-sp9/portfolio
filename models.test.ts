@@ -10,6 +10,7 @@ test('the lineup runs in the order the consoles were played, and only the clamsh
         ['GAME BOY COLOR', false],
         ['GAME BOY ADVANCE SP', true],
         ['NINTENDO DS', true],
+        ['NINTENDO DSi', true],
         ['NINTENDO 3DS', true],
         ['PSP', false],
     ]);
