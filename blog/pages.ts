@@ -7,6 +7,7 @@
 import { type Frame, renderArticle, resized, shared, WIDE_SCALE } from './article';
 import { esc } from './html';
 import type { Eyecatch, Post } from './microcms';
+import { jsonLd } from '../discovery';
 
 export const SITE_URL = 'https://esp-9.dev';
 export const BLOG_TITLE = 'RYOTA KATADA / BLOG';
@@ -267,7 +268,15 @@ export async function renderPost(posts: Post[], index: number): Promise<string> 
         path: `/blog/${post.id}`,
         head: `
     <meta property="article:published_time" content="${esc(post.publishedAt)}">
-    <meta property="article:modified_time" content="${esc(post.revisedAt)}">`,
+    <meta property="article:modified_time" content="${esc(post.revisedAt)}">
+    ${jsonLd({
+        '@context': 'https://schema.org',
+        '@type': 'BlogPosting',
+        headline: post.title,
+        url: `${SITE_URL}/blog/${post.id}`,
+        datePublished: post.publishedAt,
+        ...(revised === formatDate(post.publishedAt) ? {} : { dateModified: post.revisedAt }),
+    })}`,
         image: post.eyecatch ? { ...shared(post.eyecatch.url, post.eyecatch.width, post.eyecatch.height), alt: post.title } : undefined,
         main: `        <div class="blog-head">
             <a class="blog-link" href="/blog">&#x2190; ALL POSTS</a>

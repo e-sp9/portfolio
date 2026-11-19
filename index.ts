@@ -1,7 +1,7 @@
 import index from "./index.html";
 import things from "./things.html";
 import hire from "./hire.html";
-import { serveBlog } from "./blog/dev";
+import { serveBlog, serveDiscovery } from "./blog/dev";
 import { serveWork } from "./work/site";
 
 Bun.serve({
@@ -9,6 +9,9 @@ Bun.serve({
     "/": index,
     "/things": things,
     "/hire": hire,
+    "/sitemap.xml": serveDiscovery,
+    "/robots.txt": serveDiscovery,
+    "/llms.txt": serveDiscovery,
     // The blog comes from microCMS: rendered on request here, written to
     // dist/ by the build (blog/build.ts).
     "/blog": serveBlog,

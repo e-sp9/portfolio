@@ -9,6 +9,7 @@ import { picks, writeEntrance } from './entrance';
 import { EYECATCH_HEIGHT, EYECATCH_WIDTH, eyecatchPng } from './eyecatch';
 import { BlogSourceError, currentEyecatch, fetchPosts, type Post, setEyecatch, uploadImage, withoutEyecatch } from './microcms';
 import { blogFiles } from './site';
+import { discoveryFiles } from '../discovery-site';
 
 type Env = Record<string, string | undefined>;
 
@@ -80,6 +81,7 @@ export async function buildBlog(env: Env, dist: string): Promise<void> {
     for (const [path, render] of files) await Bun.write(join(dist, path), await render());
     // From the same posts as the pages above, so every pick links to an article this build wrote
     await writeEntrance(dist, posts);
+    for (const [path, content] of await discoveryFiles(posts)) await Bun.write(join(dist, path), content);
     console.log(`Generated /blog: ${posts.length} posts, ${files.size} files, ${picks(posts).length} on the top page`);
 }
 
