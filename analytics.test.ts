@@ -50,7 +50,7 @@ test('pageview paths normalize published route shapes and redact other paths', (
     }
     for (const path of ['', '/users/alice@example.com', '/work/alice@example', '/work/UPPER', '/work/with_underscore',
         '/blog/alice@example', '/blog/a.b', '/blog/a%20b', '/blog/id/extra', '/hire//', '/unknown']) {
-        expect(pageviewPath(path)).toBe('other');
+        expect(pageviewPath(path)).toBe('unknown');
     }
 });
 
@@ -81,16 +81,50 @@ test('pageview records only path/category and non-HTML assets are not recorded',
     await fetchPage('/', events, { method: 'POST' });
     expect(points).toHaveLength(1);
     await fetchPage('/foo.php', events);
-    expect(points[1]).toEqual({ blobs: ['pageview', 'other', 'direct'], indexes: ['pageview'], doubles: [1] });
+    expect(points[1]).toEqual({ blobs: ['pageview', 'unknown', 'direct'], indexes: ['pageview'], doubles: [1] });
 });
 
-test('HTML errors are not recorded and unexpected successful paths are redacted', async () => {
+test('HTML 404s are redacted, other errors excluded and unexpected successful paths redacted', async () => {
     const points: unknown[] = [];
     const events = { writeDataPoint: (point: unknown) => { points.push(point); } };
-    for (const status of [404, 500, 301]) await fetchPage('/hire', events, undefined, 'text/html', status);
+    for (const status of [500, 301]) await fetchPage('/hire', events, undefined, 'text/html', status);
     expect(points).toEqual([]);
     await fetchPage('/users/alice@example.com', events, { headers: { Referer: 'https://chatgpt.com/' } });
-    expect(points).toEqual([{ blobs: ['pageview', 'other', 'ai'], indexes: ['pageview'], doubles: [1] }]);
+    await fetchPage('/users/alice@example.com?private=secret', events, { headers: { Referer: 'https://chatgpt.com/' } }, 'text/html', 404);
+    expect(points).toEqual([
+        { blobs: ['pageview', 'unknown', 'ai'], indexes: ['pageview'], doubles: [1] },
+        { blobs: ['pageview', 'not_found', 'ai'], indexes: ['pageview'], doubles: [1] },
+    ]);
+});
+
+test('validated beacon writes are scheduled rather than executed synchronously', async () => {
+    const pending: Promise<unknown>[] = [];
+    const points: unknown[] = [];
+    const response = await worker.fetch(new Request('https://esp-9.dev/api/event', {
+        method: 'POST', headers: { Origin: 'https://esp-9.dev' },
+        body: JSON.stringify({ event: 'contact_click_x', page: '/hire' }),
+    }), {
+        ASSETS: { fetch: async () => { throw new Error('must not fetch'); } },
+        EVENTS: { writeDataPoint: point => { points.push(point); } },
+    }, { waitUntil(promise) {
+        expect(promise).toBeInstanceOf(Promise);
+        expect(points).toEqual([]);
+        pending.push(promise);
+    } });
+    expect(response.status).toBe(204);
+    expect(pending).toHaveLength(1);
+    await Promise.all(pending);
+    expect(points).toEqual([{ blobs: ['contact_click_x', '/hire'], indexes: ['contact_click_x'], doubles: [1] }]);
+});
+
+test('beacon returns 204 with missing or throwing analytics binding', async () => {
+    for (const events of [undefined, { writeDataPoint() { throw new Error('unavailable'); } }]) {
+        const response = await fetchPage('/api/event', events, {
+            method: 'POST', headers: { Origin: 'https://esp-9.dev' },
+            body: JSON.stringify({ event: 'contact_click_x', page: '/hire' }),
+        });
+        expect(response.status).toBe(204);
+    }
 });
 
 test('beacons drop invalid, oversized, cross-origin and disallowed data', async () => {

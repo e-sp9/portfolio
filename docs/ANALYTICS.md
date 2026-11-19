@@ -10,19 +10,23 @@ agents, full referrer URLs, query strings, or visitor/session identifiers are st
 | `contact_click_x` | event, page pathname | event | 1 |
 
 `utm_source` takes precedence over Referer; only its classification is stored.
-GET requests are counted only with response status 200 and Content-Type `text/html`, regardless
+GET requests are counted only with response status 200 or 404 and Content-Type `text/html`, regardless
 of the URL extension or Accept header; `/api`, `/api/*`, and non-HTML responses are excluded.
 Stored pageview paths are `/`, `/hire`, `/things`, `/work`, `/blog`,
 `/work/<slug>` (`[a-z0-9-]+`, matching the case slugs), or `/blog/<id>`
 (`[A-Za-z0-9_-]+`, matching `POST_ID` in `blog/microcms.ts`). `.html` aliases
 and an optional trailing slash normalize to clean paths; `/index.html` becomes `/`.
-All other successful HTML paths are stored as the fixed value `other`, preserving
-the referral category without storing the supplied path. HTML errors are not counted.
+All other 200 HTML paths are stored as the fixed value `unknown`. HTML 404s always
+use the fixed path `not_found`. Both preserve the referral category without storing
+the supplied path or query string. Other response statuses are not counted.
 Contact beacons must be at most 2048 bytes and use an allowlisted event and page:
 `/` or `/hire` (`/index.html` and `/hire.html` normalize to those paths).
 Origin must match the request's full origin (scheme, host, and port); when absent,
 Sec-Fetch-Site must be `same-origin`. A present Sec-Fetch-Site must also be `same-origin`.
 Invalid beacons still return 204.
+Origin checks, the capped body read, and allowlist validation finish before the 204;
+only valid writes are scheduled through `ctx.waitUntil`, without awaiting the write.
+Missing bindings and write failures do not affect the response.
 
 ```sql
 -- Pageviews by referral category (last 7 days).
