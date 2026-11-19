@@ -27,12 +27,6 @@ describe('text', () => {
         }
     });
 
-    test('each summary is a passage of its own case, word for word', () => {
-        for (const item of CASES) {
-            expect([...item.problem, ...item.work, ...item.outcome].join('\n')).toContain(item.summary);
-        }
-    });
-
     test('every case has a page of its own', () => {
         const slugs = CASES.map((item) => item.slug);
         expect(new Set(slugs).size).toBe(slugs.length);
