@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { ConvexHull } from 'three/examples/jsm/math/ConvexHull.js';
 import { MODELS } from './models';
-import { CAMERA, FLOAT, MOBILE_BP, MOBILE_CANVAS, placeModel } from './view';
+import { CAMERA, FLOAT, MOBILE_BP, MOBILE_CANVAS, frameZoom, placeModel } from './view';
 
 /**
  * The band of the canvas a model must stay in, in px from its top: inside the
@@ -12,7 +12,10 @@ import { CAMERA, FLOAT, MOBILE_BP, MOBILE_CANVAS, placeModel } from './view';
  */
 const VIEWPORTS = [
     { w: 1440, h: 900, band: [72, 828] },
+    { w: 1366, h: 768, band: [72, 696] },
+    { w: 1280, h: 720, band: [72, 648] },
     { w: 1000, h: 700, band: [40, 660] },
+    { w: 1000, h: 480, band: [40, 440] },
     { w: 390, h: 844, band: [48, 844 * MOBILE_CANVAS] },
     { w: 320, h: 568, band: [48, 568 * MOBILE_CANVAS] },
 ];
@@ -44,6 +47,8 @@ test('every model stays inside the frame through a whole turn, at either end of 
             const view = mobile ? CAMERA.mobile : CAMERA.desktop;
             const canvasH = mobile ? h * MOBILE_CANVAS : h;
             const camera = new THREE.PerspectiveCamera(view.fov, w / canvasH, 0.1, 100);
+            camera.zoom = mobile ? 1 : frameZoom(h, band[1]! - band[0]!);
+            camera.updateProjectionMatrix();
             const orbit = new THREE.Spherical().setFromVector3(new THREE.Vector3(...view.position));
             orbit.phi += def.lookUp ?? 0;
             const turned = orbit.clone(), v = new THREE.Vector3();

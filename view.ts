@@ -17,6 +17,22 @@ export const CAMERA: Record<'desktop' | 'mobile', { fov: number; position: [x: n
     mobile: { fov: 28, position: [0, 0.5, 4.8] },
 };
 
+/**
+ * Share of the canvas height that the virtual screen's frame takes at 1440×900,
+ * where the models are fitted (fit, sink). The bands above and below the frame
+ * are fixed in px, so they take more of a shorter screen.
+ */
+export const FRAME_SHARE = 1 - (72 + 72) / 900;
+
+/**
+ * Camera zoom for a desktop canvas `height` px tall with a frame `frame` px tall:
+ * on a screen where the frame takes less than FRAME_SHARE, the view shrinks by
+ * as much, so the models are framed as at 1440×900.
+ */
+export function frameZoom(height: number, frame: number) {
+    return Math.min(1, frame / height / FRAME_SHARE);
+}
+
 /** The model floats this high (less its sink) and bobs this far up and down */
 export const FLOAT = { height: 0.05, bob: 0.025, speed: 0.7 };
 
