@@ -8,7 +8,7 @@ import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
 import { MODELS, type ModelDef } from './models';
 import { applyMaterialTheme, assignMaterials, type ModelMaterials } from './model-materials';
 import { CAMERA, MOBILE_BP, MOBILE_CANVAS, floatHeight, frameZoom, placeModel } from './view';
-import { idleMotion, shouldClearMomentum } from './idle-motion';
+import { advanceAutoMomentum, idleMotion, removeAutoMomentum, shouldClearMomentum } from './idle-motion';
 import './theme-switch';
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -42,6 +42,7 @@ const clock = new THREE.Clock();
 const reducedMotionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
 let reducedMotion = reducedMotionQuery.matches;
 let previousReducedMotion: boolean | undefined;
+let autoMomentum = 0;
 reducedMotionQuery.addEventListener('change', (event) => {
     reducedMotion = event.matches;
 });
@@ -81,6 +82,26 @@ function initThree() {
     controls.autoRotateSpeed = 0.5;
     controls.minPolarAngle = Math.PI * 0.3;
     controls.maxPolarAngle = Math.PI * 0.62;
+
+    const orbitControls = controls as OrbitControls & {
+        _sphericalDelta: THREE.Spherical;
+        _getAutoRotationAngle(deltaTime: number | null): number;
+    };
+    const update = controls.update.bind(controls);
+    // Pointer handlers also call update(), so track their damping steps too.
+    controls.update = (deltaTime = null) => {
+        controls.autoRotate = !reducedMotion;
+        if (shouldClearMomentum(previousReducedMotion, reducedMotion)) {
+            orbitControls._sphericalDelta.theta = removeAutoMomentum(orbitControls._sphericalDelta.theta, autoMomentum);
+            autoMomentum = 0;
+        }
+        previousReducedMotion = reducedMotion;
+        const angle = controls.autoRotate && controls.state === -1
+            ? orbitControls._getAutoRotationAngle(deltaTime) : 0;
+        const changed = update(deltaTime);
+        autoMomentum = advanceAutoMomentum(autoMomentum, angle, controls.enableDamping ? controls.dampingFactor : 1);
+        return changed;
+    };
 
     // Lighting
     ambientLight = new THREE.AmbientLight(0x405570, 2.0);
@@ -315,10 +336,6 @@ function animate() {
     // inertia) within the polar limits; the model's angle goes on top, cut at
     // the limits. Switching back leaves the user's angle as it would have been.
     lowerCamera(-applied);
-    if (shouldClearMomentum(previousReducedMotion, reducedMotion)) {
-        (controls as OrbitControls & { _sphericalDelta: THREE.Spherical })._sphericalDelta.set(0, 0, 0);
-    }
-    previousReducedMotion = reducedMotion;
     controls.update();
     applied = lowerCamera(lookUp);
     camera.lookAt(controls.target);
