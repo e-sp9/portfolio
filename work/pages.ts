@@ -86,8 +86,7 @@ function layout(page: Page): string {
         </div>
         <div class="exp-right">
             <button type="button" id="theme-toggle" class="exp-btn" role="switch" aria-checked="false" aria-label="Dark mode">
-                <span class="ts-switch"><span class="ts-lever"></span></span>
-                <span class="ts-labels"><span class="ts-light">LIGHT</span><span class="ts-dark">DARK</span></span>
+                <span class="ts-visual"></span>
             </button>
             <a id="home-btn" class="exp-btn" href="/">&#x2190; HOME</a>
             <a id="blog-btn" class="exp-btn" href="/blog">BLOG</a>
@@ -110,7 +109,7 @@ ${page.main}
         (() => {
             const toggle = document.getElementById('theme-toggle');
             let dark = document.body.classList.contains('dark-mode');
-            // The lever follows body.dark-mode in CSS; aria-checked tells assistive tech
+            // The switch follows body.dark-mode (style.css, theme-switch-3d.ts); aria-checked tells assistive tech
             const apply = () => {
                 document.body.classList.toggle('dark-mode', dark);
                 toggle.setAttribute('aria-checked', String(dark));
@@ -125,6 +124,8 @@ ${page.main}
             });
         })();
     </script>
+    <!-- The switch in 3D, once the page has loaded (theme-switch.ts) -->
+    <script type="module" src="/theme-switch.js"></script>
 </body>
 
 </html>

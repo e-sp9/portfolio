@@ -8,6 +8,7 @@ import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
 import { MODELS, type ModelDef } from './models';
 import { applyMaterialTheme, assignMaterials, type ModelMaterials } from './model-materials';
 import { CAMERA, MOBILE_BP, MOBILE_CANVAS, floatHeight, frameZoom, placeModel } from './view';
+import './theme-switch';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // STATE
@@ -320,7 +321,7 @@ let isDarkMode = false;
 
 function applyTheme() {
     document.body.classList.toggle('dark-mode', isDarkMode);
-    // The lever follows body.dark-mode in CSS; aria-checked tells assistive tech
+    // The switch follows body.dark-mode (style.css, theme-switch-3d.ts); aria-checked tells assistive tech
     document.getElementById('theme-toggle')?.setAttribute('aria-checked', String(isDarkMode));
 
     // Update Three.js materials and lighting for theme

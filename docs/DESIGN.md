@@ -8,7 +8,7 @@
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│  RYOTA KATADA / DEVELOPER  [THEME SW]  BLOG (header 72px)│
+│  RYOTA KATADA / DEVELOPER    [SWITCH]  BLOG (header 72px)│
 ├──────┬─────────────────────────────────┬────────────────┤
 │      │                                 │                │
 │ 230px│     Three.js Canvas (全面)       │  230px         │
@@ -43,7 +43,7 @@
 
 CSSカスタムプロパティで一元管理。ライト/ダークの2テーマを `body.dark-mode` クラスで切り替え、`localStorage`(`portfolio-theme`)に永続化。
 
-切り替えは、ヘッダーの右にあるレバー式のトグルスイッチ(`#theme-toggle`)で行う。ボタンの枠の中に、縦長の台座、六角ナット、玉の付いたレバーを CSS で描き、右に LIGHT と DARK のラベルを上下に並べる。レバーはライトでは上(LIGHT)に、ダークでは下(DARK)に倒れ、倒れている側のラベルを `--val`、もう一方を `--txt` にする。押す(クリック、タップ、Enter、Space)と、レバーが軸を通って反対側へ倒れ(150ms。1 割ほど行き過ぎて戻る)、テーマが切り替わる。`prefers-reduced-motion` が reduce のときは動かさない。枠と文字はヘッダーのほかのボタン(`.exp-btn`)と同じで、高さもそろえる。レバーの向きは CSS が `body.dark-mode` から決めるので、初回描画前にテーマを付けるページでは、最初の表示から向きと配色が合う。支援技術には、`role="switch"`、`aria-checked`(ダークで true)、名前 `Dark mode` で今の状態を伝える。初期のテーマは保存した値だけで決まり、OS の設定(`prefers-color-scheme`)は見ない。
+切り替えは、ヘッダーの右にある壁の照明スイッチ(`#theme-toggle`)で行う。日本の壁スイッチ(パナソニック WNP5101MWP のような、縦長のプレートの中央に小さな波動スイッチが 1 つ付いたもの)の 3D モデルで、文字のラベルは出さない。波動スイッチは、ライトでは上側が、ダークでは下側が沈む。プレートと波動スイッチの色は、ライトでミルキーホワイト(`#efece4`)、ダークでチャコール(`#242424`)。波動スイッチの右寄りに小さな縦線の目印がある。押す(クリック、タップ、Enter、Space)と、押した側が沈むように 150ms で傾き(少し行き過ぎて戻る)、色も同じ時間で移る。`prefers-reduced-motion` が reduce のときは動かさずに切り替える。モデルの作りと描き方は 7 章の「Theme Switch」。ボタンは、ほかのヘッダーのボタンと同じ高さで、枠と地の色は持たない。スイッチの状態は `body.dark-mode` から決まる(3D も、読み込む前の CSS の絵も)ので、初回描画前にテーマを付けるページでは、最初の表示から状態と配色が合う。支援技術には、`role="switch"`、`aria-checked`(ダークで true)、名前 `Dark mode` で今の状態を伝える。初期のテーマは保存した値だけで決まり、OS の設定(`prefers-color-scheme`)は見ない。
 
 | Variable | Light | Dark | Usage |
 |----------|-------|------|-------|
@@ -69,7 +69,7 @@ CSSカスタムプロパティで一元管理。ライト/ダークの2テーマ
 
 `letter-spacing` を広めに取り、技術モニターの疎な表示を再現。
 
-ヘッダーの 1 行は、Share Tech Mono の字幅(0.54em)でちょうど収まるように詰めてある(10. Responsive Behavior)。Web フォントを読み込む前や読み込めなかったときに出る Courier New は字幅が 0.6em あり、そのままだとスマホの幅で右のボタンが画面の外へはみ出す。そのため、ヘッダーのフォント `--fh` には、Share Tech Mono の次に `Share Tech Mono Fallback` を置く。これは `style.css` の `@font-face` で、Courier New(ないときは同じ 0.6em の等幅フォント)を `size-adjust` で 89.98% に縮め、字幅を Share Tech Mono にそろえたもの。基本ラテン文字だけに当てるので、Share Tech Mono にない字(← HOME の ←)は、これまでどおり Courier New で出る。Share Tech Mono を読み込んだあとの見た目は変わらない。`size-adjust` に対応しないブラウザ(Safari 16 まで)では、Courier New がそのままの幅で出る。
+ヘッダーの 1 行は、Share Tech Mono の字幅(0.54em)でちょうど収まるように詰めてある(10. Responsive Behavior)。Web フォントを読み込む前や読み込めなかったときに出る Courier New は字幅が 0.6em あり、ヘッダーの文字がそのぶん広がる。そのため、ヘッダーのフォント `--fh` には、Share Tech Mono の次に `Share Tech Mono Fallback` を置く。これは `style.css` の `@font-face` で、Courier New(ないときは同じ 0.6em の等幅フォント)を `size-adjust` で 89.98% に縮め、字幅を Share Tech Mono にそろえたもの。基本ラテン文字だけに当てるので、Share Tech Mono にない字(← HOME の ←)は、これまでどおり Courier New で出る。Share Tech Mono を読み込んだあとの見た目は変わらない。`size-adjust` に対応しないブラウザ(Safari 16 まで)では、Courier New がそのままの幅で出るが、320px でも 1 行に収まる。
 
 ## 6. Visual Effects
 
@@ -157,6 +157,16 @@ GLB のマテリアルは使わず、部品ごとに `MeshPhysicalMaterial` を�
 | Key | `#c0d8f0` | 2.5 / 3.5 | (3, 5, 6) |
 | Fill | `#90a8c8` | 1.5 / 2.5 | (-4, 2, 4) |
 
+### Theme Switch
+
+ヘッダーのテーマ切り替え(4. Color Palette)の 3D モデル。`theme-switch-3d.ts` が three.js の数式で組み、GLB は持たない。
+
+- 形(mm): プレート 70 × 120 × 6(縁を 2mm 丸める)。中央の開口は表で 31 × 43、奥は丸めのぶん細い。波動スイッチ 26 × 38 × 5 が中心の軸で傾き、水平のときに表がプレートと同じ面に来る。傾きは 13 度。目印は波動スイッチの右寄りの 1 × 8 の縦線
+- 見え方: 正面から少し右上にずれたところから見る(FOV 16)。光は上から強く当て、上を向いた面(出た端、縁の丸め)が光り、下を向いた面は陰になる。正面はほぼ指定の色のまま。ダークでは光を強める(Ambient 2.0 / Key 7、ライトは 2.2 / 2.2)。キーライトの影で、出た端の影が開口に落ちる。ライトでは波動スイッチの面が上を向いて明るく、出た下端の影が下に落ちる。ダークでは面が下を向いて暗く、沈んだ下側から明るい開口の縁がのぞく
+- 読み込み: どのページも `theme-switch.ts` を読む(トップ、/things、/hire はそれぞれのバンドルから、/blog と /work は `/theme-switch.js`)。これは、ページの load のあと、空いた時間に `theme-switch-3d.ts` を動的 import する。three.js はそのときに読み込まれる(ビルドの `--splitting` で別のチャンクになり、トップの 3D と同じチャンクを使う)。読み込むまでと、WebGL が使えないとき、読み込めなかったとき、コンテキストを失ったときは、`style.css` が CSS で同じスイッチを描く(プレートが `::before`、波動スイッチと開口が `::after`)。3D を描けたら、ボタンに `is-3d` を付けて CSS の絵を消す
+- 描画: WebGL のコンテキストはヘッダー用に 1 つ(トップはこれと 3D シーンの 2 つ)。描くのは、最初と、テーマが変わったとき(150ms のあいだだけフレームを回す)と、大きさや画素比が変わったときだけで、ふだんはループしない。テーマはページのスクリプトが持ち、スイッチは `body.dark-mode` の変化を見て動く
+- `theme-switch-3d.test.ts` は、ライトで上側、ダークで下側が沈むことと、行き過ぎを含めて傾けても波動スイッチが開口の内側に収まることを確かめる
+
 ### Animation
 
 - **ボビング:** `y = 0.05 + sin(t * 0.7) * 0.025` -- ゆっくりした上下浮遊
@@ -186,7 +196,7 @@ GLB のマテリアルは使わず、部品ごとに `MeshPhysicalMaterial` を�
 | > 1440px かつ横長(15:8 以上) | 高さが足りないぶん横幅を使う。サイドバーを 340 × `--text-u`(+ 余白ぶん)に広げ、SKILLS は2列(名前の下にバー)、CAREER は年を役職の横に置く |
 | 1000-1440px | フルレイアウト。サイドバー230px、マージン64px/72px。画面の高さが足りないときは、サイドバーの中が縦にスクロールする(8. Information Panels)。右は高さ 1465px ほど(「おすすめ」の記事 1 件ごとに 45px ほど増える)、左は 990px ほどを下回るとスクロールする |
 | 768-1000px | サイドバー120px、マージン16px/40px、フォントサイズ縮小 |
-| < 768px | 縦スクロール。ヘッダー固定 + 3Dキャンバス(60vh)+ モデルセレクタ + パネル群(WORK を全幅 → SKILLS/LINKS 2カラム → CAREER → MAKING → WRITING を全幅)+ フッター。ヘッダーのボタンは 768-1000px と同じ 12px・高さ 30px の枠のまま、タップできる範囲を高さ 44px まで広げる(幅も 44px 以上、ボタンの間隔は 8px)。480px 以下と 360px 未満では、ロゴと1行に収まるように、ボタンの左右の余白と字間を段階的に詰める。テーマのスイッチは、480px 以下で台座とラベルのあいだを 5px、左右の余白を 6px に詰め、ラベルの字間を 1px にする。360px 未満ではさらに、スイッチを 1 割ほど小さくし、字間を 0.5px にする。480px 以下では、ヘッダーの左右の余白をどのページも 12px にする。ロゴは 20px・字間 2px。480px 以下ではボタンが空けた幅に合わせて幅に比例させ、360px で 16px・字間 1px、390px で 18px・字間 2px、420px 以上で 20px にする(345px 以下は 15px・字間 1px) |
+| < 768px | 縦スクロール。ヘッダー固定 + 3Dキャンバス(60vh)+ モデルセレクタ + パネル群(WORK を全幅 → SKILLS/LINKS 2カラム → CAREER → MAKING → WRITING を全幅)+ フッター。ヘッダーのボタンは 768-1000px と同じ 12px・高さ 30px の枠のまま、タップできる範囲を高さ 44px まで広げる(幅も 44px 以上、ボタンの間隔は 8px)。480px 以下と 360px 未満では、ロゴと1行に収まるように、ボタンの左右の余白と字間を段階的に詰める。テーマのスイッチは幅 26px(768-1000px と同じ高さ 30px に合わせて縮む)で、タップできる範囲はほかのボタンと同じく 44px 四方。480px 以下では、ヘッダーの左右の余白をどのページも 12px にする。ロゴは 20px・字間 2px。480px 以下ではボタンが空けた幅に合わせて幅に比例させ、360px で 16px・字間 1px、390px で 18px・字間 2px、420px 以上で 20px にする(345px 以下は 15px・字間 1px) |
 
 ## 11. /things Page
 
@@ -215,7 +225,7 @@ microCMS で書いた記事の一覧(`/blog`)、記事ページ(`/blog/<記事ID
 - リンク: 外部サイトは別タブで開く。旧ブログ(kissa-katada.com)の記事へのリンクは `/blog/<記事ID>` に書き換える
 - データ: ビルド時に microCMS の `blogs` API から全記事を取得する(`blog/microcms.ts`)。認証情報は `MICROCMS_SERVICE_DOMAIN` と `MICROCMS_API_KEY` で、手元では `.env` に、デプロイのワークフローでは GitHub Secrets に置く。ブラウザにも Worker にも渡さない。どちらかがないときや記事を取得できないときは、手元でも GitHub Actions でもビルドがエラーで止まる。GitHub Actions ではデプロイもしないので、本番の `/blog` は前回のまま残る
 - 更新: microCMS で記事を公開・更新・公開終了・削除すると、Webhook(`repository_dispatch`)でデプロイのワークフローが起動する(`docs/DEPLOY.md`)
-- 生成: `blog/build.ts` が `dist/blog.html`、`dist/blog/<記事ID>.html`、`dist/blog/feed.xml`、`dist/blog.css` を書き出し、`dist/index.html` の WRITING に「おすすめ」の記事を書き込む(8 章)。そのため、ビルドはページをバンドルしてからブログを生成する。`blog.css` は `style.css` を取り込んだ 1 ファイル。ページは静的 HTML で、スクリプトはテーマ切り替えだけ
+- 生成: `blog/build.ts` が `dist/blog.html`、`dist/blog/<記事ID>.html`、`dist/blog/feed.xml`、`dist/blog.css` を書き出し、`dist/index.html` の WRITING に「おすすめ」の記事を書き込む(8 章)。そのため、ビルドはページをバンドルしてからブログを生成する。`blog.css` は `style.css` を取り込んだ 1 ファイル。ページは静的 HTML で、スクリプトはテーマ切り替え(インラインのスクリプトと、3D のスイッチを読み込む `/theme-switch.js`)だけ
 - アイキャッチ: microCMS の `eyecatch` が空の記事には、ビルドが画像を作って登録する(`blog/eyecatch.ts`)。画像は 1200×630 で、文字は入れない。絵柄はマーブル模様。濃淡の帯が、画面を横切る流れに沿って何層にも重なり、一部の帯の縁にアクセント色と、紙の白の細い線が入る。地の色は、墨色から紙の白(`--bg` の `#f5f5f5`)までのなめらかな階調で、中間だけが青い。この青は `--accent`(`#3b82f6`)と同じ色相で、彩度を 3 分の 1 ほどに落としてある。青く見える部分は、平均で画像の半分ほどになる。アクセントはアンバー(`#e3a03a`)とコーラル(`#dd6650`)の 2 色で、`design-tokens.css` の warning と error の彩度を落とした色。1 枚に使うのは 1 色か 2 色。3px 四方の点を 400×210 個並べて描き、点ごとに明るさを最大で ±18(255 段階のうち)ずらして、フィルムのような粒状感を出す。アクセントの縁も、点の単位でまばらになって消える。記事 ID を乱数の種にするので、粒の出方も含めて、同じ記事はいつも同じ絵になる
 - アイキャッチの登録: 作った画像を microCMS のメディアにアップロードし(マネジメント API)、その記事の `eyecatch` に登録する(`blogs` の PATCH)。登録できた画像は、同じビルドで書き出す一覧と記事ページにも出す。ビルドが microCMS に書き込むのは、このアップロードと登録だけで、専用のキー `MICROCMS_WRITE_API_KEY` を使う。このキーも、手元では `.env` に、デプロイのワークフローでは GitHub Secrets に置く。キーがないときは、画像の生成も登録もせずにビルドを続ける。`eyecatch` がある記事には書き込まない。一覧を取得したあとに人が設定したアイキャッチも上書きしないように、アップロードの直前と PATCH の直前に、その記事を取得し直して確かめる。この取得は毎回、過去に一度も使っていない URL で行う。絞り込み条件を「作成日時が、乱数で決めた過去の日時より後で、乱数で決めた遠い未来の日時より前」にして URL を変える。この条件はどの記事にも当てはまる。microCMS の CDN は同じ URL への応答をキャッシュするので、前のビルドや並行するビルドのときの古い応答で判断しないためである。microCMS には条件付きの更新がないので、最後の確認から PATCH までの一瞬に設定されたアイキャッチは上書きされうる。書き込みに失敗するとビルドはエラーで止まり、次のビルドは `eyecatch` が空のまま残った記事から続ける。microCMS はこの登録を記事の改訂として扱う。登録した日が公開日と違うと、次のビルドから記事ページの UPDATED にその日が出る。`bun run eyecatch:dry-run` は、microCMS に書き込まずに同じ画像を `out/eyecatch/` に書き出す。記事 ID を引数に渡すと、認証情報がなくても動く
 - 開発: `bun run dev` は同じファイルをリクエストのたびに描画する(`blog/dev.ts`)。microCMS から取得した記事は 60 秒間キャッシュする
@@ -231,7 +241,7 @@ microCMS で書いた記事の一覧(`/blog`)、記事ページ(`/blog/<記事ID
 - 事例のページ: /blog の記事と同じシート(`.sheet`)に、`CASE 01` のタグとタイトルを置き、本文は「先方の困りごと」「やったこと」「いまどうなったか」の 3 節。本文の組み方(Inter 16px、行間 1.9、幅 720px、h2 に四角のマーカーと下線)も記事と同じ。下に前後の事例へのリンクを置く
 - 文章: 確認済みの原稿のとおりにする。原稿から変えるのは、「本人」を「私」にすることと、事例を見出しの名前(大手人材会社向けの人材紹介データベース、ベンチャーキャピタル向けCRM)で呼ぶことだけ。客先名と客先のシステム名は出さない。カードの要約は本文の一節ではなく、本人が決めたプロジェクトの概要の文を一字も変えずに使う。事例のページの `description` にも使う
 - データ: `work/cases.ts` の `CASES` に事例を、`OPERATIONS` にボット運用の節を持つ。事例を 1 件足すと、一覧のカードとページが増える。トップの WORK パネル(8. Information Panels)は `index.html` に手で足す
-- 生成: `work/build.ts` が `dist/work.html`、`dist/work/<名前>.html`、`dist/work.css` を書き出す。`work.css` は `style.css` を取り込んだ 1 ファイル。ページは静的 HTML で、スクリプトはテーマ切り替えだけ
+- 生成: `work/build.ts` が `dist/work.html`、`dist/work/<名前>.html`、`dist/work.css` を書き出す。`work.css` は `style.css` を取り込んだ 1 ファイル。ページは静的 HTML で、スクリプトはテーマ切り替え(インラインのスクリプトと、3D のスイッチを読み込む `/theme-switch.js`)だけ
 - 開発: `bun run dev` は同じファイルをリクエストのたびに描画する(`work/site.ts`)
 - テーマ: `localStorage` の `portfolio-theme` をほかのページと共有する
 - 配信: Cloudflare Workers の assets が `/work` を `work.html` に、`/work/<名前>` を `work/<名前>.html` に解決する。/blog と同じ仕組みなので、`worker.ts` と `wrangler.jsonc` は変えていない
@@ -257,4 +267,4 @@ microCMS で書いた記事の一覧(`/blog`)、記事ページ(`/blog/<記事ID
 | Styling | Vanilla CSS (CSS Custom Properties) |
 | Blog | microCMS (記事。ビルド時に取得) / Shiki (コードの色付け) |
 | Deploy | Cloudflare Workers (static assets via wrangler) |
-| Build | `bun build ./index.html ./things.html ./hire.html --outdir ./dist && bun ./blog/build.ts && bun ./work/build.ts && cp -r ./public/* ./dist/` |
+| Build | `bun build ./index.html ./things.html ./hire.html ./theme-switch.ts --outdir ./dist --splitting && bun ./blog/build.ts && bun ./work/build.ts && cp -r ./public/* ./dist/` |

@@ -246,120 +246,100 @@ body {
     letter-spacing: calc(3 * var(--text-u));
 }
 
-/* LIGHT / DARK: a lever toggle switch, the button frame its plate. The lever
-   stands up to LIGHT or is thrown down to DARK, labelled to its right. It
-   follows body.dark-mode, the class that sets the colours, so it agrees with
-   the page even before the script has run. The switch is sized in --ts-u:
-   the text unit, smaller with the header type at 1000px and below, and again
-   below 360px. */
+/* The theme switch: a Japanese wall light switch, its rocker pressed in at the
+   top in light mode and at the bottom in dark mode. theme-switch-3d.ts draws it
+   in 3D once three.js has loaded (the canvas, .is-3d). Until then, and without
+   WebGL, it is drawn here from the same colours: the plate (::before) and the
+   rocker in its opening (::after), following body.dark-mode, so it agrees with
+   the page even before any script has run. Sized in --sw-u: the text unit,
+   smaller with the header type at 1000px and below. */
 #theme-toggle {
-    --ts-u: var(--text-u);
+    --sw-u: var(--text-u);
+    --sw-body: #efece4;
+    --sw-gap: #8f8a7e;
+    --sw-mark: #bdb8ac;
+    position: relative;
     display: inline-flex;
     align-items: center;
-    gap: calc(8 * var(--ts-u));
-    /* As tall as the other header buttons */
+    justify-content: center;
+    /* As tall as the other header buttons, without their frame */
     height: calc(22px + 14 * var(--text-u));
-    padding: 0 12px 0 10px;
+    padding: 0;
+    border: 0;
+    background: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
 }
 
-/* The plate the switch is mounted on */
-#theme-toggle .ts-switch {
+body.dark-mode #theme-toggle {
+    --sw-body: #242424;
+    --sw-gap: #050505;
+    --sw-mark: #4c4c4c;
+}
+
+#theme-toggle .ts-visual {
     position: relative;
-    width: calc(18 * var(--ts-u));
-    height: calc(100% - 4px);
-    border: 1px solid var(--border-hi);
-    border-radius: calc(2 * var(--ts-u));
-    background: var(--bg);
+    width: calc(26 * var(--sw-u));
+    height: 100%;
 }
 
-/* Hex nut around the pivot: an outline hexagon, drawn as two */
-#theme-toggle .ts-switch::before,
-#theme-toggle .ts-switch::after {
+#theme-toggle .ts-canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+}
+
+#theme-toggle .ts-visual::before,
+#theme-toggle .ts-visual::after {
     content: '';
     position: absolute;
-    left: 50%;
-    top: 50%;
-    transform: translate(-50%, -50%);
-    clip-path: polygon(25% 0, 75% 0, 100% 50%, 75% 100%, 25% 100%, 0 50%);
 }
 
-#theme-toggle .ts-switch::before {
-    width: calc(13 * var(--ts-u));
-    height: calc(11.2 * var(--ts-u));
-    background: var(--txt);
+#theme-toggle.is-3d .ts-visual::before,
+#theme-toggle.is-3d .ts-visual::after {
+    content: none;
 }
 
-#theme-toggle .ts-switch::after {
-    width: calc(13 * var(--ts-u) - 2.4px);
-    height: calc(11.2 * var(--ts-u) - 2px);
-    background: var(--surface);
+/* The plate, lit from the upper left, its bevel shaded on the lower right */
+#theme-toggle .ts-visual::before {
+    left: 15%;
+    top: 4%;
+    width: 70%;
+    height: 91%;
+    border-radius: calc(2.5 * var(--sw-u));
+    background: linear-gradient(165deg, color-mix(in srgb, var(--sw-body), #fff 30%),
+            var(--sw-body) 40%, color-mix(in srgb, var(--sw-body), #000 8%));
+    box-shadow: inset calc(-0.7 * var(--sw-u)) calc(-0.7 * var(--sw-u)) 0 color-mix(in srgb, var(--sw-body), #000 15%);
 }
 
-/* The lever, from the pivot up to a ball: a bar that widens from the pivot
-   (::before) and the ball (::after). Thrown, it turns through the pivot, as a
-   lever seen from the front does, and snaps a little past */
-#theme-toggle .ts-lever {
-    position: absolute;
-    left: 50%;
-    bottom: 50%;
-    z-index: 1;
-    width: calc(8 * var(--ts-u));
-    height: calc(12.5 * var(--ts-u));
-    margin-left: calc(-4 * var(--ts-u));
-    transform-origin: 50% 100%;
-    transition: transform 150ms cubic-bezier(0.34, 1.4, 0.64, 1);
+/* The rocker, ringed by the gap of the opening. Light: the top pressed in (a
+   line of shadow along it), the face turned up to the light, the bottom
+   standing out and throwing a shadow */
+#theme-toggle .ts-visual::after {
+    left: 37%;
+    top: 35%;
+    width: 27%;
+    height: 31%;
+    border-radius: calc(0.6 * var(--sw-u));
+    background:
+        linear-gradient(var(--sw-mark), var(--sw-mark)) 76% 50% / calc(0.45 * var(--sw-u)) 26% no-repeat,
+        linear-gradient(to bottom, var(--sw-gap) 0 7%, color-mix(in srgb, var(--sw-body), #fff 55%) 7%);
+    box-shadow:
+        0 0 0 calc(0.4 * var(--sw-u)) color-mix(in srgb, var(--sw-gap), var(--sw-body) 45%),
+        0 calc(1.4 * var(--sw-u)) calc(0.8 * var(--sw-u)) rgb(0 0 0 / 0.22);
 }
 
-#theme-toggle .ts-lever::before,
-#theme-toggle .ts-lever::after {
-    content: '';
-    position: absolute;
-    left: 50%;
-    transform: translateX(-50%);
-    background: var(--val);
-}
-
-#theme-toggle .ts-lever::before {
-    bottom: 0;
-    width: calc(4 * var(--ts-u));
-    height: calc(9 * var(--ts-u));
-    clip-path: polygon(25% 100%, 75% 100%, 100% 0, 0 0);
-}
-
-#theme-toggle .ts-lever::after {
-    top: 0;
-    width: calc(7 * var(--ts-u));
-    height: calc(7 * var(--ts-u));
-    border-radius: 50%;
-}
-
-body.dark-mode #theme-toggle .ts-lever {
-    transform: scaleY(-1);
-}
-
-#theme-toggle .ts-labels {
-    display: flex;
-    flex-direction: column;
-    gap: calc(3 * var(--ts-u));
-    font-size: calc(11 * var(--text-u));
-    letter-spacing: calc(2 * var(--text-u));
-    text-align: left;
-}
-
-#theme-toggle .ts-labels span {
-    color: var(--txt);
-    transition: color 150ms ease-out;
-}
-
-body:not(.dark-mode) #theme-toggle .ts-light,
-body.dark-mode #theme-toggle .ts-dark {
-    color: var(--val);
-}
-
-@media (prefers-reduced-motion: reduce) {
-    #theme-toggle .ts-lever {
-        transition: none;
-    }
+/* Dark: the top standing out (its edge catching the light), the face turned
+   down into shade, the bottom pressed in, below it the lip of the opening lit */
+body.dark-mode #theme-toggle .ts-visual::after {
+    background:
+        linear-gradient(var(--sw-mark), var(--sw-mark)) 76% 50% / calc(0.45 * var(--sw-u)) 26% no-repeat,
+        linear-gradient(to bottom, color-mix(in srgb, var(--sw-body), #fff 14%) 0 8%,
+            color-mix(in srgb, var(--sw-body), #000 25%) 8% 92%, var(--sw-gap) 92%);
+    box-shadow:
+        0 0 0 calc(0.4 * var(--sw-u)) var(--sw-gap),
+        0 calc(0.9 * var(--sw-u)) 0 calc(0.3 * var(--sw-u)) color-mix(in srgb, var(--sw-body), #fff 22%);
 }
 
 .exp-btn {
@@ -1243,13 +1223,8 @@ body.dark-mode .panel:hover {
     }
 
     #theme-toggle {
-        --ts-u: 0.9px;
+        --sw-u: calc(30px / 36);
         height: 30px;
-    }
-
-    #theme-toggle .ts-labels {
-        font-size: 10px;
-        letter-spacing: 1.5px;
     }
 }
 
@@ -1565,16 +1540,6 @@ body.dark-mode .panel:hover {
         letter-spacing: 1px;
     }
 
-    /* The switch closes up, so the name keeps its size */
-    #theme-toggle {
-        gap: 5px;
-        padding: 0 6px;
-    }
-
-    #theme-toggle .ts-labels {
-        letter-spacing: 1px;
-    }
-
     #sidebar-l .panel:first-child,
     #sidebar-r .panel:last-child {
         padding: 8px;
@@ -1595,16 +1560,6 @@ body.dark-mode .panel:hover {
 @media (max-width: 359px) {
     .exp-btn {
         padding: 8px 6px;
-        letter-spacing: 0.5px;
-    }
-
-    #theme-toggle {
-        --ts-u: 0.8px;
-        gap: 4px;
-        padding: 0 5px;
-    }
-
-    #theme-toggle .ts-labels {
         letter-spacing: 0.5px;
     }
 }
