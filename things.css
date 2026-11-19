@@ -293,8 +293,6 @@ body.things-page #exp-footer {
 @media (max-width: 768px) {
     body.things-page #exp-header {
         position: fixed;
-        left: 16px;
-        right: 16px;
         top: 0;
         height: 48px;
         background: var(--bg);

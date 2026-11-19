@@ -53,7 +53,10 @@
             <span class="exp-type">HIRE</span>
         </div>
         <div class="exp-right">
-            <button id="theme-toggle" class="exp-btn" aria-label="Toggle dark/light mode">DARK</button>
+            <div id="theme-toggle" role="group" aria-label="Color theme">
+                <button type="button" class="exp-btn" data-theme="light" aria-pressed="true">LIGHT</button>
+                <button type="button" class="exp-btn" data-theme="dark" aria-pressed="false">DARK</button>
+            </div>
             <a id="home-btn" class="exp-btn" href="/">&#x2190; HOME</a>
             <a id="blog-btn" class="exp-btn" href="/blog">BLOG</a>
         </div>

@@ -375,8 +375,6 @@ body.work-page #exp-footer {
 @media (max-width: 768px) {
     body.work-page #exp-header {
         position: fixed;
-        left: 16px;
-        right: 16px;
         top: 0;
         height: 48px;
         background: var(--bg);

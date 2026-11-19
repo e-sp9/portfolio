@@ -319,18 +319,11 @@ function animate() {
 let isDarkMode = false;
 
 function applyTheme() {
-    const themeToggle = document.getElementById('theme-toggle');
-    if (!themeToggle) return;
-
-    if (isDarkMode) {
-        document.body.classList.add('dark-mode');
-        themeToggle.textContent = 'LIGHT';
-        themeToggle.classList.add('active');
-    } else {
-        document.body.classList.remove('dark-mode');
-        themeToggle.textContent = 'DARK';
-        themeToggle.classList.remove('active');
-    }
+    document.body.classList.toggle('dark-mode', isDarkMode);
+    // The fill follows body.dark-mode in CSS; aria-pressed tells assistive tech
+    document.querySelectorAll<HTMLElement>('#theme-toggle [data-theme]').forEach((option) => {
+        option.setAttribute('aria-pressed', String((option.dataset.theme === 'dark') === isDarkMode));
+    });
 
     // Update Three.js materials and lighting for theme
     if (!ambientLight) return; // Three.js not initialized yet
@@ -365,15 +358,14 @@ const savedTheme = localStorage.getItem('portfolio-theme');
 isDarkMode = savedTheme === 'dark';
 applyTheme();
 
-// Theme toggle event listener
-const themeToggle = document.getElementById('theme-toggle');
-if (themeToggle) {
-    themeToggle.addEventListener('click', () => {
-        isDarkMode = !isDarkMode;
-        localStorage.setItem('portfolio-theme', isDarkMode ? 'dark' : 'light');
-        applyTheme();
-    });
-}
+// Theme toggle event listener: each side switches to its own theme
+document.getElementById('theme-toggle')?.addEventListener('click', (event) => {
+    const option = (event.target as Element).closest<HTMLElement>('[data-theme]');
+    if (!option) return;
+    isDarkMode = option.dataset.theme === 'dark';
+    localStorage.setItem('portfolio-theme', isDarkMode ? 'dark' : 'light');
+    applyTheme();
+});
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // INIT

@@ -230,32 +230,32 @@ body {
     letter-spacing: calc(3 * var(--text-u));
 }
 
+/* LIGHT / DARK: two header buttons joined into one control, the side of the
+   theme on screen filled. The fill follows body.dark-mode, the class that sets
+   the colours, so the two never disagree, even before the script has run. */
 #theme-toggle {
-    font-family: var(--fm);
-    font-size: calc(14 * var(--text-u));
-    color: var(--val);
-    letter-spacing: calc(3 * var(--text-u));
-    padding: 10px 28px;
-    border: 1px solid var(--border);
-    cursor: pointer;
-    background: var(--surface);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-    transition: background 200ms ease-out, color 200ms ease-out, border-color 200ms ease-out;
-    pointer-events: auto;
-    line-height: 1;
-    align-self: center;
+    display: flex;
 }
 
-#theme-toggle:hover {
-    color: var(--accent);
-    border-color: var(--accent);
+#theme-toggle .exp-btn {
+    position: relative;
 }
 
-#theme-toggle.active {
+#theme-toggle .exp-btn + .exp-btn {
+    margin-left: -1px;
+}
+
+body:not(.dark-mode) #theme-toggle [data-theme="light"],
+body.dark-mode #theme-toggle [data-theme="dark"] {
+    z-index: 1;
     background: var(--val);
     color: var(--bg);
     border-color: var(--val);
+    cursor: default;
+}
+
+#theme-toggle .exp-btn:focus-visible {
+    z-index: 2;
 }
 
 .exp-btn {
@@ -1133,7 +1133,6 @@ body.dark-mode .panel:hover {
         font-size: 14px;
     }
 
-    #theme-toggle,
     .exp-btn {
         font-size: 12px;
         padding: 8px 18px;
@@ -1407,7 +1406,6 @@ body.dark-mode .panel:hover {
 
     /* Header buttons keep the 12px type and 30px frame from the 1000px breakpoint;
        only the tap area reaches past the frame, to 44px tall */
-    #theme-toggle,
     .exp-btn {
         position: relative;
         min-width: 44px;
@@ -1415,7 +1413,6 @@ body.dark-mode .panel:hover {
         white-space: nowrap;
     }
 
-    #theme-toggle::after,
     .exp-btn::after {
         content: '';
         position: absolute;
@@ -1424,6 +1421,14 @@ body.dark-mode .panel:hover {
         top: 50%;
         height: 44px;
         transform: translateY(-50%);
+    }
+
+    /* LIGHT / DARK takes the most room in the row: below 545px its sides narrow
+       with the screen instead of the name (padding 18px -> 6px and
+       letter-spacing 3px -> 1px by 481px) */
+    #theme-toggle .exp-btn {
+        padding-inline: clamp(6px, calc(6px + (100vw - 481px) * 3 / 16), 18px);
+        letter-spacing: clamp(1px, calc(1px + (100vw - 481px) / 32), 3px);
     }
 
     /* --- Dark mode for floating panels --- */
@@ -1436,7 +1441,7 @@ body.dark-mode .panel:hover {
 
 /* --- Extra small screens --- */
 @media (max-width: 480px) {
-    /* Header: three buttons + name must fit in one row down to 320px */
+    /* Header: LIGHT / DARK, two buttons + name must fit in one row down to 320px */
     #exp-header {
         left: 12px;
         right: 12px;
@@ -1449,10 +1454,18 @@ body.dark-mode .panel:hover {
         letter-spacing: clamp(1px, calc(1px + (100vw - 360px) / 30), 2px);
     }
 
-    #theme-toggle,
     .exp-btn {
         padding: 8px 10px;
         letter-spacing: 1px;
+    }
+
+    /* LIGHT / DARK keeps narrowing: padding 6px -> 3px and letter-spacing
+       1px -> 0 from 420px to 390px. Its sides may then be under 44px wide;
+       the tap area is still 44px tall */
+    #theme-toggle .exp-btn {
+        min-width: 0;
+        padding-inline: clamp(3px, calc(3px + (100vw - 390px) / 9), 6px);
+        letter-spacing: clamp(0px, calc((100vw - 390px) / 30), 1px);
     }
 
     #sidebar-l .panel:first-child,
@@ -1473,9 +1486,17 @@ body.dark-mode .panel:hover {
 
 /* Below 360px the header buttons tighten further, so the name still has room */
 @media (max-width: 359px) {
-    #theme-toggle,
     .exp-btn {
         padding: 8px 6px;
         letter-spacing: 0.5px;
+    }
+}
+
+/* Below 335px the name gives way too, as LIGHT / DARK can narrow no further:
+   15px -> 14px and letter-spacing 1px -> 0.5px by 320px */
+@media (max-width: 334px) {
+    .exp-label {
+        font-size: clamp(14px, calc(15px + (100vw - 335px) / 15), 15px);
+        letter-spacing: clamp(0.5px, calc(1px + (100vw - 335px) / 30), 1px);
     }
 }

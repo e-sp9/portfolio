@@ -107,7 +107,10 @@ function layout(page: Page): string {
             <a class="exp-type" href="/blog">BLOG</a>
         </div>
         <div class="exp-right">
-            <button id="theme-toggle" class="exp-btn" aria-label="Toggle dark/light mode">DARK</button>
+            <div id="theme-toggle" role="group" aria-label="Color theme">
+                <button type="button" class="exp-btn" data-theme="light" aria-pressed="true">LIGHT</button>
+                <button type="button" class="exp-btn" data-theme="dark" aria-pressed="false">DARK</button>
+            </div>
             <a id="home-btn" class="exp-btn" href="/">&#x2190; HOME</a>
             <a id="blog-btn" class="exp-btn" href="/blog">BLOG</a>
         </div>
@@ -129,14 +132,19 @@ ${page.main}
         (() => {
             const toggle = document.getElementById('theme-toggle');
             let dark = document.body.classList.contains('dark-mode');
+            // The fill follows body.dark-mode in CSS; aria-pressed tells assistive tech
             const apply = () => {
                 document.body.classList.toggle('dark-mode', dark);
-                toggle.textContent = dark ? 'LIGHT' : 'DARK';
-                toggle.classList.toggle('active', dark);
+                for (const option of toggle.querySelectorAll('[data-theme]')) {
+                    option.setAttribute('aria-pressed', String((option.dataset.theme === 'dark') === dark));
+                }
             };
             apply();
-            toggle.addEventListener('click', () => {
-                dark = !dark;
+            // Each side switches to its own theme
+            toggle.addEventListener('click', (event) => {
+                const option = event.target.closest('[data-theme]');
+                if (!option) return;
+                dark = option.dataset.theme === 'dark';
                 try {
                     localStorage.setItem('portfolio-theme', dark ? 'dark' : 'light');
                 } catch (_) { }

@@ -8,14 +8,18 @@ let isDarkMode = document.body.classList.contains('dark-mode');
 
 function applyTheme() {
     document.body.classList.toggle('dark-mode', isDarkMode);
-    if (!themeToggle) return;
-    themeToggle.textContent = isDarkMode ? 'LIGHT' : 'DARK';
-    themeToggle.classList.toggle('active', isDarkMode);
+    // The fill follows body.dark-mode in CSS; aria-pressed tells assistive tech
+    themeToggle?.querySelectorAll<HTMLElement>('[data-theme]').forEach((option) => {
+        option.setAttribute('aria-pressed', String((option.dataset.theme === 'dark') === isDarkMode));
+    });
 }
 
 applyTheme();
-themeToggle?.addEventListener('click', () => {
-    isDarkMode = !isDarkMode;
+// Each side switches to its own theme
+themeToggle?.addEventListener('click', (event) => {
+    const option = (event.target as Element).closest<HTMLElement>('[data-theme]');
+    if (!option) return;
+    isDarkMode = option.dataset.theme === 'dark';
     try {
         localStorage.setItem('portfolio-theme', isDarkMode ? 'dark' : 'light');
     } catch { }
