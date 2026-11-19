@@ -8,6 +8,7 @@ import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
 import { MODELS, type ModelDef } from './models';
 import { applyMaterialTheme, assignMaterials, type ModelMaterials } from './model-materials';
 import { CAMERA, MOBILE_BP, MOBILE_CANVAS, floatHeight, frameZoom, placeModel } from './view';
+import { advanceAutoMomentum, idleMotion, removeAutoMomentum, shouldClearMomentum } from './idle-motion';
 import './theme-switch';
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -38,6 +39,13 @@ let targetLookUp = 0;
 let applied = 0;
 
 const clock = new THREE.Clock();
+const reducedMotionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+let reducedMotion = reducedMotionQuery.matches;
+let previousReducedMotion: boolean | undefined;
+let autoMomentum = 0;
+reducedMotionQuery.addEventListener('change', (event) => {
+    reducedMotion = event.matches;
+});
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // SCENE SETUP
@@ -70,10 +78,30 @@ function initThree() {
     controls.dampingFactor = 0.04;
     controls.enablePan = false;
     controls.enableZoom = false;
-    controls.autoRotate = true;
+    controls.autoRotate = idleMotion(reducedMotion, 0).autoRotate;
     controls.autoRotateSpeed = 0.5;
     controls.minPolarAngle = Math.PI * 0.3;
     controls.maxPolarAngle = Math.PI * 0.62;
+
+    const orbitControls = controls as OrbitControls & {
+        _sphericalDelta: THREE.Spherical;
+        _getAutoRotationAngle(deltaTime: number | null): number;
+    };
+    const update = controls.update.bind(controls);
+    // Pointer handlers also call update(), so track their damping steps too.
+    controls.update = (deltaTime = null) => {
+        controls.autoRotate = !reducedMotion;
+        if (shouldClearMomentum(previousReducedMotion, reducedMotion)) {
+            orbitControls._sphericalDelta.theta = removeAutoMomentum(orbitControls._sphericalDelta.theta, autoMomentum);
+            autoMomentum = 0;
+        }
+        previousReducedMotion = reducedMotion;
+        const angle = controls.autoRotate && controls.state === -1
+            ? orbitControls._getAutoRotationAngle(deltaTime) : 0;
+        const changed = update(deltaTime);
+        autoMomentum = advanceAutoMomentum(autoMomentum, angle, controls.enableDamping ? controls.dampingFactor : 1);
+        return changed;
+    };
 
     // Lighting
     ambientLight = new THREE.AmbientLight(0x405570, 2.0);
@@ -292,9 +320,11 @@ function lowerCamera(angle: number) {
 function animate() {
     requestAnimationFrame(animate);
     const t = clock.getElapsedTime();
+    const motion = idleMotion(reducedMotion, t);
+    controls.autoRotate = motion.autoRotate;
 
     if (model) {
-        model.position.y = floatHeight(shown, t);
+        model.position.y = floatHeight(shown, motion.floatTime);
         // Ease scale toward target (pop-in on model switch)
         const s = model.scale.x + (targetScale - model.scale.x) * 0.08;
         model.scale.setScalar(s);
