@@ -98,7 +98,7 @@ in `hire-page.ts`), built alongside the top page and linked from its LINKS panel
 ([blog/build.ts](blog/build.ts)) fetches every post once, rewrites the body for reading
 ([blog/article.ts](blog/article.ts): highlighted code, AVIF and WebP images sized for the text column)
 and writes plain HTML plus one stylesheet ([blog.css](blog.css)). The only script on these pages
-is the theme toggle.
+is the theme toggle, which loads its 3D switch ([theme-switch.ts](theme-switch.ts)) once the page is idle.
 
 The microCMS credentials are kept in a local `.env` (git-ignored), and as GitHub Secrets for the deploy workflow:
 

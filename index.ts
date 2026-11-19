@@ -19,6 +19,12 @@ Bun.serve({
     "/work": serveWork,
     "/work/*": serveWork,
     "/work.css": serveWork,
+    // The theme switch of /blog and /work, which have no bundle of their own
+    // (the build writes dist/theme-switch.js: package.json)
+    "/theme-switch.js": async () => {
+      const { outputs } = await Bun.build({ entrypoints: ["./theme-switch.ts"] });
+      return new Response(outputs[0]);
+    },
   },
   // Serve everything under ./public (3D models etc.) so adding a model
   // requires no server changes.

@@ -8,6 +8,7 @@ import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
 import { MODELS, type ModelDef } from './models';
 import { applyMaterialTheme, assignMaterials, type ModelMaterials } from './model-materials';
 import { CAMERA, MOBILE_BP, MOBILE_CANVAS, floatHeight, frameZoom, placeModel } from './view';
+import './theme-switch';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // STATE
@@ -319,18 +320,9 @@ function animate() {
 let isDarkMode = false;
 
 function applyTheme() {
-    const themeToggle = document.getElementById('theme-toggle');
-    if (!themeToggle) return;
-
-    if (isDarkMode) {
-        document.body.classList.add('dark-mode');
-        themeToggle.textContent = 'LIGHT';
-        themeToggle.classList.add('active');
-    } else {
-        document.body.classList.remove('dark-mode');
-        themeToggle.textContent = 'DARK';
-        themeToggle.classList.remove('active');
-    }
+    document.body.classList.toggle('dark-mode', isDarkMode);
+    // The switch follows body.dark-mode (style.css, theme-switch-3d.ts); aria-checked tells assistive tech
+    document.getElementById('theme-toggle')?.setAttribute('aria-checked', String(isDarkMode));
 
     // Update Three.js materials and lighting for theme
     if (!ambientLight) return; // Three.js not initialized yet
@@ -366,14 +358,11 @@ isDarkMode = savedTheme === 'dark';
 applyTheme();
 
 // Theme toggle event listener
-const themeToggle = document.getElementById('theme-toggle');
-if (themeToggle) {
-    themeToggle.addEventListener('click', () => {
-        isDarkMode = !isDarkMode;
-        localStorage.setItem('portfolio-theme', isDarkMode ? 'dark' : 'light');
-        applyTheme();
-    });
-}
+document.getElementById('theme-toggle')?.addEventListener('click', () => {
+    isDarkMode = !isDarkMode;
+    localStorage.setItem('portfolio-theme', isDarkMode ? 'dark' : 'light');
+    applyTheme();
+});
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // INIT

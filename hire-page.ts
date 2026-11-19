@@ -1,3 +1,5 @@
+import './theme-switch';
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // THEME TOGGLE (shares the `portfolio-theme` key with the other pages)
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -8,9 +10,8 @@ let isDarkMode = document.body.classList.contains('dark-mode');
 
 function applyTheme() {
     document.body.classList.toggle('dark-mode', isDarkMode);
-    if (!themeToggle) return;
-    themeToggle.textContent = isDarkMode ? 'LIGHT' : 'DARK';
-    themeToggle.classList.toggle('active', isDarkMode);
+    // The switch follows body.dark-mode (style.css, theme-switch-3d.ts); aria-checked tells assistive tech
+    themeToggle?.setAttribute('aria-checked', String(isDarkMode));
 }
 
 applyTheme();
