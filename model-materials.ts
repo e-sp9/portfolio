@@ -7,7 +7,7 @@ import * as THREE from 'three';
 // `{ "role": "<role>" }` (scripts/generate-gbc.ts writes them). Parts without
 // a role get the generic treatment: the mesh named "screen" gets the screen
 // material, the rest one of three translucent tiers by bounding-box volume
-// rank. Models without roles (the GBA) look exactly as they always have.
+// rank. Every model in models.ts names a role for each of its parts.
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const ROLES = ['shell', 'lens', 'lcd', 'print', 'button', 'rubber', 'cavity'] as const;

@@ -23,9 +23,12 @@ let ambientLight: THREE.AmbientLight | null = null;
 let keyLight: THREE.DirectionalLight | null = null;
 let fillLight: THREE.DirectionalLight | null = null;
 
-let currentIndex = Math.floor(Math.random() * MODELS.length);
+let currentIndex = 0;
 let isLoadingModel = false;
 let targetScale = 1;
+// How far below its default angle the camera looks up (eased like the scale)
+let lookUp = MODELS[currentIndex]!.lookUp ?? 0;
+let targetLookUp = lookUp;
 
 const clock = new THREE.Clock();
 const MOBILE_BP = 768;
@@ -132,6 +135,7 @@ function loadModel(def: ModelDef, opts: { initial?: boolean } = {}) {
             const maxDim = Math.max(size.x, size.y, size.z);
             const scaleFactor = (def.fit ?? 1.5) / maxDim;
             targetScale = scaleFactor;
+            targetLookUp = def.lookUp ?? 0;
             // Pop-in: start slightly small, animate() eases toward targetScale
             model.scale.setScalar(scaleFactor * 0.85);
 
@@ -259,9 +263,20 @@ function handleResize() {
         camera.position.set(0, 0.5, 4.5);
         renderer.setSize(w, h, false);
     }
+    lowerCamera(lookUp);
 
     camera.updateProjectionMatrix();
     if (edgeMat) edgeMat.resolution.set(w, isMobile ? h * 0.6 : h);
+}
+
+const orbit = new THREE.Spherical();
+const offset = new THREE.Vector3();
+
+/** Swings the camera `angle` radians down around the target, keeping its distance and side. */
+function lowerCamera(angle: number) {
+    orbit.setFromVector3(offset.subVectors(camera.position, controls.target));
+    orbit.phi += angle;
+    camera.position.copy(controls.target).add(offset.setFromSpherical(orbit));
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -277,6 +292,11 @@ function animate() {
         // Ease scale toward target (pop-in on model switch)
         const s = model.scale.x + (targetScale - model.scale.x) * 0.08;
         model.scale.setScalar(s);
+        // Swing the camera to the new model's angle at the same pace, by the
+        // change only, so the auto-rotation and a drag carry on
+        const next = lookUp + (targetLookUp - lookUp) * 0.08;
+        lowerCamera(next - lookUp);
+        lookUp = next;
     }
 
     controls.update();
