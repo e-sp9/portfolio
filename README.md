@@ -66,7 +66,9 @@ glass in three tiers by size, and a mesh named `screen` to the dark glossy scree
 To add a model to the rotation: drop the `.glb` into `public/models/` and add one
 entry to [models.ts](models.ts) — it joins the rotation and the footer model selector
 in list order (the first entry is shown on load). `lookUp` lowers the camera for that
-model, so it is seen from a little below (the open clamshells use it).
+model, so it is seen from a little below, and `sink` lowers the model so its whole turn
+stays inside the frame (the open clamshells use both; [view.test.ts](view.test.ts) checks
+every model through a full turn).
 
 ## Things
 
