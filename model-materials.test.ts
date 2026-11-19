@@ -98,22 +98,6 @@ describe('assignMaterials', () => {
         expect(roleOf(part('x', 1, 'chrome'))).toBeUndefined();
         expect(roleOf(part('x', 1))).toBeUndefined();
     });
-});
-
-describe('Game Boy Advance (no roles)', () => {
-    test('keeps the volume tiers it has always had', async () => {
-        const { scene, meshes } = await load('public/models/gba.glb');
-        expect(meshes.filter((m) => roleOf(m))).toEqual([]);
-        const set = assignMaterials(scene);
-        const tierOf = (m: THREE.Mesh) => m.material === set.screen ? 'screen' : `tier${set.tiers.indexOf(m.material as THREE.MeshPhysicalMaterial)}`;
-        expect(Object.fromEntries(meshes.map((m) => [m.name, tierOf(m)]))).toEqual({
-            Gameboy_Base: 'tier0', Frame_Screen: 'tier0', Screen: 'screen',
-            Side_Button_01: 'tier0', Side_Button_02: 'tier0', Side_Button_03: 'tier0', Side_Button_04: 'tier0',
-            Cross_Button: 'tier1', Front_Button_03: 'tier1', Front_Button_04: 'tier1',
-            Screw_01: 'tier1', Screw_03: 'tier1', Screw_05: 'tier1',
-            Front_Button_01: 'tier2', Front_Button_02: 'tier2', Front_Button_05: 'tier2', Screw_02: 'tier2', Screw_04: 'tier2',
-        });
-    });
 
     test('fallback materials keep their theme values', () => {
         const set = assignMaterials(new THREE.Group());

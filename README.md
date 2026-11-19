@@ -2,8 +2,9 @@
 
 Source of **[esp-9.dev](https://esp-9.dev)** — my personal portfolio.
 
-A CRT-monitor-styled single page: procedurally generated 3D models of gadgets I own
-(Game Boy Advance, Game Boy Color, DualShock 4) float and slowly rotate at the center,
+A CRT-monitor-styled single page: procedurally generated 3D models of the handhelds I've
+played, in the order I played them (Game Boy Color, Game Boy Advance SP, Nintendo DS,
+Nintendo 3DS, PSP), float and slowly rotate at the center,
 rendered as translucent glass with crisp feature edges, framed by status panels.
 
 ## Stack
@@ -63,8 +64,11 @@ are in [scripts/model-geometry.ts](scripts/model-geometry.ts)). Parts without a 
 glass in three tiers by size, and a mesh named `screen` to the dark glossy screen.
 
 To add a model to the rotation: drop the `.glb` into `public/models/` and add one
-entry to [models.ts](models.ts) — it automatically joins the random rotation and the
-footer model selector.
+entry to [models.ts](models.ts) — it joins the rotation and the footer model selector
+in list order (the first entry is shown on load). `lookUp` lowers the camera for that
+model, so it is seen from a little below, and `sink` lowers the model so its whole turn
+stays inside the frame (the open clamshells use both; [view.test.ts](view.test.ts) checks
+every model through a full turn).
 
 ## Things
 

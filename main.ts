@@ -7,6 +7,7 @@ import { LineSegmentsGeometry } from 'three/examples/jsm/lines/LineSegmentsGeome
 import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
 import { MODELS, type ModelDef } from './models';
 import { applyMaterialTheme, assignMaterials, type ModelMaterials } from './model-materials';
+import { CAMERA, MOBILE_BP, MOBILE_CANVAS, floatHeight, frameZoom, placeModel } from './view';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // STATE
@@ -23,12 +24,19 @@ let ambientLight: THREE.AmbientLight | null = null;
 let keyLight: THREE.DirectionalLight | null = null;
 let fillLight: THREE.DirectionalLight | null = null;
 
-let currentIndex = Math.floor(Math.random() * MODELS.length);
+let currentIndex = 0;
+// The model on screen (currentIndex moves on while the next one loads)
+let shown: ModelDef = MODELS[currentIndex]!;
 let isLoadingModel = false;
 let targetScale = 1;
+// How far below the user's angle the camera looks up at the model: easing
+// toward the shown model's lookUp like the scale, and the part of it applied
+// within the controls' polar limits
+let lookUp = 0;
+let targetLookUp = 0;
+let applied = 0;
 
 const clock = new THREE.Clock();
-const MOBILE_BP = 768;
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // SCENE SETUP
@@ -52,8 +60,8 @@ function initThree() {
     pmrem.dispose();
 
     // Camera
-    camera = new THREE.PerspectiveCamera(24, 1, 0.1, 100);
-    camera.position.set(0, 0.5, 4.5);
+    camera = new THREE.PerspectiveCamera(CAMERA.desktop.fov, 1, 0.1, 100);
+    camera.position.set(...CAMERA.desktop.position);
 
     // Controls
     controls = new OrbitControls(camera, canvas);
@@ -121,17 +129,10 @@ function loadModel(def: ModelDef, opts: { initial?: boolean } = {}) {
         (gltf) => {
             disposeModel();
             model = gltf.scene;
-            const box = new THREE.Box3().setFromObject(model);
-            const center = box.getCenter(new THREE.Vector3());
-
-            model.position.sub(center);
-            model.rotation.y = def.rotationY ?? 0;
-            model.position.y += 0.05;
-
-            const size = new THREE.Box3().setFromObject(model).getSize(new THREE.Vector3());
-            const maxDim = Math.max(size.x, size.y, size.z);
-            const scaleFactor = (def.fit ?? 1.5) / maxDim;
+            shown = def;
+            const scaleFactor = placeModel(model, def);
             targetScale = scaleFactor;
+            targetLookUp = def.lookUp ?? 0;
             // Pop-in: start slightly small, animate() eases toward targetScale
             model.scale.setScalar(scaleFactor * 0.85);
 
@@ -245,23 +246,42 @@ function handleResize() {
     if (!w || !h) return;
 
     const isMobile = w <= MOBILE_BP;
+    // On mobile, canvas is 60vh
+    const canvasH = isMobile ? h * MOBILE_CANVAS : h;
+    const view = isMobile ? CAMERA.mobile : CAMERA.desktop;
 
-    if (isMobile) {
-        // On mobile, canvas is 60vh
-        const canvasH = h * 0.6;
-        camera.aspect = w / canvasH;
-        camera.fov = 28;
-        camera.position.set(0, 0.5, 4.8);
-        renderer.setSize(w, canvasH, false);
-    } else {
-        camera.aspect = w / h;
-        camera.fov = 24;
-        camera.position.set(0, 0.5, 4.5);
-        renderer.setSize(w, h, false);
-    }
+    camera.aspect = w / canvasH;
+    camera.fov = view.fov;
+    // On desktop, framed for the virtual screen between its bands
+    camera.zoom = isMobile ? 1 : frameZoom(h, h - frameBands());
+    camera.position.set(...view.position);
+    renderer.setSize(w, canvasH, false);
+    applied = lowerCamera(lookUp);
 
     camera.updateProjectionMatrix();
-    if (edgeMat) edgeMat.resolution.set(w, isMobile ? h * 0.6 : h);
+    if (edgeMat) edgeMat.resolution.set(w, canvasH);
+}
+
+/** Height of the bands above and below the virtual screen (style.css) */
+function frameBands() {
+    const style = getComputedStyle(document.documentElement);
+    return (parseFloat(style.getPropertyValue('--vs-top')) || 0) + (parseFloat(style.getPropertyValue('--vs-bottom')) || 0);
+}
+
+const orbit = new THREE.Spherical();
+const offset = new THREE.Vector3();
+
+/**
+ * Swings the camera `angle` radians down around the target, keeping its
+ * distance and side, as far as the controls' polar limits let it.
+ * Returns the angle it swung.
+ */
+function lowerCamera(angle: number) {
+    orbit.setFromVector3(offset.subVectors(camera.position, controls.target));
+    const phi = orbit.phi + angle;
+    orbit.phi = THREE.MathUtils.clamp(phi, controls.minPolarAngle, controls.maxPolarAngle);
+    camera.position.copy(controls.target).add(offset.setFromSpherical(orbit));
+    return angle - (phi - orbit.phi);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -273,13 +293,22 @@ function animate() {
     const t = clock.getElapsedTime();
 
     if (model) {
-        model.position.y = 0.05 + Math.sin(t * 0.7) * 0.025;
+        model.position.y = floatHeight(shown, t);
         // Ease scale toward target (pop-in on model switch)
         const s = model.scale.x + (targetScale - model.scale.x) * 0.08;
         model.scale.setScalar(s);
+        // Swing to the new model's angle at the same pace
+        lookUp += (targetLookUp - lookUp) * 0.08;
     }
 
+    // The controls keep the user's own angle (auto-rotation, drag and its
+    // inertia) within the polar limits; the model's angle goes on top, cut at
+    // the limits. Switching back leaves the user's angle as it would have been.
+    lowerCamera(-applied);
     controls.update();
+    applied = lowerCamera(lookUp);
+    camera.lookAt(controls.target);
+
     renderer.render(scene, camera);
 }
 
