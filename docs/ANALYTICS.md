@@ -10,9 +10,13 @@ agents, full referrer URLs, query strings, or visitor/session identifiers are st
 | `contact_click_x` | event, page pathname | event | 1 |
 
 `utm_source` takes precedence over Referer; only its classification is stored.
-GET requests for HTML asset responses are counted; API and non-HTML assets are not.
-Contact beacons must be same-origin, at most 2048 bytes, and use an allowlisted
-event and a pathname without query or fragment. Invalid beacons still return 204.
+GET requests are counted when the response Content-Type is `text/html`, regardless
+of the URL extension or Accept header; `/api`, `/api/*`, and non-HTML responses are excluded.
+Contact beacons must be at most 2048 bytes and use an allowlisted event and page:
+`/` or `/hire` (`/index.html` and `/hire.html` normalize to those paths).
+Origin must match the request's full origin (scheme, host, and port); when absent,
+Sec-Fetch-Site must be `same-origin`. A present Sec-Fetch-Site must also be `same-origin`.
+Invalid beacons still return 204.
 
 ```sql
 -- Pageviews by referral category (last 7 days).

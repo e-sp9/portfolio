@@ -20,19 +20,19 @@ export function classifyReferrer(referer: string | null, utmSource: string | nul
     return 'other';
 }
 
-export function isHtmlPageRequest(request: Request): boolean {
+export function isHtmlPageRequest(request: Request, response: Response): boolean {
     const path = new URL(request.url).pathname;
     return request.method === 'GET' && path !== '/api' && !path.startsWith('/api/') &&
-        (request.headers.get('Accept')?.includes('text/html') === true ||
-            !/\.[^/]+$/.test(path) || path.endsWith('.html'));
+        response.headers.get('Content-Type')?.split(';')[0]?.trim().toLowerCase() === 'text/html';
 }
 
 export const EVENT_NAMES = ['contact_click_x'] as const;
+const CONTACT_PAGES = new Map([['/', '/'], ['/index.html', '/'], ['/hire', '/hire'], ['/hire.html', '/hire']]);
 
 export function validateBeaconBody(body: unknown): { event: typeof EVENT_NAMES[number]; page: string } | null {
     if (!body || typeof body !== 'object') return null;
     const { event, page } = body as Record<string, unknown>;
-    if (event !== EVENT_NAMES[0] || typeof page !== 'string' || page.length > 1024 ||
-        !page.startsWith('/') || page.startsWith('//') || /[?#\\\s\x00-\x1f]/.test(page)) return null;
-    return { event, page };
+    if (event !== EVENT_NAMES[0] || typeof page !== 'string') return null;
+    const normalizedPage = CONTACT_PAGES.get(page);
+    return normalizedPage ? { event, page: normalizedPage } : null;
 }

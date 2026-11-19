@@ -25,14 +25,18 @@ test('referrer categories and UTM precedence', () => {
 });
 
 test('HTML request detection excludes API and non-GET', () => {
-    for (const path of ['/', '/hire', '/hire.html']) expect(isHtmlPageRequest(new Request(`https://esp-9.dev${path}`))).toBe(true);
-    for (const path of ['/api/event', '/api', '/model.glb', '/image.png']) expect(isHtmlPageRequest(new Request(`https://esp-9.dev${path}`))).toBe(false);
-    expect(isHtmlPageRequest(new Request('https://esp-9.dev/', { method: 'POST' }))).toBe(false);
-    expect(isHtmlPageRequest(new Request('https://esp-9.dev/page.ext', { headers: { Accept: 'text/html' } }))).toBe(true);
+    const html = new Response('', { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
+    for (const path of ['/', '/hire', '/hire.html', '/foo.php']) expect(isHtmlPageRequest(new Request(`https://esp-9.dev${path}`), html)).toBe(true);
+    for (const path of ['/api/event', '/api']) expect(isHtmlPageRequest(new Request(`https://esp-9.dev${path}`), html)).toBe(false);
+    expect(isHtmlPageRequest(new Request('https://esp-9.dev/', { method: 'POST' }), html)).toBe(false);
+    expect(isHtmlPageRequest(new Request('https://esp-9.dev/', { headers: { Accept: 'text/html' } }), new Response(''))).toBe(false);
 });
 
 test('beacon validator accepts only allowlisted events and paths', () => {
     expect(validateBeaconBody({ event: 'contact_click_x', page: '/hire' })).toEqual({ event: 'contact_click_x', page: '/hire' });
+    for (const [page, normalized] of [['/', '/'], ['/index.html', '/'], ['/hire.html', '/hire']]) {
+        expect(validateBeaconBody({ event: 'contact_click_x', page })).toEqual({ event: 'contact_click_x', page: normalized });
+    }
     for (const body of [null, {}, { event: 'evil', page: '/' }, ...['https://evil.test', '//evil.test', '/?secret=x', '/#secret', '/\\evil'].map(page => ({ event: 'contact_click_x', page }))]) {
         expect(validateBeaconBody(body)).toBeNull();
     }
@@ -60,7 +64,12 @@ test('pageview records only path/category and non-HTML assets are not recorded',
     expect(points).toEqual([{ blobs: ['pageview', '/hire', 'ai'], indexes: ['pageview'], doubles: [1] }]);
     await fetchPage('/model.glb', events, undefined, 'application/octet-stream');
     await fetchPage('/missing', events, undefined, 'text/plain');
+    await fetchPage('/api', events);
+    await fetchPage('/api/example', events);
+    await fetchPage('/', events, { method: 'POST' });
     expect(points).toHaveLength(1);
+    await fetchPage('/foo.php', events);
+    expect(points[1]).toEqual({ blobs: ['pageview', '/foo.php', 'direct'], indexes: ['pageview'], doubles: [1] });
 });
 
 test('beacons drop invalid, oversized, cross-origin and disallowed data', async () => {
@@ -71,8 +80,23 @@ test('beacons drop invalid, oversized, cross-origin and disallowed data', async 
         [JSON.stringify({ event: 'evil', page: '/' }), 'https://esp-9.dev'],
         ['{', 'https://esp-9.dev'], ['x'.repeat(2049), 'https://esp-9.dev'],
         [JSON.stringify({ event: 'contact_click_x', page: '/' }), 'https://evil.test'],
+        [JSON.stringify({ event: 'contact_click_x', page: '/' }), 'http://esp-9.dev'],
+        [JSON.stringify({ event: 'contact_click_x', page: '/' }), 'https://esp-9.dev:8443'],
+        [JSON.stringify({ event: 'contact_click_x', page: '/users/alice@example.com' }), 'https://esp-9.dev'],
     ]) {
         expect((await fetchPage('/api/event', events, { method: 'POST', body, headers: { Origin: origin! } })).status).toBe(204);
+    }
+    expect(points).toEqual([{ blobs: ['contact_click_x', '/hire'], indexes: ['contact_click_x'], doubles: [1] }]);
+});
+
+test('beacon requires same-origin fetch metadata when Origin is absent', async () => {
+    const points: unknown[] = [];
+    const events = { writeDataPoint: (point: unknown) => { points.push(point); } };
+    for (const site of [null, 'cross-site', 'same-origin']) {
+        await fetchPage('/api/event', events, {
+            method: 'POST', body: JSON.stringify({ event: 'contact_click_x', page: '/hire' }),
+            headers: site ? { 'Sec-Fetch-Site': site } : {},
+        });
     }
     expect(points).toEqual([{ blobs: ['contact_click_x', '/hire'], indexes: ['contact_click_x'], doubles: [1] }]);
 });

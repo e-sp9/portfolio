@@ -21,7 +21,7 @@ async function recordBeacon(request: Request, env: Env): Promise<void> {
     try {
         const origin = request.headers.get('Origin');
         const site = request.headers.get('Sec-Fetch-Site');
-        if (origin ? new URL(origin).host !== new URL(request.url).host : site !== 'same-origin') return;
+        if (origin ? origin !== new URL(request.url).origin : site !== 'same-origin') return;
         if (site && site !== 'same-origin') return;
         if (Number(request.headers.get('Content-Length')) > 2048) return;
         const reader = request.body?.getReader();
@@ -55,7 +55,7 @@ export default {
             return new Response(null, { status: 204 });
         }
         const response = await env.ASSETS.fetch(request);
-        if (isHtmlPageRequest(request) && response.headers.get('Content-Type')?.includes('text/html')) {
+        if (isHtmlPageRequest(request, response)) {
             ctx.waitUntil(Promise.resolve().then(() => record(env, {
                 blobs: ['pageview', url.pathname, classifyReferrer(request.headers.get('Referer'), url.searchParams.get('utm_source'), url.hostname)],
                 indexes: ['pageview'], doubles: [1],
