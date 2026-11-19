@@ -21,7 +21,7 @@ async function recordBeacon(request: Request, env: Env): Promise<void> {
     try {
         const origin = request.headers.get('Origin');
         const site = request.headers.get('Sec-Fetch-Site');
-        if (origin ? origin !== new URL(request.url).origin : site !== 'same-origin') return;
+        if (origin ? new URL(origin).host !== new URL(request.url).host : site !== 'same-origin') return;
         if (site && site !== 'same-origin') return;
         if (Number(request.headers.get('Content-Length')) > 2048) return;
         const reader = request.body?.getReader();
@@ -51,7 +51,7 @@ export default {
             return Response.redirect(url.toString(), 301);
         }
         if (url.pathname === '/api/event' && request.method === 'POST') {
-            ctx.waitUntil(recordBeacon(request, env));
+            await recordBeacon(request, env);
             return new Response(null, { status: 204 });
         }
         const response = await env.ASSETS.fetch(request);
