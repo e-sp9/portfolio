@@ -1046,6 +1046,17 @@ body.dark-mode .panel:hover {
     }
 }
 
+/* --- Just above 1000px the header type is back to 14px with 28px padding, in
+   the narrowest row. LIGHT / DARK narrows its sides (4px at 1001px, back to
+   28px by 1098px), so the name stays on one line in the fallback Courier New
+   too, which is wider than Share Tech Mono (while the web font loads, or if it
+   fails). On the top page, the tightest, about 16px is left beside it. --- */
+@media (min-width: 1001px) and (max-width: 1097px) {
+    #theme-toggle .exp-btn {
+        padding-inline: max(4px, calc((100vw - 986px) / 4));
+    }
+}
+
 @media (max-width: 1000px) {
     :root {
         --vs-top: 40px;
