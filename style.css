@@ -1,3 +1,17 @@
+/* Courier New narrowed to the advance of Share Tech Mono (0.54em against
+   0.6001em), for the header while the web font loads or if it fails: the header
+   row only has room for Share Tech Mono, most of all on phones. The other names
+   are monospace fonts of the same 0.6em advance, for systems without Courier New.
+   Basic Latin only, so what Share Tech Mono lacks (the ← of ← HOME) still comes
+   from Courier New, as before. Without size-adjust, Courier New stays full width. */
+@font-face {
+    font-family: 'Share Tech Mono Fallback';
+    src: local('Courier New'), local('CourierNewPSMT'), local('Liberation Mono'), local('Cousine'),
+        local('Roboto Mono'), local('Droid Sans Mono'), local('Noto Sans Mono'), local('DejaVu Sans Mono');
+    size-adjust: 89.98%;
+    unicode-range: U+0020-007E;
+}
+
 :root {
     --bg: #f5f5f5;
     --surface: #ffffff;
@@ -13,6 +27,8 @@
     --dim: #999999;
     --fp: 'Share Tech Mono', 'Courier New', monospace;
     --fm: 'Share Tech Mono', 'Courier New', monospace;
+    /* Header: the same, with a fallback as wide as Share Tech Mono (@font-face above) */
+    --fh: 'Share Tech Mono', 'Share Tech Mono Fallback', 'Courier New', monospace;
     /* Neither web font has Japanese glyphs: name the gothic that fills in, rather
        than leave it to the generic family (MS Gothic for monospace on Windows). */
     --font-ja: 'Hiragino Sans', 'Noto Sans JP', 'BIZ UDPGothic', Meiryo, sans-serif;
@@ -192,7 +208,7 @@ body {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    font-family: var(--fp);
+    font-family: var(--fh);
     pointer-events: none;
     z-index: 10;
 }
@@ -259,7 +275,7 @@ body.dark-mode #theme-toggle [data-theme="dark"] {
 }
 
 .exp-btn {
-    font-family: var(--fm);
+    font-family: var(--fh);
     font-size: calc(14 * var(--text-u));
     color: var(--val);
     letter-spacing: calc(3 * var(--text-u));
@@ -1048,9 +1064,10 @@ body.dark-mode .panel:hover {
 
 /* --- Just above 1000px the header type is back to 14px with 28px padding, in
    the narrowest row. LIGHT / DARK narrows its sides (4px at 1001px, back to
-   28px by 1098px), so the name stays on one line in the fallback Courier New
-   too, which is wider than Share Tech Mono (while the web font loads, or if it
-   fails). On the top page, the tightest, about 16px is left beside it. --- */
+   28px by 1098px), so the name stays on one line: Share Tech Mono would wrap
+   it up to 1027px, and Courier New at full width (browsers without size-adjust,
+   see the header fallback at the top) up to 1105px. On the top page, the
+   tightest, about 16px is left beside it even then. --- */
 @media (min-width: 1001px) and (max-width: 1097px) {
     #theme-toggle .exp-btn {
         padding-inline: max(4px, calc((100vw - 986px) / 4));
