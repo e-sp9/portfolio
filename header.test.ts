@@ -25,6 +25,14 @@ describe('theme toggle', () => {
         for (const page of pages) expect(page).toBe(top);
     });
 
+    test('the CSS switch needs no color-mix(), so it shows where the 3D cannot load', async () => {
+        const css = (await Bun.file(join(import.meta.dir, 'style.css')).text()).replace(/\/\*[\s\S]*?\*\//g, '');
+        const rules = [...css.matchAll(/([^{}]*)\{([^{}]*)\}/g)]
+            .filter(([, selector]) => selector!.includes('#theme-toggle'));
+        expect(rules.length).toBeGreaterThan(5);
+        for (const [, selector, body] of rules) expect(`${selector}{${body}}`).not.toContain('color-mix(');
+    });
+
     test('/blog and /work load the 3D switch, which the build writes to dist/', async () => {
         for (const page of [renderWork(), renderBlog([])]) {
             expect(page).toContain('<script type="module" src="/theme-switch.js"></script>');

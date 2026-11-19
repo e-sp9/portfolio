@@ -252,12 +252,21 @@ body {
    WebGL, it is drawn here from the same colours: the plate (::before) and the
    rocker in its opening (::after), following body.dark-mode, so it agrees with
    the page even before any script has run. Sized in --sw-u: the text unit,
-   smaller with the header type at 1000px and below. */
+   smaller with the header type at 1000px and below. The shades are fixed
+   colours, not color-mix(), so browsers without it (Safari to 16.1) draw the
+   switch too: what loads the 3D may fail there. */
 #theme-toggle {
     --sw-u: var(--text-u);
     --sw-body: #efece4;
     --sw-gap: #8f8a7e;
     --sw-mark: #bdb8ac;
+    /* Shades of the body: the plate lit at the upper left and in shade at the
+       lower right, its bevel, the rocker's face turned up, the gap round it */
+    --sw-plate-hi: #f4f2ec;
+    --sw-plate-lo: #dcd9d2;
+    --sw-plate-edge: #cbc9c2;
+    --sw-face: #f8f6f3;
+    --sw-ring: #bab6ac;
     position: relative;
     display: inline-flex;
     align-items: center;
@@ -275,6 +284,13 @@ body.dark-mode #theme-toggle {
     --sw-body: #242424;
     --sw-gap: #050505;
     --sw-mark: #4c4c4c;
+    --sw-plate-hi: #666666;
+    --sw-plate-lo: #212121;
+    --sw-plate-edge: #1f1f1f;
+    /* The rocker's face turned down, its top edge and the lip below it lit */
+    --sw-face: #1b1b1b;
+    --sw-rim: #434343;
+    --sw-lip: #545454;
 }
 
 #theme-toggle .ts-visual {
@@ -308,9 +324,8 @@ body.dark-mode #theme-toggle {
     width: 70%;
     height: 91%;
     border-radius: calc(2.5 * var(--sw-u));
-    background: linear-gradient(165deg, color-mix(in srgb, var(--sw-body), #fff 30%),
-            var(--sw-body) 40%, color-mix(in srgb, var(--sw-body), #000 8%));
-    box-shadow: inset calc(-0.7 * var(--sw-u)) calc(-0.7 * var(--sw-u)) 0 color-mix(in srgb, var(--sw-body), #000 15%);
+    background: linear-gradient(165deg, var(--sw-plate-hi), var(--sw-body) 40%, var(--sw-plate-lo));
+    box-shadow: inset calc(-0.7 * var(--sw-u)) calc(-0.7 * var(--sw-u)) 0 var(--sw-plate-edge);
 }
 
 /* The rocker, ringed by the gap of the opening. Light: the top pressed in (a
@@ -324,10 +339,10 @@ body.dark-mode #theme-toggle {
     border-radius: calc(0.6 * var(--sw-u));
     background:
         linear-gradient(var(--sw-mark), var(--sw-mark)) 76% 50% / calc(0.45 * var(--sw-u)) 26% no-repeat,
-        linear-gradient(to bottom, var(--sw-gap) 0 7%, color-mix(in srgb, var(--sw-body), #fff 55%) 7%);
+        linear-gradient(to bottom, var(--sw-gap) 0 7%, var(--sw-face) 7%);
     box-shadow:
-        0 0 0 calc(0.4 * var(--sw-u)) color-mix(in srgb, var(--sw-gap), var(--sw-body) 45%),
-        0 calc(1.4 * var(--sw-u)) calc(0.8 * var(--sw-u)) rgb(0 0 0 / 0.22);
+        0 0 0 calc(0.4 * var(--sw-u)) var(--sw-ring),
+        0 calc(1.4 * var(--sw-u)) calc(0.8 * var(--sw-u)) rgba(0, 0, 0, 0.22);
 }
 
 /* Dark: the top standing out (its edge catching the light), the face turned
@@ -335,11 +350,10 @@ body.dark-mode #theme-toggle {
 body.dark-mode #theme-toggle .ts-visual::after {
     background:
         linear-gradient(var(--sw-mark), var(--sw-mark)) 76% 50% / calc(0.45 * var(--sw-u)) 26% no-repeat,
-        linear-gradient(to bottom, color-mix(in srgb, var(--sw-body), #fff 14%) 0 8%,
-            color-mix(in srgb, var(--sw-body), #000 25%) 8% 92%, var(--sw-gap) 92%);
+        linear-gradient(to bottom, var(--sw-rim) 0 8%, var(--sw-face) 8% 92%, var(--sw-gap) 92%);
     box-shadow:
         0 0 0 calc(0.4 * var(--sw-u)) var(--sw-gap),
-        0 calc(0.9 * var(--sw-u)) 0 calc(0.3 * var(--sw-u)) color-mix(in srgb, var(--sw-body), #fff 22%);
+        0 calc(0.9 * var(--sw-u)) 0 calc(0.3 * var(--sw-u)) var(--sw-lip);
 }
 
 .exp-btn {
