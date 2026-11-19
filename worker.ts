@@ -1,4 +1,4 @@
-import { classifyReferrer, isHtmlPageRequest, validateBeaconBody } from './analytics';
+import { classifyReferrer, isHtmlPageRequest, pageviewPath, validateBeaconBody } from './analytics';
 
 interface DataPoint {
     blobs: string[];
@@ -57,7 +57,7 @@ export default {
         const response = await env.ASSETS.fetch(request);
         if (isHtmlPageRequest(request, response)) {
             ctx.waitUntil(Promise.resolve().then(() => record(env, {
-                blobs: ['pageview', url.pathname, classifyReferrer(request.headers.get('Referer'), url.searchParams.get('utm_source'), url.hostname)],
+                blobs: ['pageview', pageviewPath(url.pathname), classifyReferrer(request.headers.get('Referer'), url.searchParams.get('utm_source'), url.hostname)],
                 indexes: ['pageview'], doubles: [1],
             })));
         }

@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test';
-import { classifyReferrer, isHtmlPageRequest, validateBeaconBody } from './analytics';
+import { classifyReferrer, isHtmlPageRequest, pageviewPath, validateBeaconBody } from './analytics';
 import worker from './worker';
 
 test('referrer categories and UTM precedence', () => {
@@ -42,10 +42,22 @@ test('beacon validator accepts only allowlisted events and paths', () => {
     }
 });
 
-async function fetchPage(path: string, events?: { writeDataPoint: (point: any) => void }, init?: RequestInit, contentType = 'text/html') {
+test('pageview paths normalize published route shapes and redact other paths', () => {
+    expect(pageviewPath('/')).toBe('/');
+    expect(pageviewPath('/index.html')).toBe('/');
+    for (const path of ['/hire', '/things', '/work', '/blog', '/work/staffing-db', '/work/vc-crm', '/blog/aZ_09-id']) {
+        for (const alias of [path, `${path}/`, `${path}.html`]) expect(pageviewPath(alias)).toBe(path);
+    }
+    for (const path of ['', '/users/alice@example.com', '/work/alice@example', '/work/UPPER', '/work/with_underscore',
+        '/blog/alice@example', '/blog/a.b', '/blog/a%20b', '/blog/id/extra', '/hire//', '/unknown']) {
+        expect(pageviewPath(path)).toBe('other');
+    }
+});
+
+async function fetchPage(path: string, events?: { writeDataPoint: (point: any) => void }, init?: RequestInit, contentType = 'text/html', status = 200) {
     const pending: Promise<unknown>[] = [];
     const response = await worker.fetch(new Request(`https://esp-9.dev${path}`, init), {
-        ASSETS: { fetch: async () => new Response('page', { headers: { 'Content-Type': contentType } }) },
+        ASSETS: { fetch: async () => new Response('page', { status, headers: { 'Content-Type': contentType } }) },
         EVENTS: events,
     }, { waitUntil: promise => { pending.push(promise); } });
     await Promise.all(pending);
@@ -69,7 +81,16 @@ test('pageview records only path/category and non-HTML assets are not recorded',
     await fetchPage('/', events, { method: 'POST' });
     expect(points).toHaveLength(1);
     await fetchPage('/foo.php', events);
-    expect(points[1]).toEqual({ blobs: ['pageview', '/foo.php', 'direct'], indexes: ['pageview'], doubles: [1] });
+    expect(points[1]).toEqual({ blobs: ['pageview', 'other', 'direct'], indexes: ['pageview'], doubles: [1] });
+});
+
+test('HTML errors are not recorded and unexpected successful paths are redacted', async () => {
+    const points: unknown[] = [];
+    const events = { writeDataPoint: (point: unknown) => { points.push(point); } };
+    for (const status of [404, 500, 301]) await fetchPage('/hire', events, undefined, 'text/html', status);
+    expect(points).toEqual([]);
+    await fetchPage('/users/alice@example.com', events, { headers: { Referer: 'https://chatgpt.com/' } });
+    expect(points).toEqual([{ blobs: ['pageview', 'other', 'ai'], indexes: ['pageview'], doubles: [1] }]);
 });
 
 test('beacons drop invalid, oversized, cross-origin and disallowed data', async () => {

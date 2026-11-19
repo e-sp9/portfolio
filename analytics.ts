@@ -22,8 +22,16 @@ export function classifyReferrer(referer: string | null, utmSource: string | nul
 
 export function isHtmlPageRequest(request: Request, response: Response): boolean {
     const path = new URL(request.url).pathname;
-    return request.method === 'GET' && path !== '/api' && !path.startsWith('/api/') &&
+    return request.method === 'GET' && response.status === 200 && path !== '/api' && !path.startsWith('/api/') &&
         response.headers.get('Content-Type')?.split(';')[0]?.trim().toLowerCase() === 'text/html';
+}
+
+export function pageviewPath(path: string): string {
+    if (path === '/' || path === '/index.html') return '/';
+    const clean = path.replace(/\/$/, '').replace(/\.html$/, '');
+    if (/^\/(hire|things|work|blog)$/.test(clean) ||
+        /^\/work\/[a-z0-9-]+$/.test(clean) || /^\/blog\/[A-Za-z0-9_-]+$/.test(clean)) return clean;
+    return 'other';
 }
 
 export const EVENT_NAMES = ['contact_click_x'] as const;
