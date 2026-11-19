@@ -3,12 +3,12 @@ import { join } from 'node:path';
 import { renderIndex as renderBlog } from './blog/pages';
 import { renderIndex as renderWork } from './work/pages';
 
-/** The LIGHT / DARK control of a page, whitespace collapsed */
+/** The theme switch of a page, whitespace collapsed */
 const toggleOf = (html: string) =>
-    html.match(/<div id="theme-toggle"[^>]*>[\s\S]*?<\/div>/)?.[0].replace(/\s+/g, ' ');
+    html.match(/<button type="button" id="theme-toggle"[^>]*>[\s\S]*?<\/button>/)?.[0].replace(/\s+/g, ' ');
 
 describe('theme toggle', () => {
-    test('every page has the same LIGHT / DARK pair, a button per theme', async () => {
+    test('every page has the same lever switch, labelled LIGHT and DARK', async () => {
         const read = (name: string) => Bun.file(join(import.meta.dir, name)).text();
         const pages = [
             await read('index.html'),
@@ -19,10 +19,10 @@ describe('theme toggle', () => {
         ].map(toggleOf);
 
         const [top] = pages;
-        expect(top).toContain('role="group" aria-label="Color theme"');
-        // The markup says light; each page's script sets aria-pressed from the saved theme
-        expect(top).toContain('<button type="button" class="exp-btn" data-theme="light" aria-pressed="true">LIGHT</button>');
-        expect(top).toContain('<button type="button" class="exp-btn" data-theme="dark" aria-pressed="false">DARK</button>');
+        // The markup says light; each page's script sets aria-checked from the saved theme
+        expect(top).toContain('role="switch" aria-checked="false" aria-label="Dark mode"');
+        expect(top).toContain('<span class="ts-lever"></span>');
+        expect(top).toContain('<span class="ts-light">LIGHT</span><span class="ts-dark">DARK</span>');
         for (const page of pages) expect(page).toBe(top);
     });
 });

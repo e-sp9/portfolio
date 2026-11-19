@@ -320,10 +320,8 @@ let isDarkMode = false;
 
 function applyTheme() {
     document.body.classList.toggle('dark-mode', isDarkMode);
-    // The fill follows body.dark-mode in CSS; aria-pressed tells assistive tech
-    document.querySelectorAll<HTMLElement>('#theme-toggle [data-theme]').forEach((option) => {
-        option.setAttribute('aria-pressed', String((option.dataset.theme === 'dark') === isDarkMode));
-    });
+    // The lever follows body.dark-mode in CSS; aria-checked tells assistive tech
+    document.getElementById('theme-toggle')?.setAttribute('aria-checked', String(isDarkMode));
 
     // Update Three.js materials and lighting for theme
     if (!ambientLight) return; // Three.js not initialized yet
@@ -358,11 +356,9 @@ const savedTheme = localStorage.getItem('portfolio-theme');
 isDarkMode = savedTheme === 'dark';
 applyTheme();
 
-// Theme toggle event listener: each side switches to its own theme
-document.getElementById('theme-toggle')?.addEventListener('click', (event) => {
-    const option = (event.target as Element).closest<HTMLElement>('[data-theme]');
-    if (!option) return;
-    isDarkMode = option.dataset.theme === 'dark';
+// Theme toggle event listener
+document.getElementById('theme-toggle')?.addEventListener('click', () => {
+    isDarkMode = !isDarkMode;
     localStorage.setItem('portfolio-theme', isDarkMode ? 'dark' : 'light');
     applyTheme();
 });

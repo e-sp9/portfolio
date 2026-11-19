@@ -107,10 +107,10 @@ function layout(page: Page): string {
             <a class="exp-type" href="/blog">BLOG</a>
         </div>
         <div class="exp-right">
-            <div id="theme-toggle" role="group" aria-label="Color theme">
-                <button type="button" class="exp-btn" data-theme="light" aria-pressed="true">LIGHT</button>
-                <button type="button" class="exp-btn" data-theme="dark" aria-pressed="false">DARK</button>
-            </div>
+            <button type="button" id="theme-toggle" class="exp-btn" role="switch" aria-checked="false" aria-label="Dark mode">
+                <span class="ts-switch"><span class="ts-lever"></span></span>
+                <span class="ts-labels"><span class="ts-light">LIGHT</span><span class="ts-dark">DARK</span></span>
+            </button>
             <a id="home-btn" class="exp-btn" href="/">&#x2190; HOME</a>
             <a id="blog-btn" class="exp-btn" href="/blog">BLOG</a>
         </div>
@@ -132,19 +132,14 @@ ${page.main}
         (() => {
             const toggle = document.getElementById('theme-toggle');
             let dark = document.body.classList.contains('dark-mode');
-            // The fill follows body.dark-mode in CSS; aria-pressed tells assistive tech
+            // The lever follows body.dark-mode in CSS; aria-checked tells assistive tech
             const apply = () => {
                 document.body.classList.toggle('dark-mode', dark);
-                for (const option of toggle.querySelectorAll('[data-theme]')) {
-                    option.setAttribute('aria-pressed', String((option.dataset.theme === 'dark') === dark));
-                }
+                toggle.setAttribute('aria-checked', String(dark));
             };
             apply();
-            // Each side switches to its own theme
-            toggle.addEventListener('click', (event) => {
-                const option = event.target.closest('[data-theme]');
-                if (!option) return;
-                dark = option.dataset.theme === 'dark';
+            toggle.addEventListener('click', () => {
+                dark = !dark;
                 try {
                     localStorage.setItem('portfolio-theme', dark ? 'dark' : 'light');
                 } catch (_) { }
