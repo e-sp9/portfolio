@@ -425,7 +425,12 @@ describe('build', () => {
             'blog/feed.xml',
             'blog/pick1.html',
             'index.html',
+            'llms.txt',
+            'robots.txt',
+            'sitemap.xml',
         ]);
+        expect(await Bun.file(join(dist, 'sitemap.xml')).text()).toContain('https://esp-9.dev/blog/pick1');
+        expect(await Bun.file(join(dist, 'llms.txt')).text()).toContain('https://esp-9.dev/blog/abc123');
         expect(await Bun.file(join(dist, 'index.html')).text()).toContain('<a class="writing-entry" href="/blog/pick1">');
     });
 });
