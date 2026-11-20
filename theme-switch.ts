@@ -8,6 +8,14 @@
 
 const button = document.getElementById('theme-toggle');
 
+document.querySelectorAll<HTMLAnchorElement>('a.link-row[href="https://x.com/e___sp9"]').forEach(link => {
+    link.addEventListener('click', () => {
+        try {
+            navigator.sendBeacon('/api/event', JSON.stringify({ event: 'contact_click_x', page: location.pathname }));
+        } catch { }
+    });
+});
+
 function whenIdle(run: () => void): void {
     if ('requestIdleCallback' in window) window.requestIdleCallback(run, { timeout: 2000 });
     else setTimeout(run, 200);

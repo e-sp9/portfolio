@@ -6,6 +6,7 @@
 		"nodejs_compat"
 	],
 	"main": "worker.ts",
+	"analytics_engine_datasets": [{ "binding": "EVENTS", "dataset": "portfolio_events" }],
 	"assets": {
 		"directory": "./dist",
 		"binding": "ASSETS",
