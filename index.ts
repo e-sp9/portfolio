@@ -3,6 +3,13 @@ import things from "./things.html";
 import hire from "./hire.html";
 import { serveBlog, serveDiscovery } from "./blog/dev";
 import { serveWork } from "./work/site";
+import { serveNotFound, serveNotFoundStyles } from "./not-found/page";
+
+/** A missing post or case gets the 404 page, as in production */
+const orNotFound = (serve: (req: Request) => Promise<Response>) => async (req: Request) => {
+  const response = await serve(req);
+  return response.status === 404 ? serveNotFound() : response;
+};
 
 Bun.serve({
   routes: {
@@ -15,13 +22,15 @@ Bun.serve({
     // The blog comes from microCMS: rendered on request here, written to
     // dist/ by the build (blog/build.ts).
     "/blog": serveBlog,
-    "/blog/*": serveBlog,
+    "/blog/*": orNotFound(serveBlog),
     "/blog.css": serveBlog,
     // The cases come from work/cases.ts: rendered on request here, written to
     // dist/ by the build (work/build.ts).
     "/work": serveWork,
-    "/work/*": serveWork,
+    "/work/*": orNotFound(serveWork),
     "/work.css": serveWork,
+    // The 404 page's stylesheet (the build writes dist/not-found.css: not-found/build.ts)
+    "/not-found.css": serveNotFoundStyles,
     // The theme switch of /blog and /work, which have no bundle of their own
     // (the build writes dist/theme-switch.js: package.json)
     "/theme-switch.js": async () => {
@@ -43,7 +52,7 @@ Bun.serve({
         });
       }
     }
-    return new Response("Not Found", { status: 404 });
+    return serveNotFound();
   },
   development: {
     hmr: true,

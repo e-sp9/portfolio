@@ -2,6 +2,7 @@ import { describe, expect, test } from 'bun:test';
 import { join } from 'node:path';
 import { renderIndex as renderBlog } from './blog/pages';
 import { renderIndex as renderWork } from './work/pages';
+import { renderNotFound } from './not-found/page';
 
 /** The theme switch of a page, whitespace collapsed */
 const toggleOf = (html: string) =>
@@ -16,6 +17,7 @@ describe('theme toggle', () => {
             await read('hire.html'),
             renderWork(),
             renderBlog([]),
+            renderNotFound(),
         ].map(toggleOf);
 
         const [top] = pages;
@@ -33,8 +35,8 @@ describe('theme toggle', () => {
         for (const [, selector, body] of rules) expect(`${selector}{${body}}`).not.toContain('color-mix(');
     });
 
-    test('/blog and /work load the 3D switch, which the build writes to dist/', async () => {
-        for (const page of [renderWork(), renderBlog([])]) {
+    test('/blog, /work and the 404 page load the 3D switch, which the build writes to dist/', async () => {
+        for (const page of [renderWork(), renderBlog([]), renderNotFound()]) {
             expect(page).toContain('<script type="module" src="/theme-switch.js"></script>');
         }
         const pkg = await Bun.file(join(import.meta.dir, 'package.json')).json();

@@ -260,7 +260,21 @@ microCMS で書いた記事の一覧(`/blog`)、記事ページ(`/blog/<記事ID
 - テーマ: `localStorage` の `portfolio-theme` をほかのページと共有。初回描画前に `body.dark-mode` を付けてフラッシュを防ぐ。切り替えは `hire-page.ts`
 - 配信: `bun build ./index.html ./things.html ./hire.html` で `dist/hire.html` を出力。Cloudflare Workers の assets が `/hire` を `hire.html` に解決するので、`worker.ts` と `wrangler.jsonc` は変えていない
 
-## 15. Tech Stack
+## 15. 404 Page
+
+ファイルのないパスを開いたときに出るページ。/work と同じ CRT モニターの言語を使い、3D シーンは持たない。
+
+- レイアウト: ヘッダー(左は `RYOTA KATADA / 404`、右側はテーマのスイッチ / ← HOME / BLOG)、仮想スクリーン枠、フッターは /work と同じ。大きい画面では /things、/blog、/work、/hire と同じく、文字と余白を拡大し、枠をトップと同じ幅で中央に置く
+- 中身: 枠の中央に、`NO SIGNAL`(/blog の、アイキャッチのないカードと同じ表記)、大きな `404`(Share Tech Mono)、「お探しのページは見つかりませんでした。」、開いたパス(`URL /…`)を縦に並べる。その下の `.panel`(PAGES)に、HOME、WORK、BLOG、THINGS、HIRE へのリンクを `.link-row` で置く
+- パス: ページのスクリプトが `location.pathname` を読み、文字として入れる。日本語のパスは読める形に戻す。長いパスはどこでも折り返す。スクリプトが動かないときは、この行を出さない
+- 検索: `noindex` を付け、`canonical` と OGP は付けない
+- 生成: `not-found/build.ts` が `dist/404.html` と `dist/not-found.css` を書き出す。`not-found.css` は `style.css` を取り込んだ 1 ファイル。このページはどの深さの URL でも出るので、CSS、スクリプト、アイコンへの参照は、すべて `/` から始まる絶対パスにしている(`bun build` で HTML を書き出すと相対パスになるため、/work と同じく TypeScript で書き出す)。ページは静的 HTML で、スクリプトはテーマ切り替え(インラインのスクリプトと、3D のスイッチを読み込む `/theme-switch.js`)とパスの表示だけ
+- 開発: `bun run dev` は、どのルートにも当たらないパスと、ない記事・事例に、このページをステータス 404 で返す(`not-found/page.ts`)
+- テーマ: `localStorage` の `portfolio-theme` をほかのページと共有する
+- 配信: `wrangler.jsonc` の `assets.not_found_handling` を `404-page` にしている。Cloudflare Workers の assets は、ファイルのないパスに `dist/404.html` をステータス 404 で返す。Worker を先に動かしていても(`run_worker_first`)、assets のバインディングがこの設定に従う。`/models/` の下などでファイルがないときも、このページが 404 で返る。`/404` を直接開くと、同じページが 200 で返る
+- 計測: Worker は、このページの閲覧をパス `not_found` として記録する(`docs/ANALYTICS.md`)
+
+## 16. Tech Stack
 
 | Layer | Technology |
 |-------|------------|
@@ -269,4 +283,4 @@ microCMS で書いた記事の一覧(`/blog`)、記事ページ(`/blog/<記事ID
 | Styling | Vanilla CSS (CSS Custom Properties) |
 | Blog | microCMS (記事。ビルド時に取得) / Shiki (コードの色付け) |
 | Deploy | Cloudflare Workers (static assets via wrangler) |
-| Build | `bun build ./index.html ./things.html ./hire.html ./theme-switch.ts --outdir ./dist --splitting && bun ./blog/build.ts && bun ./work/build.ts && cp -r ./public/* ./dist/` |
+| Build | `bun build ./index.html ./things.html ./hire.html ./theme-switch.ts --outdir ./dist --splitting && bun ./blog/build.ts && bun ./work/build.ts && bun ./not-found/build.ts && cp -r ./public/* ./dist/` |

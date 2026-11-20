@@ -1079,8 +1079,8 @@ body.dark-mode .panel:hover {
     }
 
     /* Line spacing opens up with the space unit (1.4 at the base). Top page
-       only: .link-label is on /things and /hire too. */
-    body:not(.things-page):not(.blog-page):not(.work-page):not(.hire-page) :is(.skill-name, .career-year, .career-role, .career-company,
+       only: .link-label is on /things, /hire and the 404 page too. */
+    body:not(.things-page):not(.blog-page):not(.work-page):not(.hire-page):not(.not-found-page) :is(.skill-name, .career-year, .career-role, .career-company,
         .project-desc, .project-tech, .work-name, .work-desc, .writing-title, .writing-meta, .link-label) {
         line-height: calc(1.4em + 2 * (var(--space-u) - 1px));
     }
