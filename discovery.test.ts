@@ -35,9 +35,17 @@ test('llms uses existing copy and links in the llmstxt structure', () => {
     expect(llms).toStartWith('# RYOTA KATADA\n\n> ');
     for (const heading of ['## HIRE', '## LINKS', '## BLOG']) expect(llms).toContain(heading);
     for (const value of ['業務委託の開発', 'スポットの相談', '講師', 'https://x.com/e___sp9']) expect(llms).toContain(value);
-    expect(llms).toContain('[A \\[post\\] </script>](https://esp-9.dev/blog/fixture-post)');
+    expect(llms).toContain('[A \\[post\\] \\</script\\>](https://esp-9.dev/blog/fixture-post)');
     for (const item of CASES) expect(llms).toContain(`https://esp-9.dev/work/${item.slug}`);
     expect(renderLlms(index, hire, [], [])).not.toContain('/blog/fixture-post');
+});
+
+test('llms escapes angle brackets so titles cannot become autolinks inside link labels', () => {
+    const title = 'A <https://example.com>';
+    const llms = renderLlms(index, hire, [{ ...post, id: 'autolink-post', title }], [{ ...CASES[0]!, slug: 'autolink-case', title }]);
+    expect(llms).toContain('[A \\<https://example.com\\>](https://esp-9.dev/blog/autolink-post)');
+    expect(llms).toContain('[A \\<https://example.com\\>](https://esp-9.dev/work/autolink-case)');
+    expect(llms).not.toMatch(/(?<!\\)<https:\/\/example\.com/);
 });
 
 test('static pages contain parseable Person and Services matching visible content', () => {

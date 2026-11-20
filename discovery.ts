@@ -22,7 +22,7 @@ export function renderRobots(): string {
 }
 
 const text = (html: string) => unesc(html.replace(/<[^>]*>/g, '')).trim();
-const markdown = (value: string) => value.replaceAll(/([\\\[\]])/g, '\\$1').replaceAll(/[\r\n]+/g, ' ');
+const markdown = (value: string) => value.replaceAll(/([\\\[\]<>])/g, '\\$1').replaceAll(/[\r\n]+/g, ' ');
 
 export function renderLlms(index: string, hire: string, posts: Post[], cases: WorkCase[]): string {
     const name = text(index.match(/<title>(.*?)<\/title>/s)?.[1] ?? '').split(' /')[0]!;
