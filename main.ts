@@ -31,7 +31,6 @@ let keyLight: THREE.DirectionalLight | null = null;
 let fillLight: THREE.DirectionalLight | null = null;
 
 let currentIndex = 0;
-// The model on screen (currentIndex moves on while the next one loads)
 let shown: ModelDef = MODELS[currentIndex]!;
 let isLoadingModel = false;
 let modelLoadError: 'load' | 'unavailable' | null = null;
@@ -162,6 +161,7 @@ function loadModel(def: ModelDef, opts: { initial?: boolean } = {}) {
             disposeModel();
             model = gltf.scene;
             shown = def;
+            currentIndex = MODELS.indexOf(def);
             const scaleFactor = placeModel(model, def);
             targetScale = scaleFactor;
             targetLookUp = def.lookUp ?? 0;
@@ -272,8 +272,8 @@ function updateModelHud() {
 
 function switchModel(dir: 1 | -1) {
     if (isLoadingModel || modelLoadError) return;
-    currentIndex = (currentIndex + dir + MODELS.length) % MODELS.length;
-    loadModel(MODELS[currentIndex]!);
+    const nextIndex = (currentIndex + dir + MODELS.length) % MODELS.length;
+    loadModel(MODELS[nextIndex]!);
 }
 
 modelPrev.addEventListener('click', () => switchModel(-1));
