@@ -1,6 +1,7 @@
 import type { Post } from './blog/microcms';
 import { unesc, esc } from './blog/html';
 import type { WorkCase } from './work/cases';
+import { paginate } from './blog/pagination';
 
 export const ORIGIN = 'https://esp-9.dev';
 
@@ -11,6 +12,7 @@ export function jsonLd(value: unknown): string {
 export function renderSitemap(posts: Post[], cases: WorkCase[]): string {
     const pages = [
         ...['/', '/things', '/hire', '/work', '/blog'].map(path => ({ path, date: '' })),
+        ...paginate(posts).paths.slice(1).map(path => ({ path, date: '' })),
         ...cases.map(item => ({ path: `/work/${item.slug}`, date: '' })),
         ...posts.map(post => ({ path: `/blog/${post.id}`, date: post.revisedAt || post.publishedAt })),
     ];
