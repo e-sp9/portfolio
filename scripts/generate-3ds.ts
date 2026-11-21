@@ -543,4 +543,4 @@ buildLowerHalf();
 buildLid();
 // Fold the lid to OPEN_DEG, stand the console up (STAND_DEG), 1 unit = 134 mm.
 const posed = poseClamshell(parts, { axisY: AXIS_Y, axisZ: AXIS_Z, openDeg: OPEN_DEG, standDeg: STAND_DEG, unitMm: 134 });
-await exportGLB(posed, MATERIALS, 'Nintendo3DS', './public/models/3ds.glb');
+await exportGLB(posed, MATERIALS, 'Nintendo3DS', './public/models/meshopt/3ds.glb');

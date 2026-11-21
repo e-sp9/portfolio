@@ -710,4 +710,4 @@ const MATERIALS: MaterialDefs = {
 buildFront();
 const frame = buildFrame();
 buildBack(frame.strap, frame.backs);
-await exportGLB(pose(parts), MATERIALS, 'PlayStationPortable', './public/models/psp.glb');
+await exportGLB(pose(parts), MATERIALS, 'PlayStationPortable', './public/models/meshopt/psp.glb');

@@ -10,6 +10,8 @@
  *     picks the surface by that role (model-materials.ts).
  */
 import { Document, NodeIO } from '@gltf-transform/core';
+import { EXTMeshoptCompression } from '@gltf-transform/extensions';
+import { MeshoptEncoder } from 'meshoptimizer';
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { Role } from '../model-materials';
@@ -605,7 +607,11 @@ export async function exportGLB(parts: Part[], materials: MaterialDefs, rootName
     root.addChild(node);
   }
 
-  const io = new NodeIO();
+  await MeshoptEncoder.ready;
+  doc.createExtension(EXTMeshoptCompression).setRequired(true);
+  const io = new NodeIO()
+    .registerExtensions([EXTMeshoptCompression])
+    .registerDependencies({ 'meshopt.encoder': MeshoptEncoder });
   const glb = await io.writeBinary(doc);
   await Bun.write(outputPath, glb);
   console.log(`Generated ${outputPath}`);
