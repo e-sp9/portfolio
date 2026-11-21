@@ -2,6 +2,7 @@ import { join } from 'node:path';
 import { renderFeed } from './feed';
 import type { Post } from './microcms';
 import { renderIndex, renderPost } from './pages';
+import { paginate } from './pagination';
 
 /** blog.css imports style.css, so the pages load one stylesheet. */
 async function bundleStyles(): Promise<string> {
@@ -16,6 +17,7 @@ async function bundleStyles(): Promise<string> {
 export function blogFiles(posts: Post[]): Map<string, () => string | Promise<string>> {
     return new Map<string, () => string | Promise<string>>([
         ['blog.html', () => renderIndex(posts)],
+        ...paginate(posts).paths.slice(1).map((path, index) => [`${path.slice(1)}.html`, () => renderIndex(posts, index + 2)] as const),
         ['blog.css', bundleStyles],
         ['blog/feed.xml', () => renderFeed(posts)],
         ...posts.map((post, index) => [`blog/${post.id}.html`, () => renderPost(posts, index)] as const),

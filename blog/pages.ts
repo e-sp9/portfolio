@@ -9,6 +9,7 @@ import { esc } from './html';
 import { THEME_TOGGLE_SCRIPT } from './theme-toggle';
 import type { Eyecatch, Post } from './microcms';
 import { jsonLd } from '../discovery';
+import { blogPagePath, paginate, renderPagination } from './pagination';
 
 export const SITE_URL = 'https://esp-9.dev';
 export const BLOG_TITLE = 'RYOTA KATADA / BLOG';
@@ -200,12 +201,13 @@ function card(post: Post, index: number): string {
 }
 
 /** The list at /blog: every post as a card, newest first. */
-export function renderIndex(posts: Post[]): string {
+export function renderIndex(posts: Post[], page = 1): string {
+    const pagination = paginate(posts, page);
     return layout({
-        title: BLOG_TITLE,
+        title: page === 1 ? BLOG_TITLE : `${BLOG_TITLE} / PAGE ${page}`,
         ogType: 'website',
         description: BLOG_DESCRIPTION,
-        path: '/blog',
+        path: blogPagePath(page),
         main: `        <div class="blog-head">
             <h1 class="ph"><span class="dot b"></span> BLOG</h1>
             <div class="blog-sub">
@@ -216,8 +218,9 @@ export function renderIndex(posts: Post[]): string {
         </div>
 
         <div class="posts-grid">
-${posts.map(card).join('\n')}
-        </div>`,
+${pagination.items.map(card).join('\n')}
+        </div>
+        ${renderPagination(page, pagination.paths)}`,
     });
 }
 
