@@ -7,10 +7,13 @@ import { LineSegments2 } from 'three/examples/jsm/lines/LineSegments2.js';
 import { LineSegmentsGeometry } from 'three/examples/jsm/lines/LineSegmentsGeometry.js';
 import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
 import { MODELS, type ModelDef } from './models';
+import { readStorage, writeStorage } from './storage';
 import { applyMaterialTheme, assignMaterials, type ModelMaterials } from './model-materials';
 import { CAMERA, MOBILE_BP, MOBILE_CANVAS, floatHeight, frameZoom, placeModel } from './view';
 import { advanceAutoMomentum, idleMotion, removeAutoMomentum, shouldClearMomentum } from './idle-motion';
+import { createRenderLoop } from './render-loop';
 import './theme-switch';
+import { hideInitialLoader } from './loader';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // STATE
@@ -31,6 +34,7 @@ let currentIndex = 0;
 // The model on screen (currentIndex moves on while the next one loads)
 let shown: ModelDef = MODELS[currentIndex]!;
 let isLoadingModel = false;
+let modelLoadError: 'load' | 'unavailable' | null = null;
 let targetScale = 1;
 // How far below the user's angle the camera looks up at the model: easing
 // toward the shown model's lookUp like the scale, and the part of it applied
@@ -39,7 +43,6 @@ let lookUp = 0;
 let targetLookUp = 0;
 let applied = 0;
 
-const clock = new THREE.Clock();
 const reducedMotionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
 let reducedMotion = reducedMotionQuery.matches;
 let previousReducedMotion: boolean | undefined;
@@ -85,6 +88,7 @@ function initThree() {
     controls.maxPolarAngle = Math.PI * 0.62;
 
     const orbitControls = controls as OrbitControls & {
+        state: number;
         _sphericalDelta: THREE.Spherical;
         _getAutoRotationAngle(deltaTime: number | null): number;
     };
@@ -97,7 +101,7 @@ function initThree() {
             autoMomentum = 0;
         }
         previousReducedMotion = reducedMotion;
-        const angle = controls.autoRotate && controls.state === -1
+        const angle = controls.autoRotate && orbitControls.state === -1
             ? orbitControls._getAutoRotationAngle(deltaTime) : 0;
         const changed = update(deltaTime);
         autoMomentum = advanceAutoMomentum(autoMomentum, angle, controls.enableDamping ? controls.dampingFactor : 1);
@@ -118,8 +122,6 @@ function initThree() {
 
     handleResize();
     window.addEventListener('resize', handleResize);
-
-    loadModel(MODELS[currentIndex]!, { initial: true });
 
     // Apply theme to Three.js objects (lighting)
     applyTheme();
@@ -149,7 +151,7 @@ function disposeModel() {
 function loadModel(def: ModelDef, opts: { initial?: boolean } = {}) {
     if (isLoadingModel) return;
     isLoadingModel = true;
-    updateModelHud(true);
+    updateModelHud();
 
     const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
     const fill = document.querySelector('.loader-fill') as HTMLElement | null;
@@ -215,15 +217,12 @@ function loadModel(def: ModelDef, opts: { initial?: boolean } = {}) {
             applyTheme();
 
             isLoadingModel = false;
+            modelLoadError = null;
             updateModelHud();
 
             // Fade out loader (initial load only)
             if (opts.initial) {
-                if (fill) fill.style.width = '100%';
-                setTimeout(() => {
-                    const loaderEl = document.getElementById('loader');
-                    if (loaderEl) loaderEl.classList.add('hidden');
-                }, 600);
+                hideInitialLoader(fill, document.getElementById('loader'));
             }
         },
         (xhr) => {
@@ -234,11 +233,11 @@ function loadModel(def: ModelDef, opts: { initial?: boolean } = {}) {
         (err) => {
             console.error('Model load error:', err);
             isLoadingModel = false;
-            updateModelHud();
-            if (opts.initial) {
-                const loaderText = document.querySelector('.loader-text') as HTMLElement | null;
-                if (loaderText) loaderText.textContent = 'LOAD ERROR';
+            if (!model) {
+                modelLoadError = 'load';
+                hideStartupLoader();
             }
+            updateModelHud();
         }
     );
 }
@@ -247,24 +246,41 @@ function loadModel(def: ModelDef, opts: { initial?: boolean } = {}) {
 // MODEL SELECTOR
 // ═══════════════════════════════════════════════════════════════════════════════
 
-function updateModelHud(loading = false) {
-    const label = document.getElementById('model-label');
-    const count = document.getElementById('model-count');
-    if (label) {
-        label.textContent = loading ? 'LOADING...' : MODELS[currentIndex]!.label;
-        label.classList.toggle('loading', loading);
-    }
-    if (count) count.textContent = `${currentIndex + 1}/${MODELS.length}`;
+const modelLabel = document.getElementById('model-label')!;
+const modelCount = document.getElementById('model-count')!;
+const modelPrev = document.getElementById('model-prev')!;
+const modelNext = document.getElementById('model-next')!;
+const modelRetry = document.getElementById('model-retry')!;
+
+function hideStartupLoader() {
+    document.getElementById('loader')?.classList.add('hidden');
+}
+
+function updateModelHud() {
+    const restoreFocus = !modelLoadError && document.activeElement === modelRetry;
+    modelLabel.textContent = isLoadingModel ? 'LOADING...'
+        : modelLoadError === 'load' ? 'MODEL LOAD FAILED'
+        : modelLoadError === 'unavailable' ? '3D VIEW UNAVAILABLE'
+        : MODELS[currentIndex]!.label;
+    modelLabel.classList.toggle('loading', isLoadingModel);
+    modelCount.textContent = `${currentIndex + 1}/${MODELS.length}`;
+    modelCount.hidden = modelPrev.hidden = modelNext.hidden = modelLoadError !== null;
+    modelRetry.hidden = modelLoadError !== 'load';
+    modelRetry.setAttribute('aria-disabled', String(isLoadingModel));
+    if (restoreFocus) modelNext.focus({ preventScroll: true });
 }
 
 function switchModel(dir: 1 | -1) {
-    if (isLoadingModel) return;
+    if (isLoadingModel || modelLoadError) return;
     currentIndex = (currentIndex + dir + MODELS.length) % MODELS.length;
     loadModel(MODELS[currentIndex]!);
 }
 
-document.getElementById('model-prev')?.addEventListener('click', () => switchModel(-1));
-document.getElementById('model-next')?.addEventListener('click', () => switchModel(1));
+modelPrev.addEventListener('click', () => switchModel(-1));
+modelNext.addEventListener('click', () => switchModel(1));
+modelRetry.addEventListener('click', () => {
+    if (modelLoadError === 'load') loadModel(MODELS[currentIndex]!);
+});
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // RESIZE
@@ -318,9 +334,7 @@ function lowerCamera(angle: number) {
 // ANIMATION
 // ═══════════════════════════════════════════════════════════════════════════════
 
-function animate() {
-    requestAnimationFrame(animate);
-    const t = clock.getElapsedTime();
+function animate(t: number) {
     const motion = idleMotion(reducedMotion, t);
     controls.autoRotate = motion.autoRotate;
 
@@ -384,14 +398,14 @@ function applyTheme() {
 }
 
 // Initialize theme from localStorage
-const savedTheme = localStorage.getItem('portfolio-theme');
+const savedTheme = readStorage('portfolio-theme');
 isDarkMode = savedTheme === 'dark';
 applyTheme();
 
 // Theme toggle event listener
 document.getElementById('theme-toggle')?.addEventListener('click', () => {
     isDarkMode = !isDarkMode;
-    localStorage.setItem('portfolio-theme', isDarkMode ? 'dark' : 'light');
+    writeStorage('portfolio-theme', isDarkMode ? 'dark' : 'light');
     applyTheme();
 });
 
@@ -399,5 +413,27 @@ document.getElementById('theme-toggle')?.addEventListener('click', () => {
 // INIT
 // ═══════════════════════════════════════════════════════════════════════════════
 
-initThree();
-animate();
+function start() {
+    try {
+        initThree();
+    } catch (error) {
+        console.error('3D initialization error:', error);
+        modelLoadError = 'unavailable';
+        hideStartupLoader();
+        updateModelHud();
+        return;
+    }
+    loadModel(MODELS[currentIndex]!, { initial: true });
+
+    const setRendering = createRenderLoop(animate);
+    let canvasVisible = false;
+    const updateRendering = () => setRendering(canvasVisible && document.visibilityState === 'visible');
+    const visibilityObserver = new IntersectionObserver(([entry]) => {
+        canvasVisible = entry?.isIntersecting ?? false;
+        updateRendering();
+    });
+    visibilityObserver.observe(document.getElementById('three-canvas')!);
+    document.addEventListener('visibilitychange', updateRendering);
+}
+
+start();

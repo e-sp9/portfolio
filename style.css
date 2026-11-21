@@ -138,13 +138,19 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: opacity 0.8s, visibility 0.8s;
+    transition: opacity 0.2s, visibility 0.2s;
 }
 
 #loader.hidden {
     opacity: 0;
     visibility: hidden;
     pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    #loader {
+        transition: none;
+    }
 }
 
 .loader-inner {
@@ -469,6 +475,20 @@ body.dark-mode #theme-toggle .ts-visual::after {
 
 .model-btn:focus:not(:focus-visible) {
     outline: none;
+}
+
+#model-selector [hidden] {
+    display: none;
+}
+
+#model-retry {
+    width: auto;
+    padding: 0 8px;
+}
+
+#model-retry[aria-disabled="true"] {
+    color: var(--dim);
+    cursor: default;
 }
 
 .model-info {
@@ -1304,6 +1324,20 @@ body.dark-mode .panel:hover {
 
     #model-label {
         font-size: 13px;
+    }
+
+    .model-btn {
+        position: relative;
+    }
+
+    .model-btn::after {
+        content: '';
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        width: 44px;
+        height: 44px;
+        transform: translate(-50%, -50%);
     }
 
     /* --- Sidebars: use display:contents so children flow into grid --- */

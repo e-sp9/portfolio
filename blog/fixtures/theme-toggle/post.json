@@ -1,0 +1,11 @@
+{
+    "id": "theme-parity",
+    "title": "Theme parity",
+    "description": "A fixture without CMS access",
+    "content": "<p>Hello theme</p>",
+    "publishedAt": "2024-08-22T18:40:36.470Z",
+    "revisedAt": "2024-08-22T18:40:36.470Z",
+    "category": "technology",
+    "tags": ["Bun"],
+    "eyecatch": null
+}

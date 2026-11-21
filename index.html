@@ -26,9 +26,15 @@
 
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link
         href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Inter:wght@300;400&display=swap"
-        rel="stylesheet">
+        rel="stylesheet" media="print" onload="this.onload=null;this.media='all'">
+    <noscript>
+        <link
+            href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Inter:wght@300;400&display=swap"
+            rel="stylesheet">
+    </noscript>
 
     <!-- Styles -->
     <link rel="stylesheet" href="./style.css">
@@ -79,8 +85,9 @@
         <div id="model-selector">
             <button class="model-btn" id="model-prev" aria-label="Previous model">&#9664;</button>
             <div class="model-info">
-                <span id="model-label">LOADING...</span>
+                <span id="model-label" role="status">LOADING...</span>
                 <span id="model-count"></span>
+                <button type="button" class="model-btn" id="model-retry" aria-label="Retry model load" hidden>RETRY</button>
             </div>
             <button class="model-btn" id="model-next" aria-label="Next model">&#9654;</button>
         </div>
