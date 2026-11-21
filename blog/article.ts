@@ -203,7 +203,8 @@ export async function renderArticle(
                 const width = Number(el.getAttribute('width'));
                 const height = Number(el.getAttribute('height'));
                 if (Number.isFinite(width) && width > 0 && Number.isFinite(height) && height > 0) {
-                    el.setAttribute('style', `${el.getAttribute('style') ?? ''}; aspect-ratio: ${width} / ${height}; height: auto;`);
+                    const style = el.getAttribute('style');
+                    el.setAttribute('style', `${style ? `${style}; ` : ''}aspect-ratio: ${width} / ${height}; height: auto;`);
                 }
             },
         })
