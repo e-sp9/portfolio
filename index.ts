@@ -2,6 +2,7 @@ import index from "./index.html";
 import things from "./things.html";
 import hire from "./hire.html";
 import { serveBlog, serveDiscovery } from "./blog/dev";
+import { serveBlogStyles } from "./blog/site";
 import { serveWork } from "./work/site";
 import { serveNotFound, serveNotFoundStyles } from "./not-found/page";
 
@@ -23,7 +24,7 @@ Bun.serve({
     // dist/ by the build (blog/build.ts).
     "/blog": serveBlog,
     "/blog/*": orNotFound(serveBlog),
-    "/blog.css": serveBlog,
+    "/blog.css": serveBlogStyles,
     // The cases come from work/cases.ts: rendered on request here, written to
     // dist/ by the build (work/build.ts).
     "/work": serveWork,
