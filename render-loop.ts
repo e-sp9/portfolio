@@ -1,5 +1,5 @@
 export function createRenderLoop(
-    render: (elapsed: number) => void,
+    render: (elapsed: number, delta: number) => void,
     requestFrame = requestAnimationFrame,
     cancelFrame = cancelAnimationFrame,
 ) {
@@ -11,9 +11,10 @@ export function createRenderLoop(
     function tick(now: number) {
         frame = null;
         if (!active) return;
-        if (previous !== null) elapsed += (now - previous) / 1000;
+        const delta = previous === null ? 0 : (now - previous) / 1000;
+        elapsed += delta;
         previous = now;
-        render(elapsed);
+        render(elapsed, delta);
         if (active) frame = requestFrame(tick);
     }
 
