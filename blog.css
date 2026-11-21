@@ -36,6 +36,10 @@ body.blog-page .blog-pagination {
     background: var(--surface);
 }
 
+body.blog-page:not(.dark-mode) .blog-pagination [aria-current="page"] {
+    color: var(--accent-hover);
+}
+
 .blog-pagination [aria-disabled="true"] {
     color: var(--txt);
     border-color: var(--border);
