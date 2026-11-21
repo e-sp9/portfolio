@@ -1,6 +1,6 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // 3D model manifest.
-// To add a model: drop the .glb into public/models/ and add one entry here.
+// To add a model: drop the .glb into public/models/meshopt/ and add one entry here.
 // It joins the rotation and the footer selector in list order; the first entry
 // is shown on load.
 // ─────────────────────────────────────────────────────────────────────────────
@@ -29,10 +29,10 @@ const CLAMSHELL_LOOK_UP = 12 * Math.PI / 180;
 
 // In the order I played them. The sinks center each clamshell's whole turn in the frame at 1440×900.
 export const MODELS: ModelDef[] = [
-    { path: '/models/gbc.glb', label: 'GAME BOY COLOR', fit: 1.35 },
-    { path: '/models/gbasp.glb', label: 'GAME BOY ADVANCE SP', fit: 1.4, lookUp: CLAMSHELL_LOOK_UP, sink: 0.076 },
-    { path: '/models/ds.glb', label: 'NINTENDO DS', fit: 1.34, lookUp: CLAMSHELL_LOOK_UP, sink: 0.098 },
-    { path: '/models/dsi.glb', label: 'NINTENDO DSi', fit: 1.25, lookUp: CLAMSHELL_LOOK_UP, sink: 0.098 },
-    { path: '/models/3ds.glb', label: 'NINTENDO 3DS', fit: 1.22, lookUp: CLAMSHELL_LOOK_UP, sink: 0.098 },
-    { path: '/models/psp.glb', label: 'PSP', fit: 1.45 },
+    { path: '/models/meshopt/gbc.glb', label: 'GAME BOY COLOR', fit: 1.35 },
+    { path: '/models/meshopt/gbasp.glb', label: 'GAME BOY ADVANCE SP', fit: 1.4, lookUp: CLAMSHELL_LOOK_UP, sink: 0.076 },
+    { path: '/models/meshopt/ds.glb', label: 'NINTENDO DS', fit: 1.34, lookUp: CLAMSHELL_LOOK_UP, sink: 0.098 },
+    { path: '/models/meshopt/dsi.glb', label: 'NINTENDO DSi', fit: 1.25, lookUp: CLAMSHELL_LOOK_UP, sink: 0.098 },
+    { path: '/models/meshopt/3ds.glb', label: 'NINTENDO 3DS', fit: 1.22, lookUp: CLAMSHELL_LOOK_UP, sink: 0.098 },
+    { path: '/models/meshopt/psp.glb', label: 'PSP', fit: 1.45 },
 ];

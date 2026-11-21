@@ -113,12 +113,12 @@ describe('assignMaterials', () => {
 
 describe('Game Boy Color', () => {
     test('every part names a known role', async () => {
-        const { meshes } = await load('public/models/gbc.glb');
+        const { meshes } = await load('public/models/meshopt/gbc.glb');
         expect(meshes.filter((m) => !roleOf(m)).map((m) => m.name)).toEqual([]);
     });
 
     test('parts get the finish of what they are', async () => {
-        const { byName } = await load('public/models/gbc.glb');
+        const { byName } = await load('public/models/meshopt/gbc.glb');
         const expected: Record<string, Role> = {
             body_front: 'shell', body_back: 'shell', battery_cover: 'shell',
             screen: 'lens', lcd: 'lcd', logo_strip: 'print',
@@ -130,7 +130,7 @@ describe('Game Boy Color', () => {
     });
 
     test('only the lens reflects; the LCD under it has no coat of its own', async () => {
-        const { scene } = await load('public/models/gbc.glb');
+        const { scene } = await load('public/models/meshopt/gbc.glb');
         const set = assignMaterials(scene);
         const lens = set.roles.get('lens')!, lcd = set.roles.get('lcd')!;
         expect(lens.clearcoat).toBeGreaterThan(0);
@@ -140,7 +140,7 @@ describe('Game Boy Color', () => {
     });
 
     test('theme switches change the role materials', async () => {
-        const { scene } = await load('public/models/gbc.glb');
+        const { scene } = await load('public/models/meshopt/gbc.glb');
         const set = assignMaterials(scene);
         const shell = set.roles.get('shell')!;
         applyMaterialTheme(set, false);
@@ -154,12 +154,12 @@ describe('Game Boy Color', () => {
 
 describe('Game Boy Advance SP', () => {
     test('every part names a known role', async () => {
-        const { meshes } = await load('public/models/gbasp.glb');
+        const { meshes } = await load('public/models/meshopt/gbasp.glb');
         expect(meshes.filter((m) => !roleOf(m)).map((m) => m.name)).toEqual([]);
     });
 
     test('parts get the finish of what they are', async () => {
-        const { byName } = await load('public/models/gbasp.glb');
+        const { byName } = await load('public/models/meshopt/gbasp.glb');
         const expected: Record<string, Role> = {
             base_face: 'shell', base_bottom: 'shell', lid_face: 'shell', lid_back: 'shell',
             knuckles: 'shell', hinge_barrel: 'shell', battery_cover: 'shell',
@@ -173,7 +173,7 @@ describe('Game Boy Advance SP', () => {
     });
 
     test('openings are cut through the shell: no shell face lies across one before its back', async () => {
-        const { scene, meshes, byName } = await load('public/models/gbasp.glb');
+        const { scene, meshes, byName } = await load('public/models/meshopt/gbasp.glb');
         scene.updateMatrixWorld(true);
         for (const m of meshes) (m.material as THREE.Material).side = THREE.DoubleSide;
         const shells = meshes.filter((m) => roleOf(m) === 'shell');
@@ -203,12 +203,12 @@ describe('Game Boy Advance SP', () => {
 
 describe('Nintendo DS', () => {
     test('every part names a known role', async () => {
-        const { meshes } = await load('public/models/ds.glb');
+        const { meshes } = await load('public/models/meshopt/ds.glb');
         expect(meshes.filter((m) => !roleOf(m)).map((m) => m.name)).toEqual([]);
     });
 
     test('parts get the finish of what they are', async () => {
-        const { byName } = await load('public/models/ds.glb');
+        const { byName } = await load('public/models/meshopt/ds.glb');
         const expected: Record<string, Role> = {
             base_face: 'shell', base_bottom: 'shell', lid_face: 'shell', lid_back: 'shell',
             knuckles: 'shell', hinge_barrel: 'shell', battery_cover: 'shell',
@@ -224,7 +224,7 @@ describe('Nintendo DS', () => {
     });
 
     test('openings are cut through the shell: no shell face lies across one before its back', async () => {
-        const { scene, meshes, byName } = await load('public/models/ds.glb');
+        const { scene, meshes, byName } = await load('public/models/meshopt/ds.glb');
         scene.updateMatrixWorld(true);
         for (const m of meshes) (m.material as THREE.Material).side = THREE.DoubleSide;
         const shells = meshes.filter((m) => roleOf(m) === 'shell');
@@ -252,12 +252,12 @@ describe('Nintendo DS', () => {
     });
 
     test('no two faces lie in one plane over each other', async () => {
-        const { scene } = await load('public/models/ds.glb');
+        const { scene } = await load('public/models/meshopt/ds.glb');
         expect(coplanarOverlaps(scene, 148.7)).toEqual([]);
     });
 
     test('the open lid stays clear of the lower half\'s face', async () => {
-        const { scene, byName } = await load('public/models/ds.glb');
+        const { scene, byName } = await load('public/models/meshopt/ds.glb');
         scene.updateMatrixWorld(true);
         const points = (name: string) => {
             const m = byName.get(name)!, p = m.geometry.getAttribute('position');

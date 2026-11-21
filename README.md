@@ -49,9 +49,9 @@ using proportions measured from reference photos of the real hardware, then expo
 to `.glb` with glTF Transform:
 
 ```bash
-bun scripts/generate-gbc.ts   # -> public/models/gbc.glb
-bun scripts/generate-gbasp.ts # -> public/models/gbasp.glb
-bun scripts/generate-ds4.ts   # -> public/models/ds4.glb
+bun scripts/generate-gbc.ts   # -> public/models/meshopt/gbc.glb
+bun scripts/generate-gbasp.ts # -> public/models/meshopt/gbasp.glb
+bun scripts/generate-ds.ts   # -> public/models/meshopt/ds.glb
 ```
 
 The viewer ([main.ts](main.ts)) replaces the materials in the `.glb` and draws edge
@@ -63,7 +63,7 @@ the part gets that surface from [model-materials.ts](model-materials.ts).
 are in [scripts/model-geometry.ts](scripts/model-geometry.ts)). Parts without a role fall back to translucent
 glass in three tiers by size, and a mesh named `screen` to the dark glossy screen.
 
-To add a model to the rotation: drop the `.glb` into `public/models/` and add one
+To add a model to the rotation: drop the `.glb` into `public/models/meshopt/` and add one
 entry to [models.ts](models.ts) — it joins the rotation and the footer model selector
 in list order (the first entry is shown on load). `lookUp` lowers the camera for that
 model, so it is seen from a little below, and `sink` lowers the model so its whole turn

@@ -4,8 +4,8 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import { roleOf, type Role } from './model-materials';
 
-// public/models/dsi.glb, written by scripts/generate-dsi.ts (1 unit = 137 mm)
-const PATH = 'public/models/dsi.glb', MM = 137;
+// public/models/meshopt/dsi.glb, written by scripts/generate-dsi.ts (1 unit = 137 mm)
+const PATH = 'public/models/meshopt/dsi.glb', MM = 137;
 
 async function load() {
     const gltf = await new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).parseAsync(await Bun.file(PATH).arrayBuffer(), '');

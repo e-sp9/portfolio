@@ -23,3 +23,12 @@ test('compressed models fail explicitly without the meshopt decoder', async () =
     const bytes = await Bun.file(`public${MODELS[0]!.path}`).arrayBuffer();
     await expect(new GLTFLoader().parseAsync(bytes, '')).rejects.toThrow('setMeshoptDecoder');
 });
+
+test('tabs opened before compression can still load their original model URLs', async () => {
+    const loader = new GLTFLoader();
+    for (const model of ['gbc', 'gbasp', 'ds', 'dsi', '3ds', 'psp']) {
+        const bytes = await Bun.file(`public/models/${model}.glb`).arrayBuffer();
+        const gltf = await loader.parseAsync(bytes, '');
+        expect(gltf.scene.children.length).toBeGreaterThan(0);
+    }
+});

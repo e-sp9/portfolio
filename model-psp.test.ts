@@ -69,12 +69,12 @@ function coplanarOverlaps(scene: THREE.Object3D, mm: number): string[] {
 
 describe('PSP (PSP-1000)', () => {
     test('every part names a known role', async () => {
-        const { meshes } = await load('public/models/psp.glb');
+        const { meshes } = await load('public/models/meshopt/psp.glb');
         expect(meshes.filter((m) => !roleOf(m)).map((m) => m.name)).toEqual([]);
     });
 
     test('parts get the finish of what they are', async () => {
-        const { byName } = await load('public/models/psp.glb');
+        const { byName } = await load('public/models/meshopt/psp.glb');
         const expected: Record<string, Role> = {
             front_shell: 'shell', frame: 'shell', corner_pieces: 'shell', back_shell: 'shell',
             battery_cover: 'shell', grip_left: 'shell', umd_door: 'shell', ms_cover: 'shell', button_ring: 'shell', push_button: 'shell',
@@ -91,7 +91,7 @@ describe('PSP (PSP-1000)', () => {
     });
 
     test('is 170 x 74 x 23 mm without the keys that stand out of it', async () => {
-        const { byName } = await load('public/models/psp.glb');
+        const { byName } = await load('public/models/meshopt/psp.glb');
         const box = new THREE.Box3();
         for (const name of ['front_shell', 'frame', 'corner_pieces', 'back_shell', 'battery_cover', 'grip_left', 'button_l', 'button_r']) {
             box.expandByObject(byName.get(name)!);
@@ -101,7 +101,7 @@ describe('PSP (PSP-1000)', () => {
     });
 
     test('openings are cut through the shell: no shell face lies across one before its back', async () => {
-        const { meshes, byName } = await load('public/models/psp.glb');
+        const { meshes, byName } = await load('public/models/meshopt/psp.glb');
         for (const m of meshes) (m.material as THREE.Material).side = THREE.DoubleSide;
         const shells = meshes.filter((m) => roleOf(m) === 'shell');
         const ray = new THREE.Raycaster();
@@ -129,12 +129,12 @@ describe('PSP (PSP-1000)', () => {
     });
 
     test('no two faces lie in one plane over each other', async () => {
-        const { scene } = await load('public/models/psp.glb');
+        const { scene } = await load('public/models/meshopt/psp.glb');
         expect(coplanarOverlaps(scene, MM)).toEqual([]);
     });
 
     test('the frame\'s outer wall only folds along the body\'s outline, so its cut-outs draw no stray lines', async () => {
-        const { byName } = await load('public/models/psp.glb');
+        const { byName } = await load('public/models/meshopt/psp.glb');
         const frame = byName.get('frame')!, pos = frame.geometry.getAttribute('position'), idx = frame.geometry.index!;
         const at = (i: number) => new THREE.Vector3().fromBufferAttribute(pos, i).applyMatrix4(frame.matrixWorld).multiplyScalar(MM);
         const verts = Array.from({ length: pos.count }, (_, i) => at(i));

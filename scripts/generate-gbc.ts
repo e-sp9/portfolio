@@ -387,4 +387,4 @@ const MATERIALS: MaterialDefs = {
 };
 
 buildParts();
-await exportGLB(parts, MATERIALS, 'GameBoyColor', './public/models/gbc.glb');
+await exportGLB(parts, MATERIALS, 'GameBoyColor', './public/models/meshopt/gbc.glb');

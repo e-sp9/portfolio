@@ -6,7 +6,12 @@ are kept at their original precision: there is no quantization, simplification,
 mesh merging, or material deduplication. Mesh/node names and material
 `extras.role` remain available to the runtime's material assignment.
 
-Regenerate from the procedural sources, not from already compressed assets:
+The current viewer loads compressed assets from `/models/meshopt/`. The original
+six uncompressed files under `/models/` serve tabs opened before the decoder
+shipped. The generators write only to `public/models/meshopt/` so those tabs
+can keep switching models.
+
+To regenerate the compressed files, run the procedural generators.
 
 ```sh
 bun install --frozen-lockfile

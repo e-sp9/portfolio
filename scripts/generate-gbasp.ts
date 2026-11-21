@@ -421,4 +421,4 @@ buildLowerHalf();
 buildLid();
 // Fold the lid to OPEN_DEG, stand the console up (STAND_DEG), 1 unit = 82 mm.
 const posed = poseClamshell(parts, { axisY: AXIS_Y, axisZ: AXIS_Z, openDeg: OPEN_DEG, standDeg: STAND_DEG, unitMm: 82 });
-await exportGLB(posed, MATERIALS, 'GameBoyAdvanceSP', './public/models/gbasp.glb');
+await exportGLB(posed, MATERIALS, 'GameBoyAdvanceSP', './public/models/meshopt/gbasp.glb');
