@@ -1050,6 +1050,15 @@ body.dark-mode .panel:hover {
     }
 }
 
+@media (prefers-reduced-motion: reduce) {
+    #dither,
+    .dot,
+    .loader-text,
+    #model-label.loading {
+        animation: none;
+    }
+}
+
 /* ═══════════════════════════════════════════════════════════════════════════════
    RESPONSIVE
    ═══════════════════════════════════════════════════════════════════════════════ */
