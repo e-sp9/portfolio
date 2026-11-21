@@ -13,7 +13,7 @@ function autoRotationAfterSecond(hz: number) {
     controls.enableDamping = false;
     let next: FrameRequestCallback = () => {};
     const visible = createRenderLoop(
-        (_elapsed: number, delta?: number) => { controls.update(delta); },
+        (_elapsed, delta) => { controls.update(delta); },
         callback => { next = callback; return 1; },
         () => {},
     );
@@ -28,7 +28,6 @@ function autoRotationAfterSecond(hz: number) {
 test('one second of auto-rotation matches the legacy 60Hz angle at 60Hz and 120Hz', () => {
     const at60 = autoRotationAfterSecond(60);
     const at120 = autoRotationAfterSecond(120);
-    console.log(JSON.stringify({ at60, at120, degrees60: at60 * 180 / Math.PI, degrees120: at120 * 180 / Math.PI }));
     expect(at60).toBeCloseTo(-2 * Math.PI / 60 * 0.5, 12);
     expect(at120).toBeCloseTo(at60, 12);
 });
