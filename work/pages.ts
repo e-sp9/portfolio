@@ -5,6 +5,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { esc } from '../blog/html';
+import { THEME_TOGGLE_SCRIPT } from '../blog/theme-toggle';
 import { CASES, OPERATIONS, type WorkCase } from './cases';
 
 const SITE_URL = 'https://esp-9.dev';
@@ -104,26 +105,7 @@ ${page.main}
         <span class="ef-copy">&copy; 2026 RYOTA KATADA</span>
     </div>
 
-    <!-- Theme toggle (shares the \`portfolio-theme\` key with the other pages) -->
-    <script>
-        (() => {
-            const toggle = document.getElementById('theme-toggle');
-            let dark = document.body.classList.contains('dark-mode');
-            // The switch follows body.dark-mode (style.css, theme-switch-3d.ts); aria-checked tells assistive tech
-            const apply = () => {
-                document.body.classList.toggle('dark-mode', dark);
-                toggle.setAttribute('aria-checked', String(dark));
-            };
-            apply();
-            toggle.addEventListener('click', () => {
-                dark = !dark;
-                try {
-                    localStorage.setItem('portfolio-theme', dark ? 'dark' : 'light');
-                } catch (_) { }
-                apply();
-            });
-        })();
-    </script>
+${THEME_TOGGLE_SCRIPT}
     <!-- The switch in 3D, once the page has loaded (theme-switch.ts) -->
     <script type="module" src="/theme-switch.js"></script>
 </body>
