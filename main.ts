@@ -10,6 +10,7 @@ import { applyMaterialTheme, assignMaterials, type ModelMaterials } from './mode
 import { CAMERA, MOBILE_BP, MOBILE_CANVAS, floatHeight, frameZoom, placeModel } from './view';
 import { advanceAutoMomentum, idleMotion, removeAutoMomentum, shouldClearMomentum } from './idle-motion';
 import './theme-switch';
+import { hideInitialLoader } from './loader';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // STATE
@@ -218,11 +219,7 @@ function loadModel(def: ModelDef, opts: { initial?: boolean } = {}) {
 
             // Fade out loader (initial load only)
             if (opts.initial) {
-                if (fill) fill.style.width = '100%';
-                setTimeout(() => {
-                    const loaderEl = document.getElementById('loader');
-                    if (loaderEl) loaderEl.classList.add('hidden');
-                }, 600);
+                hideInitialLoader(fill, document.getElementById('loader'));
             }
         },
         (xhr) => {
