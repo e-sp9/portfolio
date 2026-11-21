@@ -1,5 +1,5 @@
-export function themeToggleScript(): string {
-    return `    <!-- Theme toggle (shares the \`portfolio-theme\` key with the other pages) -->
+/** The shared inline controller for the theme switch. */
+export const THEME_TOGGLE_SCRIPT = `    <!-- Theme toggle (shares the \`portfolio-theme\` key with the other pages) -->
     <script>
         (() => {
             const toggle = document.getElementById('theme-toggle');
@@ -19,4 +19,3 @@ export function themeToggleScript(): string {
             });
         })();
     </script>`;
-}

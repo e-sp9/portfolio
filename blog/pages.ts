@@ -6,7 +6,7 @@
 
 import { type Frame, renderArticle, resized, shared, WIDE_SCALE } from './article';
 import { esc } from './html';
-import { themeToggleScript } from './theme-toggle';
+import { THEME_TOGGLE_SCRIPT } from './theme-toggle';
 import type { Eyecatch, Post } from './microcms';
 import { jsonLd } from '../discovery';
 
@@ -128,7 +128,7 @@ ${page.main}
         <span class="ef-copy">&copy; 2026 RYOTA KATADA</span>
     </div>
 
-${themeToggleScript()}
+${THEME_TOGGLE_SCRIPT}
     <!-- The switch in 3D, once the page has loaded (theme-switch.ts) -->
     <script type="module" src="/theme-switch.js"></script>
 </body>

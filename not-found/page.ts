@@ -7,7 +7,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { join } from 'node:path';
-import { themeToggleScript } from '../blog/theme-toggle';
+import { THEME_TOGGLE_SCRIPT } from '../blog/theme-toggle';
 
 /** Where a lost reader can go next: the pages the header and the top page lead to */
 export const NOT_FOUND_LINKS = [
@@ -112,7 +112,7 @@ ${NOT_FOUND_LINKS.map(link).join('\n')}
             document.querySelector('.nf-path').hidden = false;
         })();
     </script>
-${themeToggleScript()}
+${THEME_TOGGLE_SCRIPT}
     <!-- The switch in 3D, once the page has loaded (theme-switch.ts) -->
     <script type="module" src="/theme-switch.js"></script>
 </body>

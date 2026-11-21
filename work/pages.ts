@@ -5,7 +5,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { esc } from '../blog/html';
-import { themeToggleScript } from '../blog/theme-toggle';
+import { THEME_TOGGLE_SCRIPT } from '../blog/theme-toggle';
 import { CASES, OPERATIONS, type WorkCase } from './cases';
 
 const SITE_URL = 'https://esp-9.dev';
@@ -105,7 +105,7 @@ ${page.main}
         <span class="ef-copy">&copy; 2026 RYOTA KATADA</span>
     </div>
 
-${themeToggleScript()}
+${THEME_TOGGLE_SCRIPT}
     <!-- The switch in 3D, once the page has loaded (theme-switch.ts) -->
     <script type="module" src="/theme-switch.js"></script>
 </body>
