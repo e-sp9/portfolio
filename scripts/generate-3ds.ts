@@ -33,7 +33,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import {
-  arcOutline, buttonGeometry, circle, cutWall, disc, dpadGeometry, exportGLB, fanCap, fixedOutline, flatCap,
+  arcOutline, buttonGeometry, circle, cutWall, disc, dpadGeometry, dpadOutline, exportGLB, fanCap, fixedOutline, flatCap,
   indexedGeometry, mergedAt, openShell, plate, polygon, poseClamshell, qToFront, qToLeft, qToRight, qToTop, qX90,
   qY180, quad, recess, recessWall, rimRings, roundedRect, sharpRect, shoulderBand, srgb, sweepSide,
   type MaterialDefs, type Outline, type Part, type Ring,
@@ -288,8 +288,7 @@ function buildLowerHalf() {
 
   // The D-pad well's floor is cut to the D-pad's base (the same points dpadGeometry uses).
   const S = 9, T = 2.8;
-  const dpadBase = [[S, -T], [S, T], [T, T], [T, S], [-T, S], [-T, T], [-S, T], [-S, -T], [-T, -T], [-T, -S], [T, -S], [T, -T]]
-    .map(([x, y]) => new THREE.Vector2(dpad.x + x!, dpad.y + y!));
+  const dpadBase = dpadOutline(S, T, dpad.x, dpad.y);
   add('base_face', mergeGeometries([
     sweepSide(faceOutline, rings, 1, undefined,
       (i, r) => r === 0 && [frontWall, rightWall, leftWall, ...underKnuckles].includes(i)),
