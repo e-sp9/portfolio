@@ -84,6 +84,7 @@ function initThree() {
     controls.maxPolarAngle = Math.PI * 0.62;
 
     const orbitControls = controls as OrbitControls & {
+        state: number;
         _sphericalDelta: THREE.Spherical;
         _getAutoRotationAngle(deltaTime: number | null): number;
     };
@@ -96,7 +97,7 @@ function initThree() {
             autoMomentum = 0;
         }
         previousReducedMotion = reducedMotion;
-        const angle = controls.autoRotate && controls.state === -1
+        const angle = controls.autoRotate && orbitControls.state === -1
             ? orbitControls._getAutoRotationAngle(deltaTime) : 0;
         const changed = update(deltaTime);
         autoMomentum = advanceAutoMomentum(autoMomentum, angle, controls.enableDamping ? controls.dampingFactor : 1);

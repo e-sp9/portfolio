@@ -34,7 +34,7 @@ test('HTML request detection excludes API and non-GET', () => {
 
 test('beacon validator accepts only allowlisted events and paths', () => {
     expect(validateBeaconBody({ event: 'contact_click_x', page: '/hire' })).toEqual({ event: 'contact_click_x', page: '/hire' });
-    for (const [page, normalized] of [['/', '/'], ['/index.html', '/'], ['/hire.html', '/hire']]) {
+    for (const [page, normalized] of [['/', '/'], ['/index.html', '/'], ['/hire.html', '/hire']] as const) {
         expect(validateBeaconBody({ event: 'contact_click_x', page })).toEqual({ event: 'contact_click_x', page: normalized });
     }
     for (const body of [null, {}, { event: 'evil', page: '/' }, ...['https://evil.test', '//evil.test', '/?secret=x', '/#secret', '/\\evil'].map(page => ({ event: 'contact_click_x', page }))]) {
@@ -138,8 +138,8 @@ test('beacons drop invalid, oversized, cross-origin and disallowed data', async 
         [JSON.stringify({ event: 'contact_click_x', page: '/' }), 'http://esp-9.dev'],
         [JSON.stringify({ event: 'contact_click_x', page: '/' }), 'https://esp-9.dev:8443'],
         [JSON.stringify({ event: 'contact_click_x', page: '/users/alice@example.com' }), 'https://esp-9.dev'],
-    ]) {
-        expect((await fetchPage('/api/event', events, { method: 'POST', body, headers: { Origin: origin! } })).status).toBe(204);
+    ] as const) {
+        expect((await fetchPage('/api/event', events, { method: 'POST', body, headers: { Origin: origin } })).status).toBe(204);
     }
     expect(points).toEqual([{ blobs: ['contact_click_x', '/hire'], indexes: ['contact_click_x'], doubles: [1] }]);
 });
