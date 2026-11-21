@@ -6,7 +6,7 @@
 
 import { type Frame, renderArticle, resized, shared, WIDE_SCALE } from './article';
 import { esc } from './html';
-import { THEME_TOGGLE_SCRIPT } from './theme-toggle';
+import { PAGE_ICONS, renderPageShell } from '../page-shell';
 import type { Eyecatch, Post } from './microcms';
 import { jsonLd } from '../discovery';
 
@@ -55,12 +55,7 @@ function layout(page: Page): string {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>${esc(page.title)}</title>
     <meta name="description" content="${esc(page.description)}">
-    <meta name="theme-color" content="#f5f5f5">
-    <link rel="icon" href="/favicon.ico" sizes="32x32">
-    <link rel="icon" href="/favicon.svg" type="image/svg+xml">
-    <link rel="icon" href="/favicon-32.png" type="image/png" sizes="32x32">
-    <link rel="icon" href="/favicon-16.png" type="image/png" sizes="16x16">
-    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+${PAGE_ICONS}
     <link rel="canonical" href="${url}">
     <link rel="alternate" type="application/rss+xml" title="${BLOG_TITLE}" href="/blog/feed.xml">
 
@@ -90,51 +85,13 @@ function layout(page: Page): string {
 
 </head>
 
-<body class="blog-page">
-    <!-- Apply saved theme before first paint to avoid a light flash -->
-    <script>
-        try {
-            if (localStorage.getItem('portfolio-theme') === 'dark') document.body.classList.add('dark-mode');
-        } catch (_) { }
-    </script>
-    <!-- CRT Effects -->
-    <div id="scanlines"></div>
-    <div id="dither"></div>
-
-    <!-- Header -->
-    <div id="exp-header">
-        <div class="exp-left">
-            <a class="exp-label" href="/">RYOTA KATADA</a>
-            <span class="exp-sep">/</span>
-            <a class="exp-type" href="/blog">BLOG</a>
-        </div>
-        <div class="exp-right">
-            <button type="button" id="theme-toggle" class="exp-btn" role="switch" aria-checked="false" aria-label="Dark mode">
-                <span class="ts-visual"></span>
-            </button>
-            <a id="home-btn" class="exp-btn" href="/">&#x2190; HOME</a>
-            <a id="blog-btn" class="exp-btn" href="/blog">BLOG</a>
-        </div>
-    </div>
-
-    <!-- Virtual Screen -->
-    <main id="blog-screen">
-${page.main}
-    </main>
-
-    <!-- Footer -->
-    <div id="exp-footer">
-        <span class="ef-credit">Built with Bun + microCMS</span>
-        <span class="ef-copy">&copy; 2026 RYOTA KATADA</span>
-    </div>
-
-${THEME_TOGGLE_SCRIPT}
-    <!-- The switch in 3D, once the page has loaded (theme-switch.ts) -->
-    <script type="module" src="/theme-switch.js"></script>
-</body>
-
-</html>
-`;
+${renderPageShell({
+        bodyClass: 'blog-page',
+        section: { label: 'BLOG', href: '/blog' },
+        screenId: 'blog-screen',
+        credit: 'Built with Bun + microCMS',
+        main: page.main,
+    })}`;
 }
 
 function meta(post: Post): string {
