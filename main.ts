@@ -9,6 +9,7 @@ import { MODELS, type ModelDef } from './models';
 import { applyMaterialTheme, assignMaterials, type ModelMaterials } from './model-materials';
 import { CAMERA, MOBILE_BP, MOBILE_CANVAS, floatHeight, frameZoom, placeModel } from './view';
 import { advanceAutoMomentum, idleMotion, removeAutoMomentum, shouldClearMomentum } from './idle-motion';
+import { createRenderLoop } from './render-loop';
 import './theme-switch';
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -38,7 +39,6 @@ let lookUp = 0;
 let targetLookUp = 0;
 let applied = 0;
 
-const clock = new THREE.Clock();
 const reducedMotionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
 let reducedMotion = reducedMotionQuery.matches;
 let previousReducedMotion: boolean | undefined;
@@ -317,9 +317,7 @@ function lowerCamera(angle: number) {
 // ANIMATION
 // ═══════════════════════════════════════════════════════════════════════════════
 
-function animate() {
-    requestAnimationFrame(animate);
-    const t = clock.getElapsedTime();
+function animate(t: number) {
     const motion = idleMotion(reducedMotion, t);
     controls.autoRotate = motion.autoRotate;
 
@@ -399,4 +397,12 @@ document.getElementById('theme-toggle')?.addEventListener('click', () => {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 initThree();
-animate();
+const setRendering = createRenderLoop(animate);
+let canvasVisible = false;
+const updateRendering = () => setRendering(canvasVisible && document.visibilityState === 'visible');
+const visibilityObserver = new IntersectionObserver(([entry]) => {
+    canvasVisible = entry?.isIntersecting ?? false;
+    updateRendering();
+});
+visibilityObserver.observe(document.getElementById('three-canvas')!);
+document.addEventListener('visibilitychange', updateRendering);
