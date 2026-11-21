@@ -7,7 +7,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { join } from 'node:path';
-import { THEME_TOGGLE_SCRIPT } from '../blog/theme-toggle';
+import { PAGE_ICONS, renderPageShell } from '../page-shell';
 
 /** Where a lost reader can go next: the pages the header and the top page lead to */
 export const NOT_FOUND_LINKS = [
@@ -35,12 +35,7 @@ export function renderNotFound(): string {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>RYOTA KATADA / 404</title>
     <meta name="robots" content="noindex">
-    <meta name="theme-color" content="#f5f5f5">
-    <link rel="icon" href="/favicon.ico" sizes="32x32">
-    <link rel="icon" href="/favicon.svg" type="image/svg+xml">
-    <link rel="icon" href="/favicon-32.png" type="image/png" sizes="32x32">
-    <link rel="icon" href="/favicon-16.png" type="image/png" sizes="16x16">
-    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+${PAGE_ICONS}
 
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -53,36 +48,12 @@ export function renderNotFound(): string {
 
 </head>
 
-<body class="not-found-page">
-    <!-- Apply saved theme before first paint to avoid a light flash -->
-    <script>
-        try {
-            if (localStorage.getItem('portfolio-theme') === 'dark') document.body.classList.add('dark-mode');
-        } catch (_) { }
-    </script>
-    <!-- CRT Effects -->
-    <div id="scanlines"></div>
-    <div id="dither"></div>
-
-    <!-- Header -->
-    <div id="exp-header">
-        <div class="exp-left">
-            <a class="exp-label" href="/">RYOTA KATADA</a>
-            <span class="exp-sep">/</span>
-            <span class="exp-type">404</span>
-        </div>
-        <div class="exp-right">
-            <button type="button" id="theme-toggle" class="exp-btn" role="switch" aria-checked="false" aria-label="Dark mode">
-                <span class="ts-visual"></span>
-            </button>
-            <a id="home-btn" class="exp-btn" href="/">&#x2190; HOME</a>
-            <a id="blog-btn" class="exp-btn" href="/blog">BLOG</a>
-        </div>
-    </div>
-
-    <!-- Virtual Screen -->
-    <main id="nf-screen">
-        <div class="nf-signal">
+${renderPageShell({
+        bodyClass: 'not-found-page',
+        section: { label: '404' },
+        screenId: 'nf-screen',
+        credit: 'Built with Bun',
+        main: `        <div class="nf-signal">
             <p class="nf-tag" aria-hidden="true">NO SIGNAL</p>
             <h1 class="nf-code">404</h1>
             <p class="nf-text">お探しのページは見つかりませんでした。</p>
@@ -92,16 +63,8 @@ export function renderNotFound(): string {
         <nav class="panel nf-links" aria-label="Pages">
             <h2 class="ph"><span class="dot g"></span> PAGES</h2>
 ${NOT_FOUND_LINKS.map(link).join('\n')}
-        </nav>
-    </main>
-
-    <!-- Footer -->
-    <div id="exp-footer">
-        <span class="ef-credit">Built with Bun</span>
-        <span class="ef-copy">&copy; 2026 RYOTA KATADA</span>
-    </div>
-
-    <!-- The path that was asked for, so a typo shows -->
+        </nav>`,
+        beforeTheme: `    <!-- The path that was asked for, so a typo shows -->
     <script>
         (() => {
             let path = location.pathname;
@@ -112,13 +75,8 @@ ${NOT_FOUND_LINKS.map(link).join('\n')}
             document.querySelector('.nf-path').hidden = false;
         })();
     </script>
-${THEME_TOGGLE_SCRIPT}
-    <!-- The switch in 3D, once the page has loaded (theme-switch.ts) -->
-    <script type="module" src="/theme-switch.js"></script>
-</body>
-
-</html>
-`;
+`,
+    })}`;
 }
 
 /** not-found.css imports style.css, so the page loads one stylesheet. */
