@@ -11,7 +11,9 @@
 		"directory": "./dist",
 		"binding": "ASSETS",
 		// Run the Worker before serving assets so www.* requests get redirected
-		"run_worker_first": true
+		"run_worker_first": true,
+		// A path with no file gets dist/404.html, with status 404 (not-found/page.ts)
+		"not_found_handling": "404-page"
 	},
 	"observability": {
 		"enabled": true
