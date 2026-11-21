@@ -1306,6 +1306,20 @@ body.dark-mode .panel:hover {
         font-size: 13px;
     }
 
+    .model-btn {
+        position: relative;
+    }
+
+    .model-btn::after {
+        content: '';
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        width: 44px;
+        height: 44px;
+        transform: translate(-50%, -50%);
+    }
+
     /* --- Sidebars: use display:contents so children flow into grid --- */
     #sidebar-l,
     #sidebar-r {
