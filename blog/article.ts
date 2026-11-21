@@ -200,6 +200,12 @@ export async function renderArticle(
         .on('iframe', {
             element(el) {
                 if (!el.hasAttribute('loading')) el.setAttribute('loading', 'lazy');
+                const width = Number(el.getAttribute('width'));
+                const height = Number(el.getAttribute('height'));
+                if (Number.isFinite(width) && width > 0 && Number.isFinite(height) && height > 0) {
+                    const style = el.getAttribute('style');
+                    el.setAttribute('style', `${style ? `${style}; ` : ''}aspect-ratio: ${width} / ${height}; height: auto;`);
+                }
             },
         })
         // Wide tables scroll inside their own box instead of stretching the page
