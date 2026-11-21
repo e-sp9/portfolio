@@ -1,8 +1,11 @@
 import { expect, test } from '@playwright/test';
+import { MODELS } from './models';
+
+const initialModelPath = MODELS[0]!.path;
 
 test('the first model can be retried without blocking the rest of the site', async ({ page }) => {
-    await page.route('**/models/gbc.glb', route => route.abort('failed'), { times: 1 });
-    const firstFailure = page.waitForEvent('requestfailed', request => request.url().endsWith('/models/gbc.glb'));
+    await page.route('**' + initialModelPath, route => route.abort('failed'), { times: 1 });
+    const firstFailure = page.waitForEvent('requestfailed', request => request.url().endsWith(initialModelPath));
     await page.goto('/');
     await firstFailure;
 
@@ -14,7 +17,7 @@ test('the first model can be retried without blocking the rest of the site', asy
     await expect(page.getByRole('switch', { name: 'Dark mode' })).toBeChecked();
 
     const retry = page.getByRole('button', { name: 'Retry model load' });
-    const retryResponse = page.waitForResponse(response => response.url().endsWith('/models/gbc.glb'));
+    const retryResponse = page.waitForResponse(response => response.url().endsWith(initialModelPath));
     await retry.click();
     expect((await retryResponse).ok()).toBe(true);
     await expect(page.locator('#model-label')).toHaveText('GAME BOY COLOR');

@@ -7,6 +7,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { join } from 'node:path';
+import { THEME_TOGGLE_SCRIPT } from '../blog/theme-toggle';
 
 /** Where a lost reader can go next: the pages the header and the top page lead to */
 export const NOT_FOUND_LINKS = [
@@ -111,26 +112,7 @@ ${NOT_FOUND_LINKS.map(link).join('\n')}
             document.querySelector('.nf-path').hidden = false;
         })();
     </script>
-    <!-- Theme toggle (shares the \`portfolio-theme\` key with the other pages) -->
-    <script>
-        (() => {
-            const toggle = document.getElementById('theme-toggle');
-            let dark = document.body.classList.contains('dark-mode');
-            // The switch follows body.dark-mode (style.css, theme-switch-3d.ts); aria-checked tells assistive tech
-            const apply = () => {
-                document.body.classList.toggle('dark-mode', dark);
-                toggle.setAttribute('aria-checked', String(dark));
-            };
-            apply();
-            toggle.addEventListener('click', () => {
-                dark = !dark;
-                try {
-                    localStorage.setItem('portfolio-theme', dark ? 'dark' : 'light');
-                } catch (_) { }
-                apply();
-            });
-        })();
-    </script>
+${THEME_TOGGLE_SCRIPT}
     <!-- The switch in 3D, once the page has loaded (theme-switch.ts) -->
     <script type="module" src="/theme-switch.js"></script>
 </body>
