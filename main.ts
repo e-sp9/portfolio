@@ -1,3 +1,4 @@
+import { safeGetItem, safeSetItem } from './public/storage.js';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
@@ -383,14 +384,14 @@ function applyTheme() {
 }
 
 // Initialize theme from localStorage
-const savedTheme = localStorage.getItem('portfolio-theme');
+const savedTheme = safeGetItem('portfolio-theme');
 isDarkMode = savedTheme === 'dark';
 applyTheme();
 
 // Theme toggle event listener
 document.getElementById('theme-toggle')?.addEventListener('click', () => {
     isDarkMode = !isDarkMode;
-    localStorage.setItem('portfolio-theme', isDarkMode ? 'dark' : 'light');
+    safeSetItem('portfolio-theme', isDarkMode ? 'dark' : 'light');
     applyTheme();
 });
 

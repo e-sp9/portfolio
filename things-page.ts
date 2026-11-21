@@ -1,3 +1,4 @@
+import { safeGetItem, safeSetItem } from './public/storage.js';
 import { THINGS, type Thing } from './things';
 import './theme-switch';
 
@@ -6,7 +7,7 @@ import './theme-switch';
 // ═══════════════════════════════════════════════════════════════════════════════
 
 const themeToggle = document.getElementById('theme-toggle');
-let isDarkMode = localStorage.getItem('portfolio-theme') === 'dark';
+let isDarkMode = safeGetItem('portfolio-theme') === 'dark';
 
 function applyTheme() {
     document.body.classList.toggle('dark-mode', isDarkMode);
@@ -17,7 +18,7 @@ function applyTheme() {
 applyTheme();
 themeToggle?.addEventListener('click', () => {
     isDarkMode = !isDarkMode;
-    localStorage.setItem('portfolio-theme', isDarkMode ? 'dark' : 'light');
+    safeSetItem('portfolio-theme', isDarkMode ? 'dark' : 'light');
     applyTheme();
 });
 

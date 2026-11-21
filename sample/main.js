@@ -1,3 +1,4 @@
+import { safeGetItem, safeSetItem } from '../public/storage.js';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
@@ -962,7 +963,7 @@ function applyHdMode() {
 
 document.getElementById('hd-toggle').addEventListener('click', () => {
     hdMode = !hdMode;
-    localStorage.setItem('gba-hd', hdMode ? '1' : '0');
+    safeSetItem('gba-hd', hdMode ? '1' : '0');
     applyHdMode();
 });
 
@@ -970,7 +971,7 @@ document.getElementById('hd-toggle').addEventListener('click', () => {
 initThree();
 initEmulator();
 
-hdMode = localStorage.getItem('gba-hd') !== '0';
+hdMode = safeGetItem('gba-hd') !== '0';
 applyHdMode();
 
 updateCPU();

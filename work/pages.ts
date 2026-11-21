@@ -67,11 +67,10 @@ function layout(page: Page): string {
 </head>
 
 <body class="work-page">
-    <!-- Apply saved theme before first paint to avoid a light flash -->
-    <script>
-        try {
-            if (localStorage.getItem('portfolio-theme') === 'dark') document.body.classList.add('dark-mode');
-        } catch (_) { }
+    <!-- Apply saved theme -->
+    <script type="module">
+        import { safeGetItem } from '/storage.js';
+        if (safeGetItem('portfolio-theme') === 'dark') document.body.classList.add('dark-mode');
     </script>
     <!-- CRT Effects -->
     <div id="scanlines"></div>
@@ -105,7 +104,8 @@ ${page.main}
     </div>
 
     <!-- Theme toggle (shares the \`portfolio-theme\` key with the other pages) -->
-    <script>
+    <script type="module">
+        import { safeSetItem } from '/storage.js';
         (() => {
             const toggle = document.getElementById('theme-toggle');
             let dark = document.body.classList.contains('dark-mode');
@@ -117,9 +117,7 @@ ${page.main}
             apply();
             toggle.addEventListener('click', () => {
                 dark = !dark;
-                try {
-                    localStorage.setItem('portfolio-theme', dark ? 'dark' : 'light');
-                } catch (_) { }
+                safeSetItem('portfolio-theme', dark ? 'dark' : 'light');
                 apply();
             });
         })();

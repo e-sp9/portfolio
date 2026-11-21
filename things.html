@@ -35,11 +35,10 @@
 </head>
 
 <body class="things-page">
-    <!-- Apply saved theme before first paint to avoid a light flash -->
-    <script>
-        try {
-            if (localStorage.getItem('portfolio-theme') === 'dark') document.body.classList.add('dark-mode');
-        } catch (_) { }
+    <!-- Apply saved theme -->
+    <script type="module">
+        import { safeGetItem } from './public/storage.js';
+        if (safeGetItem('portfolio-theme') === 'dark') document.body.classList.add('dark-mode');
     </script>
     <!-- CRT Effects -->
     <div id="scanlines"></div>
