@@ -15,6 +15,8 @@ import { createRenderLoop } from './render-loop';
 import './theme-switch';
 import { hideInitialLoader } from './loader';
 
+const MAX_PIXEL_RATIO = 2;
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // STATE
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -59,7 +61,6 @@ function initThree() {
 
     // Renderer
     renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
-    renderer.setPixelRatio(window.devicePixelRatio);
     renderer.toneMapping = THREE.AgXToneMapping;
     renderer.toneMappingExposure = 1.05;
     renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -301,7 +302,7 @@ function handleResize() {
     // On desktop, framed for the virtual screen between its bands
     camera.zoom = isMobile ? 1 : frameZoom(h, h - frameBands());
     camera.position.set(...view.position);
-    renderer.setSize(w, canvasH, false);
+    renderer.setDrawingBufferSize(w, canvasH, Math.min(window.devicePixelRatio, MAX_PIXEL_RATIO));
     applied = lowerCamera(lookUp);
 
     camera.updateProjectionMatrix();

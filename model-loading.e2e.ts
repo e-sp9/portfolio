@@ -36,6 +36,23 @@ test('normal startup dismisses the loader after loading the default model', asyn
     await expect(page.getByRole('button', { name: 'Retry model load' })).toBeHidden();
 });
 
+for (const [deviceScaleFactor, pixelRatio] of [[1, 1], [2, 2], [3, 2]] as const) {
+    test.describe(`DPR ${deviceScaleFactor}`, () => {
+        test.use({ deviceScaleFactor, viewport: { width: 1000, height: 600 } });
+
+        test('sizes the model drawing buffer at no more than 2x, including after resize', async ({ page }) => {
+            await page.goto('/');
+            const canvas = page.locator('#three-canvas');
+            await expect(canvas).toHaveJSProperty('width', 1000 * pixelRatio);
+            await expect(canvas).toHaveJSProperty('height', 600 * pixelRatio);
+
+            await page.setViewportSize({ width: 1100, height: 700 });
+            await expect(canvas).toHaveJSProperty('width', 1100 * pixelRatio);
+            await expect(canvas).toHaveJSProperty('height', 700 * pixelRatio);
+        });
+    });
+}
+
 test('unavailable WebGL does not block navigation', async ({ page }) => {
     await page.addInitScript(() => {
         const getContext = HTMLCanvasElement.prototype.getContext;
