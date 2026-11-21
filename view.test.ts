@@ -1,6 +1,7 @@
 import { expect, test } from 'bun:test';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import { ConvexHull } from 'three/examples/jsm/math/ConvexHull.js';
 import { MODELS } from './models';
 import { CAMERA, FLOAT, MOBILE_BP, MOBILE_CANVAS, frameZoom, placeModel } from './view';
@@ -23,7 +24,7 @@ const VIEWPORTS = [
 test('every model stays inside the frame through a whole turn, at either end of its bob', async () => {
     const out: string[] = [];
     for (const def of MODELS) {
-        const model = (await new GLTFLoader().parseAsync(await Bun.file(`public${def.path}`).arrayBuffer(), '')).scene;
+        const model = (await new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).parseAsync(await Bun.file(`public${def.path}`).arrayBuffer(), '')).scene;
         model.scale.setScalar(placeModel(model, def));
         const all: THREE.Vector3[] = [];
         for (const bob of [FLOAT.bob, -FLOAT.bob]) {

@@ -1,13 +1,14 @@
 import { describe, expect, test } from 'bun:test';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import { roleOf, type Role } from './model-materials';
 
 // public/models/3ds.glb, written by scripts/generate-3ds.ts (1 unit = 134 mm)
 const PATH = 'public/models/3ds.glb', MM = 134;
 
 async function load() {
-    const gltf = await new GLTFLoader().parseAsync(await Bun.file(PATH).arrayBuffer(), '');
+    const gltf = await new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).parseAsync(await Bun.file(PATH).arrayBuffer(), '');
     const meshes: THREE.Mesh[] = [];
     gltf.scene.traverse((o) => { if (o instanceof THREE.Mesh) meshes.push(o); });
     gltf.scene.updateMatrixWorld(true);
