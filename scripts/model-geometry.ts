@@ -384,6 +384,14 @@ export const qYtoX = axis(0, 0, 1, -90);   // +y -> +x (cylinders along a hinge)
 
 // ─── Controls ────────────────────────────────────────────────────────────────
 
+/** Counterclockwise D-pad outline with arm half-length S and half-width T. */
+export function dpadOutline(S: number, T: number, cx = 0, cy = 0): THREE.Vector2[] {
+  return ([
+    [S, -T], [S, T], [T, T], [T, S], [-T, S], [-T, T],
+    [-S, T], [-S, -T], [-T, -T], [-T, -S], [T, -S], [T, -T],
+  ] as const).map(([x, y]) => new THREE.Vector2(cx + x, cy + y));
+}
+
 /**
  * D-pad cross, base at z = 0: arms slope down toward their tips, the center
  * square stays flat around a shallow dimple. The slopes stay under the edge
@@ -391,10 +399,7 @@ export const qYtoX = axis(0, 0, 1, -90);   // +y -> +x (cylinders along a hinge)
  */
 export function dpadGeometry(S: number, T: number, h: number, drop: number, dimpleR: number, dimpleD: number): THREE.BufferGeometry {
   const zAt = (x: number, y: number) => h - drop * Math.max(0, (Math.max(Math.abs(x), Math.abs(y)) - T) / (S - T));
-  const cross = [
-    [S, -T], [S, T], [T, T], [T, S], [-T, S], [-T, T],
-    [-S, T], [-S, -T], [-T, -T], [-T, -S], [T, -S], [T, -T],
-  ].map(([x, y]) => new THREE.Vector2(x, y));
+  const cross = dpadOutline(S, T);
   const pieces: THREE.BufferGeometry[] = [];
 
   // Center square with the dimple cut out, then the dimple bowl (none when dimpleR is 0).

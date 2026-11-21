@@ -38,8 +38,8 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import {
-  ARC_STEP, arcOutline, buttonGeometry, circle, cutWall, disc, dpadGeometry, drum, exportGLB, fanCap, flatCap,
-  indexedGeometry, mergedAt, openShell, plate, polygon, poseClamshell, qToFront, qToLeft, qToRight, qToTop, qX90,
+  ARC_STEP, arcOutline, buttonGeometry, circle, cutWall, disc, dpadGeometry, dpadOutline, drum, exportGLB, fanCap,
+  flatCap, indexedGeometry, mergedAt, openShell, plate, polygon, poseClamshell, qToFront, qToLeft, qToRight, qToTop, qX90,
   qY180, qYtoX, recess, recessWall, rimRings, roundedRect, sharpRect, shellGeometry, shoulderBand, srgb, stadium,
   sweepSide, type MaterialDefs, type Outline, type Part,
 } from './model-geometry';
@@ -182,10 +182,7 @@ function buildLowerHalf() {
   const abxyWells = abxyAt.map(({ x, y }) => circle(3.8, x, y));
   const ssWells = [ss.start, ss.select].map(y => circle(2.3, ss.x, y));
   // The D-pad's base closes its well's floor under it (the points dpadGeometry uses).
-  const dpadBase = [
-    [DPAD_S, -DPAD_T], [DPAD_S, DPAD_T], [DPAD_T, DPAD_T], [DPAD_T, DPAD_S], [-DPAD_T, DPAD_S], [-DPAD_T, DPAD_T],
-    [-DPAD_S, DPAD_T], [-DPAD_S, -DPAD_T], [-DPAD_T, -DPAD_T], [-DPAD_T, -DPAD_S], [DPAD_T, -DPAD_S], [DPAD_T, -DPAD_T],
-  ].map(([x, y]) => new THREE.Vector2(dpad.x + x!, dpad.y + y!));
+  const dpadBase = dpadOutline(DPAD_S, DPAD_T, dpad.x, dpad.y);
   const wells: [Outline, number, number, THREE.Vector2[]?][] = [ // outline, depth, slope, footprint on the floor
     [dpadWell, 1.2, 0.3, dpadBase],
     [powerWell, 0.8, 0],
