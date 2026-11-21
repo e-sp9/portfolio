@@ -85,8 +85,9 @@
         <div id="model-selector">
             <button class="model-btn" id="model-prev" aria-label="Previous model">&#9664;</button>
             <div class="model-info">
-                <span id="model-label">LOADING...</span>
+                <span id="model-label" role="status">LOADING...</span>
                 <span id="model-count"></span>
+                <button type="button" class="model-btn" id="model-retry" aria-label="Retry model load" hidden>RETRY</button>
             </div>
             <button class="model-btn" id="model-next" aria-label="Next model">&#9654;</button>
         </div>

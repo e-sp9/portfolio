@@ -477,6 +477,20 @@ body.dark-mode #theme-toggle .ts-visual::after {
     outline: none;
 }
 
+#model-selector [hidden] {
+    display: none;
+}
+
+#model-retry {
+    width: auto;
+    padding: 0 8px;
+}
+
+#model-retry[aria-disabled="true"] {
+    color: var(--dim);
+    cursor: default;
+}
+
 .model-info {
     display: flex;
     align-items: baseline;

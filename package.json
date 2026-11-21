@@ -5,11 +5,13 @@
   "private": true,
   "scripts": {
     "dev": "bun --hot ./index.ts",
+    "test:e2e": "playwright test",
     "build": "bun build ./index.html ./things.html ./hire.html ./theme-switch.ts --outdir ./dist --splitting --minify && bun ./blog/build.ts && bun ./work/build.ts && bun ./not-found/build.ts && cp -r ./public/* ./dist/",
     "eyecatch:dry-run": "bun ./blog/eyecatch-dry-run.ts",
     "deploy": "bunx wrangler deploy"
   },
   "devDependencies": {
+    "@playwright/test": "^1.59.1",
     "@types/bun": "latest",
     "shiki": "^4.6.0"
   },
