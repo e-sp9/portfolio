@@ -53,10 +53,11 @@ export function renderNotFound(): string {
 </head>
 
 <body class="not-found-page">
-    <!-- Apply saved theme -->
-    <script type="module">
-        import { safeGetItem } from '/storage.js';
-        if (safeGetItem('portfolio-theme') === 'dark') document.body.classList.add('dark-mode');
+    <!-- Apply saved theme before first paint to avoid a light flash -->
+    <script>
+        try {
+            if (localStorage.getItem('portfolio-theme') === 'dark') document.body.classList.add('dark-mode');
+        } catch (_) { }
     </script>
     <!-- CRT Effects -->
     <div id="scanlines"></div>
@@ -111,8 +112,7 @@ ${NOT_FOUND_LINKS.map(link).join('\n')}
         })();
     </script>
     <!-- Theme toggle (shares the \`portfolio-theme\` key with the other pages) -->
-    <script type="module">
-        import { safeSetItem } from '/storage.js';
+    <script>
         (() => {
             const toggle = document.getElementById('theme-toggle');
             let dark = document.body.classList.contains('dark-mode');
@@ -124,7 +124,9 @@ ${NOT_FOUND_LINKS.map(link).join('\n')}
             apply();
             toggle.addEventListener('click', () => {
                 dark = !dark;
-                safeSetItem('portfolio-theme', dark ? 'dark' : 'light');
+                try {
+                    localStorage.setItem('portfolio-theme', dark ? 'dark' : 'light');
+                } catch (_) { }
                 apply();
             });
         })();

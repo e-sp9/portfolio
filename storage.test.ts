@@ -1,9 +1,52 @@
 import { expect, test } from 'bun:test';
 import { runInNewContext } from 'node:vm';
 import { THINGS } from './things';
+import { readStorage, writeStorage } from './storage';
 
 const { outputs } = await Bun.build({ entrypoints: ['./things-page.ts'], target: 'browser' });
 const script = await outputs[0]!.text();
+
+function withStorage(descriptor: PropertyDescriptor, run: () => void) {
+    const original = Object.getOwnPropertyDescriptor(globalThis, 'localStorage');
+    Object.defineProperty(globalThis, 'localStorage', { configurable: true, ...descriptor });
+    try {
+        run();
+    } finally {
+        if (original) Object.defineProperty(globalThis, 'localStorage', original);
+        else Reflect.deleteProperty(globalThis, 'localStorage');
+    }
+}
+
+test('storage helper reads, writes and returns null for missing keys', () => {
+    const values = new Map<string, string>();
+    withStorage({ value: {
+        getItem: (key: string) => values.get(key) ?? null,
+        setItem: (key: string, value: string) => { values.set(key, value); },
+    } }, () => {
+        expect(readStorage('theme')).toBeNull();
+        writeStorage('theme', 'dark');
+        expect(readStorage('theme')).toBe('dark');
+    });
+});
+
+test('storage helper tolerates a throwing storage getter', () => {
+    withStorage({ get() { throw new DOMException('Blocked', 'SecurityError'); } }, () => {
+        expect(readStorage('theme')).toBeNull();
+        expect(() => writeStorage('theme', 'dark')).not.toThrow();
+    });
+});
+
+test('storage helper tolerates getItem throwing', () => {
+    withStorage({ value: { getItem() { throw new DOMException('Blocked', 'SecurityError'); } } }, () => {
+        expect(readStorage('theme')).toBeNull();
+    });
+});
+
+test('storage helper tolerates setItem throwing', () => {
+    withStorage({ value: { setItem() { throw new DOMException('Full', 'QuotaExceededError'); } } }, () => {
+        expect(() => writeStorage('theme', 'dark')).not.toThrow();
+    });
+});
 
 for (const mode of ['available', 'empty', 'access', 'get', 'set']) {
     test(`things renders and toggles with storage: ${mode}`, () => {

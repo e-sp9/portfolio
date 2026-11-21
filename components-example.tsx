@@ -1,4 +1,3 @@
-import { safeGetItem, safeSetItem } from './public/storage.js';
 /**
  * Design Reference Components
  *
@@ -323,7 +322,7 @@ export const DarkModeToggle: React.FC = () => {
 
   useEffect(() => {
     // 初期テーマの読み込み
-    const savedTheme = safeGetItem('theme');
+    const savedTheme = localStorage.getItem('theme');
     const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
     const initialDark = savedTheme === 'dark' || (!savedTheme && prefersDark);
 
@@ -337,7 +336,7 @@ export const DarkModeToggle: React.FC = () => {
 
     const theme = newTheme ? 'dark' : 'light';
     document.documentElement.setAttribute('data-theme', theme);
-    safeSetItem('theme', theme);
+    localStorage.setItem('theme', theme);
   };
 
   return (

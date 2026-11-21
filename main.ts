@@ -1,4 +1,3 @@
-import { safeGetItem, safeSetItem } from './public/storage.js';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
@@ -7,6 +6,7 @@ import { LineSegments2 } from 'three/examples/jsm/lines/LineSegments2.js';
 import { LineSegmentsGeometry } from 'three/examples/jsm/lines/LineSegmentsGeometry.js';
 import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
 import { MODELS, type ModelDef } from './models';
+import { readStorage, writeStorage } from './storage';
 import { applyMaterialTheme, assignMaterials, type ModelMaterials } from './model-materials';
 import { CAMERA, MOBILE_BP, MOBILE_CANVAS, floatHeight, frameZoom, placeModel } from './view';
 import { advanceAutoMomentum, idleMotion, removeAutoMomentum, shouldClearMomentum } from './idle-motion';
@@ -384,14 +384,14 @@ function applyTheme() {
 }
 
 // Initialize theme from localStorage
-const savedTheme = safeGetItem('portfolio-theme');
+const savedTheme = readStorage('portfolio-theme');
 isDarkMode = savedTheme === 'dark';
 applyTheme();
 
 // Theme toggle event listener
 document.getElementById('theme-toggle')?.addEventListener('click', () => {
     isDarkMode = !isDarkMode;
-    safeSetItem('portfolio-theme', isDarkMode ? 'dark' : 'light');
+    writeStorage('portfolio-theme', isDarkMode ? 'dark' : 'light');
     applyTheme();
 });
 

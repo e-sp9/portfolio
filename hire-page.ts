@@ -1,4 +1,3 @@
-import { safeGetItem, safeSetItem } from './public/storage.js';
 import './theme-switch';
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -6,7 +5,8 @@ import './theme-switch';
 // ═══════════════════════════════════════════════════════════════════════════════
 
 const themeToggle = document.getElementById('theme-toggle');
-let isDarkMode = safeGetItem('portfolio-theme') === 'dark';
+// Set before first paint by the inline script in hire.html
+let isDarkMode = document.body.classList.contains('dark-mode');
 
 function applyTheme() {
     document.body.classList.toggle('dark-mode', isDarkMode);
@@ -17,6 +17,8 @@ function applyTheme() {
 applyTheme();
 themeToggle?.addEventListener('click', () => {
     isDarkMode = !isDarkMode;
-    safeSetItem('portfolio-theme', isDarkMode ? 'dark' : 'light');
+    try {
+        localStorage.setItem('portfolio-theme', isDarkMode ? 'dark' : 'light');
+    } catch { }
     applyTheme();
 });
