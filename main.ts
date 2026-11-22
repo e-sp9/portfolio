@@ -429,6 +429,7 @@ function start() {
         updateModelHud();
         return;
     }
+    document.getElementById('loader')?.classList.remove('hidden');
     loadModel(MODELS[currentIndex]!, { initial: true });
 
     const setRendering = createRenderLoop(animate);

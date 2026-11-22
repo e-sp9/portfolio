@@ -132,9 +132,11 @@ body {
 
 #loader {
     position: fixed;
-    inset: 0;
-    z-index: 9999;
-    background: var(--bg);
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 1;
+    pointer-events: none;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -159,7 +161,7 @@ body {
 
 .loader-title {
     font-family: var(--fp);
-    font-size: 20px;
+    font-size: 14px;
     color: var(--accent);
     letter-spacing: 4px;
     margin-bottom: 24px;
@@ -1274,6 +1276,11 @@ body.dark-mode .panel:hover {
         width: 100% !important;
         height: 60vh !important;
         inset: auto;
+    }
+
+    #loader {
+        position: absolute;
+        top: 30vh;
     }
 
     #scanlines,
