@@ -12,6 +12,18 @@ test('homepage has a main landmark and an ordered heading hierarchy', async () =
     try {
         const page = await browser.newPage();
         await page.route('**/*.js', route => route.abort());
+        const deadline = Date.now() + 10_000;
+        while (true) {
+            const remaining = deadline - Date.now();
+            if (remaining <= 0) throw new Error('Homepage dev server did not start within 10 seconds');
+            try {
+                const response = await fetch('http://localhost:3197', { signal: AbortSignal.timeout(remaining) });
+                await response.body?.cancel();
+                break;
+            } catch {
+                await Bun.sleep(50);
+            }
+        }
         await page.goto('http://localhost:3197', { waitUntil: 'networkidle' });
         expect(await page.getByRole('main').count()).toBe(1);
         expect(await page.getByRole('heading', { level: 1 }).allTextContents()).toEqual(['RYOTA KATADA']);
