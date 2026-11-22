@@ -636,6 +636,14 @@ body.blog-page picture {
     overflow-x: auto;
 }
 
+@media print {
+    .article-body pre {
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+        overflow: visible;
+    }
+}
+
 .article-body table {
     border-collapse: collapse;
     font-size: calc(15 * var(--text-u));
