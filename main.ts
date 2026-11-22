@@ -65,6 +65,7 @@ function initThree() {
 
     // Renderer
     renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+    canvas.addEventListener('webglcontextrestored', () => { renderDirty = true; });
     renderer.toneMapping = THREE.AgXToneMapping;
     renderer.toneMappingExposure = 1.05;
     renderer.outputColorSpace = THREE.SRGBColorSpace;
