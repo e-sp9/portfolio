@@ -1,13 +1,9 @@
 import { expect, test } from 'bun:test';
 import { chromium } from '@playwright/test';
+import { startDevServer } from './dev-server';
 
 test('height-only resizes preserve the dragged orbit on mobile and desktop', async () => {
-    const server = Bun.spawn(['bun', './index.ts'], {
-        cwd: import.meta.dir,
-        env: { ...process.env, PORT: '3198' },
-        stdout: 'ignore',
-        stderr: 'ignore',
-    });
+    const server = await startDevServer(['bun', './index.ts'], 3198);
     const browser = await chromium.launch({
         args: ['--no-sandbox', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'],
     });
@@ -20,7 +16,7 @@ test('height-only resizes preserve the dragged orbit on mobile and desktop', asy
                 await route.fulfill({ response, body: source.replace('function handleResize() {',
                     'function handleResize() { window.readAzimuth = (settle = false) => { if (settle) for (let i = 0; i < 400; i++) controls.update(); return controls.getAzimuthalAngle(); };') });
             });
-            await page.goto('http://localhost:3198', { waitUntil: 'networkidle' });
+            await page.goto(server.url, { waitUntil: 'networkidle' });
             await page.locator('#loader.hidden').waitFor({ state: 'attached' });
             const angle = (settle = false) => page.evaluate(settle =>
                 (window as unknown as { readAzimuth(settle: boolean): number }).readAzimuth(settle), settle);
@@ -42,6 +38,6 @@ test('height-only resizes preserve the dragged orbit on mobile and desktop', asy
         }
     } finally {
         await browser.close();
-        server.kill();
+        await server.stop();
     }
 }, 60_000);
