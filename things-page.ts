@@ -1,26 +1,8 @@
 import { THINGS, type Thing } from './things';
-import { readStorage, writeStorage } from './storage';
+import { initThemeController } from './theme-controller';
 import './theme-switch';
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// THEME TOGGLE (shares the `portfolio-theme` key with the top page)
-// ═══════════════════════════════════════════════════════════════════════════════
-
-const themeToggle = document.getElementById('theme-toggle');
-let isDarkMode = readStorage('portfolio-theme') === 'dark';
-
-function applyTheme() {
-    document.body.classList.toggle('dark-mode', isDarkMode);
-    // The switch follows body.dark-mode (style.css, theme-switch-3d.ts); aria-checked tells assistive tech
-    themeToggle?.setAttribute('aria-checked', String(isDarkMode));
-}
-
-applyTheme();
-themeToggle?.addEventListener('click', () => {
-    isDarkMode = !isDarkMode;
-    writeStorage('portfolio-theme', isDarkMode ? 'dark' : 'light');
-    applyTheme();
-});
+initThemeController();
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // CARDS

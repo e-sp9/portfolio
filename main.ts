@@ -7,7 +7,7 @@ import { LineSegments2 } from 'three/examples/jsm/lines/LineSegments2.js';
 import { LineSegmentsGeometry } from 'three/examples/jsm/lines/LineSegmentsGeometry.js';
 import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
 import { MODELS, type ModelDef } from './models';
-import { readStorage, writeStorage } from './storage';
+import { initThemeController } from './theme-controller';
 import { applyMaterialTheme, assignMaterials, type ModelMaterials } from './model-materials';
 import { CAMERA, MOBILE_BP, MOBILE_CANVAS, floatHeight, frameZoom, placeModel } from './view';
 import { advanceAutoMomentum, idleMotion, removeAutoMomentum, shouldClearMomentum } from './idle-motion';
@@ -368,13 +368,7 @@ function animate(t: number, delta: number) {
 // THEME TOGGLE
 // ═══════════════════════════════════════════════════════════════════════════════
 
-let isDarkMode = false;
-
-function applyTheme() {
-    document.body.classList.toggle('dark-mode', isDarkMode);
-    // The switch follows body.dark-mode (style.css, theme-switch-3d.ts); aria-checked tells assistive tech
-    document.getElementById('theme-toggle')?.setAttribute('aria-checked', String(isDarkMode));
-
+function applySceneTheme(isDarkMode: boolean) {
     // Update Three.js materials and lighting for theme
     if (!ambientLight) return; // Three.js not initialized yet
 
@@ -403,17 +397,7 @@ function applyTheme() {
     if (materials) applyMaterialTheme(materials, isDarkMode);
 }
 
-// Initialize theme from localStorage
-const savedTheme = readStorage('portfolio-theme');
-isDarkMode = savedTheme === 'dark';
-applyTheme();
-
-// Theme toggle event listener
-document.getElementById('theme-toggle')?.addEventListener('click', () => {
-    isDarkMode = !isDarkMode;
-    writeStorage('portfolio-theme', isDarkMode ? 'dark' : 'light');
-    applyTheme();
-});
+const applyTheme = initThemeController({ onApply: applySceneTheme });
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // INIT
