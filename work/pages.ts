@@ -10,7 +10,7 @@ import { CASES, OPERATIONS, type WorkCase } from './cases';
 
 const SITE_URL = 'https://esp-9.dev';
 export const WORK_TITLE = 'RYOTA KATADA / WORK';
-export const WORK_DESCRIPTION = 'Ryota Katada の仕事の事例と、それを支えているボット運用。';
+export const WORK_DESCRIPTION = '片田 凌太（Ryota Katada）の仕事の事例と、それを支えているボット運用。';
 
 function pad(n: number): string {
     return String(n).padStart(2, '0');

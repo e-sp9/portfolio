@@ -13,7 +13,7 @@ import { blogPagePath, paginate, renderPagination } from './pagination';
 
 export const SITE_URL = 'https://esp-9.dev';
 export const BLOG_TITLE = 'RYOTA KATADA / BLOG';
-export const BLOG_DESCRIPTION = '技術とガジェットとコーヒーと、日々のこと。Ryota Katada のブログです。';
+export const BLOG_DESCRIPTION = '技術とガジェットとコーヒーと、日々のこと。片田 凌太（Ryota Katada）のブログです。';
 
 const JST_DATE = new Intl.DateTimeFormat('ja-JP', { timeZone: 'Asia/Tokyo', year: 'numeric', month: '2-digit', day: '2-digit' });
 
@@ -258,6 +258,7 @@ export async function renderPost(posts: Post[], index: number): Promise<string> 
         '@context': 'https://schema.org',
         '@type': 'BlogPosting',
         headline: post.title,
+        author: { '@type': 'Person', name: '片田 凌太', url: `${SITE_URL}/` },
         url: `${SITE_URL}/blog/${post.id}`,
         datePublished: post.publishedAt,
         ...(revised === formatDate(post.publishedAt) ? {} : { dateModified: post.revisedAt }),
