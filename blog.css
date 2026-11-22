@@ -654,6 +654,22 @@ body.blog-page picture {
     font-weight: 600;
 }
 
+@media (max-width: 768px) {
+    .article-body table {
+        width: max-content;
+        min-width: 100%;
+    }
+
+    .article-body :is(th, td) {
+        max-width: 18em;
+        overflow-wrap: break-word;
+    }
+
+    .article-body th {
+        white-space: nowrap;
+    }
+}
+
 /* Older / newer */
 
 .article-nav {
