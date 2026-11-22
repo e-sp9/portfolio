@@ -1,5 +1,6 @@
 import { expect, test } from 'bun:test';
 import { chromium } from '@playwright/test';
+import { MODELS } from './models';
 
 test('reduced motion skips idle renders but redraws a dragged model and invalidations', async () => {
     const server = Bun.spawn(['bun', './index.ts'], {
@@ -45,14 +46,22 @@ test('reduced motion skips idle renders but redraws a dragged model and invalida
         for (const invalidate of [
             () => page.locator('#theme-toggle').click(),
             () => page.setViewportSize({ width: 810, height: 610 }),
-            () => page.locator('#model-next').click(),
-            () => page.emulateMedia({ reducedMotion: 'no-preference' }),
         ]) {
             const previous = await count();
             await invalidate();
             await page.waitForFunction(previous =>
                 (window as unknown as { renderCalls: number }).renderCalls > previous, previous);
         }
+        await page.locator('#model-next').click();
+        await page.locator('#model-label').filter({ hasText: MODELS[1]!.label }).waitFor();
+        const loaded = await count();
+        await page.waitForFunction(loaded =>
+            (window as unknown as { renderCalls: number }).renderCalls > loaded, loaded);
+        console.log(`renders after new model loaded: ${await count() - loaded}`);
+        const reduced = await count();
+        await page.emulateMedia({ reducedMotion: 'no-preference' });
+        await page.waitForFunction(reduced =>
+            (window as unknown as { renderCalls: number }).renderCalls > reduced, reduced);
     } finally {
         await browser.close();
         server.kill();

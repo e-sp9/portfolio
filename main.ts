@@ -138,6 +138,7 @@ function initThree() {
 function disposeModel() {
     if (!model) return;
     scene.remove(model);
+    renderDirty = true;
     model.traverse((child) => {
         if (child instanceof THREE.Mesh) {
             child.geometry.dispose();
@@ -197,6 +198,7 @@ function loadModel(def: ModelDef, opts: { initial?: boolean } = {}) {
             materials = assignMaterials(model);
 
             scene.add(model);
+            renderDirty = true;
 
             // Create edge lines
             const meshes: THREE.Mesh[] = [];
