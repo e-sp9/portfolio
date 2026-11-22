@@ -48,8 +48,12 @@ const reducedMotionQuery = window.matchMedia('(prefers-reduced-motion: reduce)')
 let reducedMotion = reducedMotionQuery.matches;
 let previousReducedMotion: boolean | undefined;
 let autoMomentum = 0;
+let renderDirty = true;
+const renderedCamera = new THREE.Matrix4();
+const renderedModel = new THREE.Matrix4();
 reducedMotionQuery.addEventListener('change', (event) => {
     reducedMotion = event.matches;
+    renderDirty = true;
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -290,6 +294,7 @@ modelRetry.addEventListener('click', () => {
 let viewportWidth = 0;
 
 function handleResize() {
+    renderDirty = true;
     const w = window.innerWidth;
     const h = window.innerHeight;
     if (!w || !h) return;
@@ -340,6 +345,10 @@ function lowerCamera(angle: number) {
 // ANIMATION
 // ═══════════════════════════════════════════════════════════════════════════════
 
+function transformChanged(current: THREE.Matrix4, previous: THREE.Matrix4) {
+    return current.elements.some((value, index) => Math.abs(value - previous.elements[index]!) > 1e-6);
+}
+
 function animate(t: number, delta: number) {
     const motion = idleMotion(reducedMotion, t);
     controls.autoRotate = motion.autoRotate;
@@ -361,7 +370,17 @@ function animate(t: number, delta: number) {
     applied = lowerCamera(lookUp);
     camera.lookAt(controls.target);
 
+    if (reducedMotion) {
+        camera.updateMatrixWorld();
+        model?.updateMatrixWorld();
+        if (!renderDirty && !transformChanged(camera.matrixWorld, renderedCamera)
+            && (!model || !transformChanged(model.matrixWorld, renderedModel))) return;
+        renderedCamera.copy(camera.matrixWorld);
+        if (model) renderedModel.copy(model.matrixWorld);
+    }
+
     renderer.render(scene, camera);
+    renderDirty = false;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -371,6 +390,7 @@ function animate(t: number, delta: number) {
 let isDarkMode = false;
 
 function applyTheme() {
+    renderDirty = true;
     document.body.classList.toggle('dark-mode', isDarkMode);
     // The switch follows body.dark-mode (style.css, theme-switch-3d.ts); aria-checked tells assistive tech
     document.getElementById('theme-toggle')?.setAttribute('aria-checked', String(isDarkMode));
