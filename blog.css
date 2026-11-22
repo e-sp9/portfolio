@@ -657,6 +657,7 @@ body.blog-page picture {
 @media (max-width: 768px) {
     .article-body table {
         width: max-content;
+        min-width: 100%;
     }
 
     .article-body :is(th, td) {

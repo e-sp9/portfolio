@@ -68,6 +68,16 @@ test('mobile tables keep readable columns, intact headers and contained overflow
         await wrapper.evaluate(el => { el.scrollLeft = 200; });
         expect(await wrapper.evaluate(el => el.scrollLeft)).toBe(200);
         expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390);
+        await page.setContent(await renderPost([{
+            ...post,
+            content: '<table><tr><th>A</th><th>B</th></tr><tr><td>1</td><td>2</td></tr></table>',
+        }], 0));
+        const smallTable = await page.locator('table').evaluate(table => ({
+            width: table.getBoundingClientRect().width,
+            containerWidth: table.parentElement!.getBoundingClientRect().width,
+        }));
+        expect(smallTable.width).toBe(smallTable.containerWidth);
+        expect(smallTable.width).toBeGreaterThan(300);
     } finally {
         await browser.close();
         server.stop(true);
