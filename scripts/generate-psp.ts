@@ -38,7 +38,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import {
   ARC_STEP, buttonGeometry, circle, cutWall, exportGLB, fanCap, flatCap, indexedGeometry, openShell,
-  outlineNormals, plate, polygon, qToFront, qToTop, qX90, recess, recessWall, rimRings, roundedRect, shellGeometry, srgb, stadium,
+  outlineNormals, pit, plate, polygon, qToFront, qToTop, qX90, recess, recessWall, rimRings, roundedRect, shellGeometry, srgb, stadium,
   sweepSide, type MaterialDefs, type Outline, type Part, type Ring,
 } from './model-geometry';
 
@@ -193,21 +193,6 @@ const wallRings = (z0: number, z1: number): Ring[] => [{ inset: 0, z: z0, blend:
 /** Places local x / y / z along the given axes, at `at`. */
 function placed(g: THREE.BufferGeometry, at: THREE.Vector3, x: THREE.Vector3, y: THREE.Vector3, z: THREE.Vector3) {
   return g.applyMatrix4(new THREE.Matrix4().makeBasis(x, y, z).setPosition(at));
-}
-
-/**
- * Inside of a small round hole cut in a face at zTop: one dark cone to its
- * point `depth` in, for wall and back together.
- */
-function pit(r: number, x: number, y: number, zTop: number, depth: number, seg: number): THREE.BufferGeometry {
-  const rim = circle(r, x, y, seg)(0);
-  const positions = [x, y, zTop - depth], normals = [0, 0, 1], indices: number[] = [];
-  rim.forEach((p, i) => {
-    const n = v3(-(p.x - x) * depth, -(p.y - y) * depth, r * r).normalize();
-    positions.push(p.x, p.y, zTop); normals.push(n.x, n.y, n.z);
-    indices.push(0, 1 + i, 1 + (i + 1) % rim.length);
-  });
-  return indexedGeometry(positions, normals, indices);
 }
 
 /** Flat print on a face at z, facing `dir` (+1 front, -1 back): one face, holes allowed. */

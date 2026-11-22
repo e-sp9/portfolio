@@ -34,7 +34,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import {
   arcOutline, buttonGeometry, circle, cutWall, disc, dpadGeometry, dpadOutline, exportGLB, fanCap, fixedOutline, flatCap,
-  indexedGeometry, mergedAt, openShell, plate, polygon, poseClamshell, qToFront, qToLeft, qToRight, qToTop, qX90,
+  indexedGeometry, mergedAt, openShell, pit, plate, polygon, poseClamshell, qToFront, qToLeft, qToRight, qToTop, qX90,
   qY180, quad, recess, recessWall, rimRings, roundedRect, sharpRect, shoulderBand, srgb, sweepSide,
   type MaterialDefs, type Outline, type Part, type Ring,
 } from './model-geometry';
@@ -174,22 +174,6 @@ function chamferRings(zStart: number, zEnd: number, c: number): Ring[] {
     { inset: 0, z: zc, blend: 0.5 }, { inset: c, z: zEnd, blend: 0.5 },
     { inset: c, z: zEnd, blend: 1 },
   ];
-}
-
-/**
- * Inside of a small round hole cut in a face at zTop: one dark cone to its
- * point `depth` in, for wall and back together. Its 46 facets stay under the
- * 8-degree edge threshold, so only the rim draws.
- */
-function pit(r: number, x: number, y: number, zTop: number, depth: number): THREE.BufferGeometry {
-  const rim = circle(r, x, y)(0);
-  const positions = [x, y, zTop - depth], normals = [0, 0, 1], indices: number[] = [];
-  rim.forEach((p, i) => {
-    const n = new THREE.Vector3(-(p.x - x) * depth, -(p.y - y) * depth, r * r).normalize();
-    positions.push(p.x, p.y, zTop); normals.push(n.x, n.y, n.z);
-    indices.push(0, 1 + i, 1 + (i + 1) % rim.length);
-  });
-  return indexedGeometry(positions, normals, indices);
 }
 
 /**

@@ -38,10 +38,10 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import {
-  ARC_STEP, arcOutline, buttonGeometry, circle, cutWall, disc, dpadGeometry, dpadOutline, drum, exportGLB, fanCap,
-  flatCap, indexedGeometry, mergedAt, openShell, plate, polygon, poseClamshell, qToFront, qToLeft, qToRight, qToTop, qX90,
+  arcOutline, buttonGeometry, circle, cutWall, disc, dpadGeometry, dpadOutline, drum, exportGLB, fanCap,
+  flatCap, knuckle, mergedAt, openShell, plate, poseClamshell, qToFront, qToLeft, qToRight, qToTop, qX90,
   qY180, qYtoX, recess, recessWall, rimRings, roundedRect, sharpRect, shellGeometry, shoulderBand, srgb, stadium,
-  sweepSide, type MaterialDefs, type Outline, type Part,
+  sweepSide, type KnuckleProfile, type MaterialDefs, type Outline, type Part,
 } from './model-geometry';
 
 const P = Math.PI;
@@ -65,6 +65,10 @@ const BARREL_R = (TOTAL_H - FZ - LID_GAP) / 2;  // 3.6
 const AXIS_Y = LEN - BARREL_R;                  // 71.3
 const AXIS_Z = TOTAL_H - BARREL_R;              // 15.3
 const KNUCKLE_X0 = 54, KNUCKLE_X1 = HW - BACK_R; // the knuckles, 12 mm long, on the face's flat part
+const HINGE: KnuckleProfile = {
+  len: LEN, faceZ: FZ, faceRim: FACE_RIM, axisY: AXIS_Y, axisZ: AXIS_Z, barrelR: BARREL_R,
+  footY: AXIS_Y - 0.7,                         // the foot stands on the face in front of the axis
+};
 const OPEN_DEG = 150;
 // Display: the lower half leans back 7 deg like the DS's; the lid then leans
 // 23 deg toward the camera.
@@ -108,44 +112,6 @@ function cross(s: number, t: number, cx: number, cy: number): Outline {
 function well(outline: Outline, zTop: number, depth: number, slope: number, under?: THREE.Vector2[]): THREE.BufferGeometry {
   return mergeGeometries([
     recessWall(outline, zTop, depth, slope), flatCap(outline(slope), zTop - depth, 1, under ? [under] : []),
-  ], false)!;
-}
-
-/**
- * Hinge knuckle of the lower half: the barrel's radius on a short foot that
- * stands on the face in front of the axis; behind it, it drops flush with the
- * back face to where the face's rounded edge begins. Open where it meets the
- * body; its end faces follow that edge.
- */
-function knuckle(x0: number, x1: number): THREE.BufferGeometry {
-  const foot = AXIS_Y - 0.7;
-  const a0 = -Math.acos((foot - AXIS_Y) / BARREL_R);  // where the foot meets the barrel, below and in front
-  const steps = Math.ceil((2 * P + a0) / ARC_STEP);
-  const side: [THREE.Vector2, THREE.Vector2][] = [[new THREE.Vector2(foot, FZ), new THREE.Vector2(-1, 0)]];
-  for (let i = 0; i <= steps; i++) {
-    const a = a0 - (2 * P + a0) * (i / steps);       // forward, over the top, to the back
-    const n = new THREE.Vector2(Math.cos(a), Math.sin(a));
-    side.push([new THREE.Vector2(AXIS_Y + BARREL_R * n.x, AXIS_Z + BARREL_R * n.y), n]);
-  }
-  side.push([new THREE.Vector2(LEN, FZ - FACE_RIM), new THREE.Vector2(1, 0)]);
-  const positions: number[] = [], normals: number[] = [], indices: number[] = [];
-  side.forEach(([p, n]) => {
-    for (const x of [x0, x1]) { positions.push(x, p.x, p.y); normals.push(0, n.x, n.y); }
-  });
-  for (let k = 0; k < side.length - 1; k++) {
-    const a = 2 * k;
-    indices.push(a, a + 1, a + 2, a + 1, a + 3, a + 2);
-  }
-  // The end faces close along the face's rounded back edge (as rimRings steps it), then the face.
-  const rim = Array.from({ length: 13 }, (_, i) => {
-    const a = (i + 1) / 13 * P / 2;
-    return new THREE.Vector2(LEN - FACE_RIM + FACE_RIM * Math.cos(a), FZ - FACE_RIM + FACE_RIM * Math.sin(a));
-  });
-  const pts = [...side.map(([p]) => p), ...rim];
-  return mergeGeometries([
-    indexedGeometry(positions, normals, indices),
-    polygon(pts, p => new THREE.Vector3(x0, p.x, p.y), new THREE.Vector3(-1, 0, 0)),
-    polygon(pts, p => new THREE.Vector3(x1, p.x, p.y), new THREE.Vector3(1, 0, 0)),
   ], false)!;
 }
 
@@ -212,7 +178,7 @@ function buildLowerHalf() {
 
   // ── Hinge: the knuckles at both ends hold the lid's barrel; the wireless,
   // charge and power LEDs on top of the left one ──
-  add('knuckles', mergeGeometries([knuckle(-KNUCKLE_X1, -KNUCKLE_X0), knuckle(KNUCKLE_X0, KNUCKLE_X1)], false)!, 'body');
+  add('knuckles', mergeGeometries([knuckle(-KNUCKLE_X1, -KNUCKLE_X0, HINGE), knuckle(KNUCKLE_X0, KNUCKLE_X1, HINGE)], false)!, 'body');
   add('leds', mergeGeometries([-62.5, -60, -57.5].map(x => flatCap(sharpRect(0.6, 1.4, x, AXIS_Y)(0), TOTAL_H + 0.08, 1)), false)!, 'led');
 
   // ── Bottom shell: ports cut through its four walls; battery cover, label,
