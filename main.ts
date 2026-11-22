@@ -335,7 +335,7 @@ function lowerCamera(angle: number) {
 // ANIMATION
 // ═══════════════════════════════════════════════════════════════════════════════
 
-function animate(t: number) {
+function animate(t: number, delta: number) {
     const motion = idleMotion(reducedMotion, t);
     controls.autoRotate = motion.autoRotate;
 
@@ -352,7 +352,7 @@ function animate(t: number) {
     // inertia) within the polar limits; the model's angle goes on top, cut at
     // the limits. Switching back leaves the user's angle as it would have been.
     lowerCamera(-applied);
-    controls.update();
+    controls.update(delta);
     applied = lowerCamera(lookUp);
     camera.lookAt(controls.target);
 
