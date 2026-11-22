@@ -32,10 +32,10 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import {
-  ARC_STEP, arcOutline, buttonGeometry, circle, cutWall, disc, dpadGeometry, dpadOutline, drum, exportGLB, fanCap,
-  fixedOutline, flatCap, indexedGeometry, mergedAt, openShell, plate, polygon, poseClamshell, qToFront, qToTop, qX90,
+  arcOutline, buttonGeometry, circle, cutWall, disc, dpadGeometry, dpadOutline, drum, exportGLB, fanCap,
+  fixedOutline, flatCap, knuckle, mergedAt, openShell, pit, plate, poseClamshell, qToFront, qToTop, qX90,
   qY180, qYtoX, recess, recessWall, rimRings, roundedRect, sharpRect, shellGeometry, shoulderBand, srgb, stadium, sweepSide,
-  type Arc, type MaterialDefs, type Outline, type Part,
+  type Arc, type KnuckleProfile, type MaterialDefs, type Outline, type Part,
 } from './model-geometry';
 
 const P = Math.PI;
@@ -58,6 +58,10 @@ const LID_GAP = 0.4;
 const BARREL_R = (TOTAL_H - FZ - LID_GAP) / 2;  // 4.5
 const AXIS_Y = LEN - BARREL_R;                  // 77.9
 const AXIS_Z = TOTAL_H - BARREL_R;              // 24.4
+const HINGE: KnuckleProfile = {
+  len: LEN, faceZ: FZ, faceRim: FACE_RIM, axisY: AXIS_Y, axisZ: AXIS_Z, barrelR: BARREL_R,
+  footY: 77.2,                                 // just behind the touch screen's frame
+};
 const OPEN_DEG = 150;
 // Display: the lower half leans back 7 deg like the GBA SP's; the lid then
 // leans 23 deg toward the camera.
@@ -144,61 +148,6 @@ function well(outline: Outline, zTop: number, depth: number, slope: number, unde
   ], false)!;
 }
 
-/**
- * Inside of a small round hole cut in a face at zTop: one dark cone to its
- * point `depth` in, for wall and back together (the speakers have 56 holes).
- * Its 46 facets stay under the 8-degree edge threshold, so only the rim draws.
- */
-function pit(r: number, x: number, y: number, zTop: number, depth: number): THREE.BufferGeometry {
-  const rim = circle(r, x, y)(0);
-  const positions = [x, y, zTop - depth], normals = [0, 0, 1], indices: number[] = [];
-  rim.forEach((p, i) => {
-    const n = new THREE.Vector3(-(p.x - x) * depth, -(p.y - y) * depth, r * r).normalize();
-    positions.push(p.x, p.y, zTop); normals.push(n.x, n.y, n.z);
-    indices.push(0, 1 + i, 1 + (i + 1) % rim.length);
-  });
-  return indexedGeometry(positions, normals, indices);
-}
-
-/**
- * Hinge knuckle of the lower half (a cheek, or the tongue): the barrel on a
- * short foot that stands on the face just behind the touch screen's frame;
- * behind the barrel it drops flush with the back face to where the face's
- * rounded edge begins. Open where it meets the body; its end faces follow
- * that edge.
- */
-function knuckle(x0: number, x1: number): THREE.BufferGeometry {
-  const foot = 77.2;
-  const a0 = -Math.acos((foot - AXIS_Y) / BARREL_R);  // where the foot meets the barrel, below and in front
-  const steps = Math.ceil((2 * P + a0) / ARC_STEP);
-  const side: [THREE.Vector2, THREE.Vector2][] = [[new THREE.Vector2(foot, FZ), new THREE.Vector2(-1, 0)]];
-  for (let i = 0; i <= steps; i++) {
-    const a = a0 - (2 * P + a0) * (i / steps);       // forward, over the top, to the back
-    const n = new THREE.Vector2(Math.cos(a), Math.sin(a));
-    side.push([new THREE.Vector2(AXIS_Y + BARREL_R * n.x, AXIS_Z + BARREL_R * n.y), n]);
-  }
-  side.push([new THREE.Vector2(LEN, FZ - FACE_RIM), new THREE.Vector2(1, 0)]);
-  const positions: number[] = [], normals: number[] = [], indices: number[] = [];
-  side.forEach(([p, n]) => {
-    for (const x of [x0, x1]) { positions.push(x, p.x, p.y); normals.push(0, n.x, n.y); }
-  });
-  for (let k = 0; k < side.length - 1; k++) {
-    const a = 2 * k;
-    indices.push(a, a + 1, a + 2, a + 1, a + 3, a + 2);
-  }
-  // The end faces close along the face's rounded back edge (as rimRings steps it), then the face.
-  const rim = Array.from({ length: 13 }, (_, i) => {
-    const a = (i + 1) / 13 * P / 2;
-    return new THREE.Vector2(LEN - FACE_RIM + FACE_RIM * Math.cos(a), FZ - FACE_RIM + FACE_RIM * Math.sin(a));
-  });
-  const pts = [...side.map(([p]) => p), ...rim];
-  return mergeGeometries([
-    indexedGeometry(positions, normals, indices),
-    polygon(pts, p => new THREE.Vector3(x0, p.x, p.y), new THREE.Vector3(-1, 0, 0)),
-    polygon(pts, p => new THREE.Vector3(x1, p.x, p.y), new THREE.Vector3(1, 0, 0)),
-  ], false)!;
-}
-
 // ─── Part registry ───────────────────────────────────────────────────────────
 
 const parts: (Part & { lid?: boolean })[] = [];
@@ -282,7 +231,7 @@ function buildLowerHalf() {
 
   // ── Hinge: the lower half's cheeks at both ends and its tongue right of
   // center hold the barrel; the lid's long knuckle and ring turn between them ──
-  add('knuckles', mergeGeometries([knuckle(-31.4, -26.85), knuckle(-0.15, 21.15), knuckle(26.85, 31.4)], false)!, 'body');
+  add('knuckles', mergeGeometries([knuckle(-31.4, -26.85, HINGE), knuckle(-0.15, 21.15, HINGE), knuckle(26.85, 31.4, HINGE)], false)!, 'body');
   const cyl = (x0: number, x1: number) => ({
     g: drum(BARREL_R, x1 - x0), at: [(x0 + x1) / 2, AXIS_Y, AXIS_Z] as [number, number, number], rot: qYtoX,
   });

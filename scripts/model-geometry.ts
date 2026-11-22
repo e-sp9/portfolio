@@ -340,6 +340,22 @@ export function cutWall(corners: THREE.Vector3[], q: THREE.Quaternion, openings:
   };
 }
 
+/**
+ * Inside of a small round hole cut in a face at zTop: one dark cone to its
+ * point `depth` in, for wall and back together. With the default 46 facets
+ * the cone stays under the 8-degree edge threshold, so only the rim draws.
+ */
+export function pit(r: number, x: number, y: number, zTop: number, depth: number, seg = 46): THREE.BufferGeometry {
+  const rim = circle(r, x, y, seg)(0);
+  const positions = [x, y, zTop - depth], normals = [0, 0, 1], indices: number[] = [];
+  rim.forEach((p, i) => {
+    const n = new THREE.Vector3(-(p.x - x) * depth, -(p.y - y) * depth, r * r).normalize();
+    positions.push(p.x, p.y, zTop); normals.push(n.x, n.y, n.z);
+    indices.push(0, 1 + i, 1 + (i + 1) % rim.length);
+  });
+  return indexedGeometry(positions, normals, indices);
+}
+
 /** Flat disc (single face) — reads as a crisp circle outline. */
 export function disc(r: number, segments = 32): THREE.BufferGeometry {
   return new THREE.CircleGeometry(r, segments);
@@ -510,6 +526,55 @@ export function shoulderBand(s: number, o: {
 }
 
 // ─── Clamshell pose ──────────────────────────────────────────────────────────
+
+/**
+ * Lower half of a clamshell, in its closed frame (y from the front edge to the
+ * back face at `len`, the face at `faceZ` with a `faceRim` rounded back edge),
+ * and the hinge barrel (radius `barrelR` about x at `axisY`, `axisZ`) that
+ * stands on that face from `footY`.
+ */
+export interface KnuckleProfile {
+  len: number; faceZ: number; faceRim: number;
+  axisY: number; axisZ: number; barrelR: number; footY: number;
+}
+
+/**
+ * Hinge knuckle of the lower half (a cheek, or the tongue) from x0 to x1: the
+ * barrel on a short foot that stands on the face in front of the axis; behind
+ * the barrel it drops flush with the back face to where the face's rounded
+ * edge begins. Open where it meets the body; its end faces follow that edge.
+ */
+export function knuckle(x0: number, x1: number, h: KnuckleProfile): THREE.BufferGeometry {
+  const P = Math.PI;
+  const a0 = -Math.acos((h.footY - h.axisY) / h.barrelR);  // where the foot meets the barrel, below and in front
+  const steps = Math.ceil((2 * P + a0) / ARC_STEP);
+  const side: [THREE.Vector2, THREE.Vector2][] = [[new THREE.Vector2(h.footY, h.faceZ), new THREE.Vector2(-1, 0)]];
+  for (let i = 0; i <= steps; i++) {
+    const a = a0 - (2 * P + a0) * (i / steps);       // forward, over the top, to the back
+    const n = new THREE.Vector2(Math.cos(a), Math.sin(a));
+    side.push([new THREE.Vector2(h.axisY + h.barrelR * n.x, h.axisZ + h.barrelR * n.y), n]);
+  }
+  side.push([new THREE.Vector2(h.len, h.faceZ - h.faceRim), new THREE.Vector2(1, 0)]);
+  const positions: number[] = [], normals: number[] = [], indices: number[] = [];
+  side.forEach(([p, n]) => {
+    for (const x of [x0, x1]) { positions.push(x, p.x, p.y); normals.push(0, n.x, n.y); }
+  });
+  for (let k = 0; k < side.length - 1; k++) {
+    const a = 2 * k;
+    indices.push(a, a + 1, a + 2, a + 1, a + 3, a + 2);
+  }
+  // The end faces close along the face's rounded back edge (as rimRings steps it), then the face.
+  const rim = Array.from({ length: 13 }, (_, i) => {
+    const a = (i + 1) / 13 * P / 2;
+    return new THREE.Vector2(h.len - h.faceRim + h.faceRim * Math.cos(a), h.faceZ - h.faceRim + h.faceRim * Math.sin(a));
+  });
+  const pts = [...side.map(([p]) => p), ...rim];
+  return mergeGeometries([
+    indexedGeometry(positions, normals, indices),
+    polygon(pts, p => new THREE.Vector3(x0, p.x, p.y), new THREE.Vector3(-1, 0, 0)),
+    polygon(pts, p => new THREE.Vector3(x1, p.x, p.y), new THREE.Vector3(1, 0, 0)),
+  ], false)!;
+}
 
 /**
  * For a clamshell built in its closed frame (x right, y from the front edge
