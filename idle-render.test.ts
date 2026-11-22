@@ -22,6 +22,18 @@ test('reduced motion skips idle renders but redraws a dragged model and invalida
                     'window.renderCalls = (window.renderCalls || 0) + 1; renderer.render(scene, camera);') });
         });
         const count = () => page.evaluate(() => (window as unknown as { renderCalls: number }).renderCalls ?? 0);
+        const deadline = Date.now() + 5000;
+        while (true) {
+            let ready = false;
+            try {
+                const response = await fetch('http://localhost:3197', { signal: AbortSignal.timeout(500) });
+                ready = response.ok;
+                await response.body?.cancel();
+            } catch {}
+            if (ready) break;
+            if (Date.now() >= deadline) throw new Error('Server did not become ready within 5 seconds');
+            await Bun.sleep(50);
+        }
         await page.goto('http://localhost:3197', { waitUntil: 'networkidle' });
         await page.locator('#loader.hidden').waitFor({ state: 'attached' });
         await page.waitForFunction(() =>
