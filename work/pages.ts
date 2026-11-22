@@ -5,7 +5,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { esc } from '../blog/html';
-import { THEME_TOGGLE_SCRIPT } from '../blog/theme-toggle';
+import { PAGE_ICONS, renderPageShell } from '../page-shell';
 import { CASES, OPERATIONS, type WorkCase } from './cases';
 
 const SITE_URL = 'https://esp-9.dev';
@@ -39,12 +39,7 @@ function layout(page: Page): string {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>${esc(page.title)}</title>
     <meta name="description" content="${esc(page.description)}">
-    <meta name="theme-color" content="#f5f5f5">
-    <link rel="icon" href="/favicon.ico" sizes="32x32">
-    <link rel="icon" href="/favicon.svg" type="image/svg+xml">
-    <link rel="icon" href="/favicon-32.png" type="image/png" sizes="32x32">
-    <link rel="icon" href="/favicon-16.png" type="image/png" sizes="16x16">
-    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+${PAGE_ICONS}
     <link rel="canonical" href="${url}">
 
     <!-- OGP -->
@@ -67,51 +62,13 @@ function layout(page: Page): string {
 
 </head>
 
-<body class="work-page">
-    <!-- Apply saved theme before first paint to avoid a light flash -->
-    <script>
-        try {
-            if (localStorage.getItem('portfolio-theme') === 'dark') document.body.classList.add('dark-mode');
-        } catch (_) { }
-    </script>
-    <!-- CRT Effects -->
-    <div id="scanlines"></div>
-    <div id="dither"></div>
-
-    <!-- Header -->
-    <div id="exp-header">
-        <div class="exp-left">
-            <a class="exp-label" href="/">RYOTA KATADA</a>
-            <span class="exp-sep">/</span>
-            <a class="exp-type" href="/work">WORK</a>
-        </div>
-        <div class="exp-right">
-            <button type="button" id="theme-toggle" class="exp-btn" role="switch" aria-checked="false" aria-label="Dark mode">
-                <span class="ts-visual"></span>
-            </button>
-            <a id="home-btn" class="exp-btn" href="/">&#x2190; HOME</a>
-            <a id="blog-btn" class="exp-btn" href="/blog">BLOG</a>
-        </div>
-    </div>
-
-    <!-- Virtual Screen -->
-    <main id="work-screen">
-${page.main}
-    </main>
-
-    <!-- Footer -->
-    <div id="exp-footer">
-        <span class="ef-credit">Built with Bun</span>
-        <span class="ef-copy">&copy; 2026 RYOTA KATADA</span>
-    </div>
-
-${THEME_TOGGLE_SCRIPT}
-    <!-- The switch in 3D, once the page has loaded (theme-switch.ts) -->
-    <script type="module" src="/theme-switch.js"></script>
-</body>
-
-</html>
-`;
+${renderPageShell({
+        bodyClass: 'work-page',
+        section: { label: 'WORK', href: '/work' },
+        screenId: 'work-screen',
+        credit: 'Built with Bun',
+        main: page.main,
+    })}`;
 }
 
 function paragraphs(texts: string[]): string {
