@@ -1533,20 +1533,9 @@ body.dark-mode .panel:hover {
     /* Header buttons keep the 12px type and 30px frame from the 1000px breakpoint;
        only the tap area reaches past the frame, to 44px tall */
     .exp-btn {
-        position: relative;
         min-width: 44px;
         text-align: center;
         white-space: nowrap;
-    }
-
-    .exp-btn::after {
-        content: '';
-        position: absolute;
-        left: 0;
-        right: 0;
-        top: 50%;
-        height: 44px;
-        transform: translateY(-50%);
     }
 
     /* --- Dark mode for floating panels --- */
@@ -1554,6 +1543,22 @@ body.dark-mode .panel:hover {
     body.dark-mode #sidebar-r .panel:last-child {
         background: rgba(26, 26, 26, 0.7);
         box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+    }
+}
+
+@media (max-width: 768px), (pointer: coarse) {
+    .exp-btn {
+        position: relative;
+    }
+
+    .exp-btn::after {
+        content: '';
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        width: max(100%, 44px);
+        height: 44px;
+        transform: translate(-50%, -50%);
     }
 }
 
