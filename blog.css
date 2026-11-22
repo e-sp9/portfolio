@@ -655,9 +655,13 @@ body.blog-page picture {
 }
 
 @media (max-width: 768px) {
+    .article-body table {
+        width: max-content;
+    }
+
     .article-body :is(th, td) {
-        min-width: 8ch;
-        overflow-wrap: anywhere;
+        max-width: 18em;
+        overflow-wrap: break-word;
     }
 
     .article-body th {
