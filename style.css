@@ -776,26 +776,6 @@ body.dark-mode .panel:hover {
     transform: translateX(3px);
 }
 
-/* Non-link project (work in progress) */
-.project-name.no-link {
-    color: var(--txt-br);
-    cursor: default;
-}
-
-.project-name.no-link::after {
-    content: none;
-}
-
-.tag-wip {
-    font-size: calc(10 * var(--text-u));
-    color: var(--accent-secondary);
-    border: 1px solid currentColor;
-    padding: 1px 4px;
-    margin-left: 6px;
-    letter-spacing: calc(1 * var(--text-u));
-    vertical-align: 2px;
-}
-
 .project-desc {
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, var(--font-ja);
     font-size: calc(14 * var(--body-u));
