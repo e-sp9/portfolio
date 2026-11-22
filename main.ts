@@ -287,6 +287,8 @@ modelRetry.addEventListener('click', () => {
 // RESIZE
 // ═══════════════════════════════════════════════════════════════════════════════
 
+let viewportWidth = 0;
+
 function handleResize() {
     const w = window.innerWidth;
     const h = window.innerHeight;
@@ -301,9 +303,12 @@ function handleResize() {
     camera.fov = view.fov;
     // On desktop, framed for the virtual screen between its bands
     camera.zoom = isMobile ? 1 : frameZoom(h, h - frameBands());
-    camera.position.set(...view.position);
+    if (w !== viewportWidth) {
+        camera.position.set(...view.position);
+        applied = lowerCamera(lookUp);
+        viewportWidth = w;
+    }
     renderer.setDrawingBufferSize(w, canvasH, Math.min(window.devicePixelRatio, MAX_PIXEL_RATIO));
-    applied = lowerCamera(lookUp);
 
     camera.updateProjectionMatrix();
     if (edgeMat) edgeMat.resolution.set(w, canvasH);
