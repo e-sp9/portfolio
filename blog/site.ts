@@ -10,6 +10,11 @@ async function bundleStyles(): Promise<string> {
     return outputs[0]!.text();
 }
 
+/** /blog.css in development */
+export async function serveBlogStyles(): Promise<Response> {
+    return new Response(await bundleStyles(), { headers: { 'Content-Type': 'text/css; charset=utf-8' } });
+}
+
 /**
  * Every file the blog adds to the site, by its path under dist/.
  * The build writes them all; the dev server renders the one that is asked for.
