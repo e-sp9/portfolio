@@ -30,9 +30,9 @@ function renderCard(thing: Thing, index: number): HTMLElement {
     const link = esc(thing.link);
 
     card.innerHTML = `
-        <a class="thing-photo" href="${link}" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true">
+        <div class="thing-photo">
             <img src="${esc(thing.image)}" alt="${alt}" loading="lazy" decoding="async">
-        </a>
+        </div>
         <div class="thing-body">
             <div class="thing-meta">
                 <span class="thing-cat">${esc(thing.category.toUpperCase())}</span>
@@ -40,11 +40,11 @@ function renderCard(thing: Thing, index: number): HTMLElement {
             </div>
             <h2 class="thing-title"><a class="thing-name" href="${link}" target="_blank" rel="noopener">${esc(thing.name)}</a></h2>
             <p class="thing-note">${esc(thing.note)}</p>
-            <a class="thing-link link-row" href="${link}" target="_blank" rel="noopener">
+            <div class="thing-link link-row">
                 <span class="link-icon">&#9654;</span>
                 <span class="link-label">${esc(hostOf(thing.link))}</span>
                 <span class="link-arrow">&#x2197;</span>
-            </a>
+            </div>
         </div>
     `;
     return card;

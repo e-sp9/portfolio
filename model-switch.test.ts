@@ -1,20 +1,16 @@
 import { expect, test } from 'bun:test';
 import { chromium } from '@playwright/test';
+import { startDevServer } from './dev-server';
 import { MODELS } from './models';
 
 test('failed switches preserve the displayed selection and allow switching and wraparound', async () => {
-    const server = Bun.spawn(['bun', 'run', 'dev'], {
-        cwd: import.meta.dir,
-        env: { ...process.env, PORT: '3199' },
-        stdout: 'ignore',
-        stderr: 'ignore',
-    });
+    const server = await startDevServer(['bun', 'run', 'dev'], 3199);
     const browser = await chromium.launch({
         args: ['--no-sandbox', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'],
     });
     try {
         const page = await browser.newPage();
-        await page.goto('http://localhost:3199', { waitUntil: 'networkidle' });
+        await page.goto(server.url, { waitUntil: 'networkidle' });
         const label = page.locator('#model-label');
         const count = page.locator('#model-count');
         const expectSelection = async (index: number) => {
@@ -40,6 +36,6 @@ test('failed switches preserve the displayed selection and allow switching and w
         await expectSelection(0);
     } finally {
         await browser.close();
-        server.kill();
+        await server.stop();
     }
 }, 60_000);

@@ -6,6 +6,7 @@
 
 import { type BundledLanguage, bundledLanguages, createCssVariablesTheme, createHighlighter, type Highlighter } from 'shiki';
 import { esc, unesc } from './html';
+import { ORIGIN } from '../discovery';
 
 /** Width of the text column in CSS px. Keep in sync with --measure in blog.css. */
 const MEASURE = 720;
@@ -220,6 +221,7 @@ export async function renderArticle(
                 const href = unesc(el.getAttribute('href') ?? '');
                 if (!/^https?:\/\//i.test(href) || !URL.canParse(href)) return;
                 const url = new URL(href);
+                if (url.origin === ORIGIN) return;
 
                 // A link to one of these posts on the old blog: keep the reader here
                 const id = OLD_BLOG_HOSTS.includes(url.hostname) ? url.pathname.split('/').filter(Boolean).at(-1) : undefined;

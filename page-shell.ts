@@ -8,6 +8,25 @@ export const PAGE_ICONS = `    <meta name="theme-color" content="#f5f5f5">
     <link rel="icon" href="/favicon-16.png" type="image/png" sizes="16x16">
     <link rel="apple-touch-icon" href="/apple-touch-icon.png">`;
 
+/**
+ * The Google Fonts stylesheet, loaded without blocking first paint (media="print"
+ * until it loads), with a blocking fallback when scripts are off
+ */
+export function renderFonts(interWeights: string): string {
+    const href = `https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Inter:wght@${interWeights}&display=swap`;
+    return `    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="${href}"
+        rel="stylesheet" media="print" onload="this.onload=null;this.media='all'">
+    <noscript>
+        <link
+            href="${href}"
+            rel="stylesheet">
+    </noscript>`;
+}
+
 interface PageShell {
     bodyClass: string;
     section: { label: string; href?: string };

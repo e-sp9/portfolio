@@ -6,7 +6,7 @@
 
 import { type Frame, renderArticle, resized, shared, WIDE_SCALE } from './article';
 import { esc } from './html';
-import { PAGE_ICONS, renderPageShell } from '../page-shell';
+import { PAGE_ICONS, renderFonts, renderPageShell } from '../page-shell';
 import type { Eyecatch, Post } from './microcms';
 import { jsonLd } from '../discovery';
 import { blogPagePath, paginate, renderPagination } from './pagination';
@@ -74,12 +74,7 @@ ${PAGE_ICONS}
     <meta name="twitter:image" content="${esc(image.url)}">
     <meta name="twitter:image:alt" content="${esc(image.alt)}">` : ''}
 
-    <!-- Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link
-        href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Inter:wght@300;400;600&display=swap"
-        rel="stylesheet">
+${renderFonts('300;400;600')}
 
     <!-- Styles -->
     <link rel="stylesheet" href="/blog.css">

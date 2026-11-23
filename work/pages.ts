@@ -5,7 +5,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { esc } from '../blog/html';
-import { PAGE_ICONS, renderPageShell } from '../page-shell';
+import { PAGE_ICONS, renderFonts, renderPageShell } from '../page-shell';
 import { CASES, OPERATIONS, type WorkCase } from './cases';
 
 const SITE_URL = 'https://esp-9.dev';
@@ -50,12 +50,7 @@ ${PAGE_ICONS}
     <meta name="twitter:card" content="summary">
     <meta name="twitter:site" content="@e___sp9">
 
-    <!-- Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link
-        href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Inter:wght@300;400;600&display=swap"
-        rel="stylesheet">
+${renderFonts('300;400;600')}
 
     <!-- Styles -->
     <link rel="stylesheet" href="/work.css">

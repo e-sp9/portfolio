@@ -7,7 +7,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { join } from 'node:path';
-import { PAGE_ICONS, renderPageShell } from '../page-shell';
+import { PAGE_ICONS, renderFonts, renderPageShell } from '../page-shell';
 
 /** Where a lost reader can go next: the pages the header and the top page lead to */
 export const NOT_FOUND_LINKS = [
@@ -37,11 +37,7 @@ export function renderNotFound(): string {
     <meta name="robots" content="noindex">
 ${PAGE_ICONS}
 
-    <!-- Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link
-        href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Inter:wght@300;400&display=swap"
-        rel="stylesheet">
+${renderFonts('300;400')}
 
     <!-- Styles -->
     <link rel="stylesheet" href="/not-found.css">

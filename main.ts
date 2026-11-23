@@ -48,8 +48,12 @@ const reducedMotionQuery = window.matchMedia('(prefers-reduced-motion: reduce)')
 let reducedMotion = reducedMotionQuery.matches;
 let previousReducedMotion: boolean | undefined;
 let autoMomentum = 0;
+let renderDirty = true;
+const renderedCamera = new THREE.Matrix4();
+const renderedModel = new THREE.Matrix4();
 reducedMotionQuery.addEventListener('change', (event) => {
     reducedMotion = event.matches;
+    renderDirty = true;
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -61,6 +65,7 @@ function initThree() {
 
     // Renderer
     renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+    canvas.addEventListener('webglcontextrestored', () => { renderDirty = true; });
     renderer.toneMapping = THREE.AgXToneMapping;
     renderer.toneMappingExposure = 1.05;
     renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -134,6 +139,7 @@ function initThree() {
 function disposeModel() {
     if (!model) return;
     scene.remove(model);
+    renderDirty = true;
     model.traverse((child) => {
         if (child instanceof THREE.Mesh) {
             child.geometry.dispose();
@@ -193,6 +199,7 @@ function loadModel(def: ModelDef, opts: { initial?: boolean } = {}) {
             materials = assignMaterials(model);
 
             scene.add(model);
+            renderDirty = true;
 
             // Create edge lines
             const meshes: THREE.Mesh[] = [];
@@ -290,6 +297,7 @@ modelRetry.addEventListener('click', () => {
 let viewportWidth = 0;
 
 function handleResize() {
+    renderDirty = true;
     const w = window.innerWidth;
     const h = window.innerHeight;
     if (!w || !h) return;
@@ -340,6 +348,10 @@ function lowerCamera(angle: number) {
 // ANIMATION
 // ═══════════════════════════════════════════════════════════════════════════════
 
+function transformChanged(current: THREE.Matrix4, previous: THREE.Matrix4) {
+    return current.elements.some((value, index) => Math.abs(value - previous.elements[index]!) > 1e-6);
+}
+
 function animate(t: number, delta: number) {
     const motion = idleMotion(reducedMotion, t);
     controls.autoRotate = motion.autoRotate;
@@ -361,7 +373,17 @@ function animate(t: number, delta: number) {
     applied = lowerCamera(lookUp);
     camera.lookAt(controls.target);
 
+    if (reducedMotion) {
+        camera.updateMatrixWorld();
+        model?.updateMatrixWorld();
+        if (!renderDirty && !transformChanged(camera.matrixWorld, renderedCamera)
+            && (!model || !transformChanged(model.matrixWorld, renderedModel))) return;
+        renderedCamera.copy(camera.matrixWorld);
+        if (model) renderedModel.copy(model.matrixWorld);
+    }
+
     renderer.render(scene, camera);
+    renderDirty = false;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -369,6 +391,7 @@ function animate(t: number, delta: number) {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 function applySceneTheme(isDarkMode: boolean) {
+    renderDirty = true;
     // Update Three.js materials and lighting for theme
     if (!ambientLight) return; // Three.js not initialized yet
 
@@ -413,6 +436,7 @@ function start() {
         updateModelHud();
         return;
     }
+    document.getElementById('loader')?.classList.remove('hidden');
     loadModel(MODELS[currentIndex]!, { initial: true });
 
     const setRendering = createRenderLoop(animate);
