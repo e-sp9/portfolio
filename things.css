@@ -236,6 +236,14 @@ body.things-page .exp-label:hover {
     transition: transform 200ms ease-out;
 }
 
+/* The title is the card's one link; this stretches its click area over the whole card */
+.thing-name::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+}
+
 .thing-name:hover {
     color: var(--accent);
 }
@@ -267,6 +275,16 @@ body.things-page .exp-label:hover {
 
 .thing-link .link-arrow {
     font-size: calc(13 * var(--text-u));
+}
+
+/* The hostname row is plain text under the card's link, so it follows the card's hover */
+.thing:hover .thing-link {
+    color: var(--accent);
+}
+
+.thing:hover .thing-link .link-arrow {
+    opacity: 1;
+    transform: translateX(0);
 }
 
 /* ─── Footer in flow ─────────────────────────────────────────────────────── */
