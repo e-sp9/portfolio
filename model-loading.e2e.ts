@@ -3,6 +3,38 @@ import { MODELS } from './models';
 
 const initialModelPath = MODELS[0]!.path;
 
+test('header navigation works while the first model is pending', async ({ page }) => {
+    let release!: () => void;
+    const pending = new Promise<void>(resolve => { release = resolve; });
+    await page.route('**' + initialModelPath, async route => {
+        await pending;
+        await route.continue();
+    });
+    const request = page.waitForRequest('**' + initialModelPath);
+    try {
+        await page.goto('/', { waitUntil: 'domcontentloaded' });
+        await request;
+        await expect(page.locator('#loader')).toBeVisible();
+        await page.getByRole('link', { name: 'THINGS' }).click({ timeout: 3000 });
+        await expect(page).toHaveURL('/things');
+    } finally {
+        release();
+    }
+});
+
+test('navigation works without JavaScript', async ({ browser }) => {
+    const context = await browser.newContext({ javaScriptEnabled: false });
+    try {
+        const page = await context.newPage();
+        await page.goto('/');
+        await expect(page.locator('#loader')).toBeHidden();
+        await page.getByRole('link', { name: 'THINGS' }).click();
+        await expect(page).toHaveURL('/things');
+    } finally {
+        await context.close();
+    }
+});
+
 test('the first model can be retried without blocking the rest of the site', async ({ page }) => {
     await page.route('**' + initialModelPath, route => route.abort('failed'), { times: 1 });
     const firstFailure = page.waitForEvent('requestfailed', request => request.url().endsWith(initialModelPath));
