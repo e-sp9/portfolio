@@ -8,7 +8,7 @@ import { picks, writeEntrance } from './entrance';
 import { renderFeed } from './feed';
 import { unesc } from './html';
 import { BlogSourceError, fetchPosts, type Post } from './microcms';
-import { renderIndex, renderPost } from './pages';
+import { renderIndex, renderPost, SITE_URL } from './pages';
 
 function post(fields: Partial<Post> = {}): Post {
     return {
@@ -123,6 +123,22 @@ describe('article body', () => {
             titles,
         );
         expect(html).toBe('<p><a href="/blog/abc123">Another post</a></p><p><a href="/blog/abc123#part">こちら</a></p>');
+    });
+
+    test('keeps own-origin links internal without changing editor attributes', async () => {
+        const html = await renderArticle(
+            `<a href="${SITE_URL}/blog/abc123#part">own</a>` +
+            `<a href="${SITE_URL}/blog/abc123" target="_self" rel="author">editor</a>` +
+            '<a href="https://example.com/">external</a>' +
+            '<a href="https://kissa-katada.com/technology/abc123" target="_blank" rel="noopener">old</a>',
+            titles,
+        );
+        expect(html).toBe(
+            `<a href="${SITE_URL}/blog/abc123#part">own</a>` +
+            `<a href="${SITE_URL}/blog/abc123" target="_self" rel="author">editor</a>` +
+            '<a href="https://example.com/" target="_blank" rel="noopener">external</a>' +
+            '<a href="/blog/abc123">old</a>',
+        );
     });
 
     test('opens other sites in a new tab', async () => {
