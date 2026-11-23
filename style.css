@@ -241,6 +241,18 @@ body {
     transition: color 200ms ease-out;
 }
 
+#overlay h1,
+#overlay h2 {
+    font-weight: inherit;
+}
+
+#overlay .ph > h2 {
+    font: inherit;
+    display: flex;
+    align-items: center;
+    gap: inherit;
+}
+
 .exp-sep {
     font-size: calc(20 * var(--text-u));
     color: var(--txt);
