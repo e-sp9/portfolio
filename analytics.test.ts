@@ -54,6 +54,15 @@ test('pageview paths normalize published route shapes and redact other paths', (
     }
 });
 
+test('blog archive pageview paths normalize aliases and redact noncanonical paths', () => {
+    for (const path of ['/blog/page/2', '/blog/page/9', '/blog/page/10', '/blog/page/21']) {
+        for (const alias of [path, `${path}/`, `${path}.html`]) expect(pageviewPath(alias)).toBe(path);
+    }
+    for (const suffix of ['0', '1', '01', '02', '-2', 'abc', '2.5', '2junk', '2/extra']) {
+        expect(pageviewPath(`/blog/page/${suffix}`)).toBe('unknown');
+    }
+});
+
 async function fetchPage(path: string, events?: { writeDataPoint: (point: any) => void }, init?: RequestInit, contentType = 'text/html', status = 200) {
     const pending: Promise<unknown>[] = [];
     const response = await worker.fetch(new Request(`https://esp-9.dev${path}`, init), {
@@ -82,6 +91,20 @@ test('pageview records only path/category and non-HTML assets are not recorded',
     expect(points).toHaveLength(1);
     await fetchPage('/foo.php', events);
     expect(points[1]).toEqual({ blobs: ['pageview', 'unknown', 'direct'], indexes: ['pageview'], doubles: [1] });
+});
+
+test('blog archive pageview writes the canonical path only for successful HTML', async () => {
+    const points: unknown[] = [];
+    const events = { writeDataPoint: (point: unknown) => { points.push(point); } };
+    const init = { headers: { Referer: 'https://chatgpt.com/' } };
+    expect((await fetchPage('/blog/page/2?private=secret', events, init)).status).toBe(200);
+    expect((await fetchPage('/blog/page/99', events, init, 'text/html', 404)).status).toBe(404);
+    expect((await fetchPage('/blog/page/02', events, init)).status).toBe(200);
+    expect(points).toEqual([
+        { blobs: ['pageview', '/blog/page/2', 'ai'], indexes: ['pageview'], doubles: [1] },
+        { blobs: ['pageview', 'not_found', 'ai'], indexes: ['pageview'], doubles: [1] },
+        { blobs: ['pageview', 'unknown', 'ai'], indexes: ['pageview'], doubles: [1] },
+    ]);
 });
 
 test('HTML 404s are redacted, other errors excluded and unexpected successful paths redacted', async () => {

@@ -30,7 +30,8 @@ export function pageviewPath(path: string): string {
     if (path === '/' || path === '/index.html') return '/';
     const clean = path.replace(/\/$/, '').replace(/\.html$/, '');
     if (/^\/(hire|things|work|blog)$/.test(clean) ||
-        /^\/work\/[a-z0-9-]+$/.test(clean) || /^\/blog\/[A-Za-z0-9_-]+$/.test(clean)) return clean;
+        /^\/work\/[a-z0-9-]+$/.test(clean) || /^\/blog\/[A-Za-z0-9_-]+$/.test(clean) ||
+        /^\/blog\/page\/(?:[2-9]|[1-9][0-9]+)$/.test(clean)) return clean;
     return 'unknown';
 }
 
