@@ -1,0 +1,13 @@
+// Bun Snapshot v1, https://bun.sh/docs/test/snapshots
+
+exports[`GAME BOY COLOR shares only identical vertex accessors and decodes like the unshared export 1`] = `"6621962831dcc26f20dac26a6b35abefdd14e7d294c2508cb8693774789a3535"`;
+
+exports[`GAME BOY ADVANCE SP shares only identical vertex accessors and decodes like the unshared export 1`] = `"8f46757b9bcebf238fa278f57b768c9d74bccbcc0755938918afe4961408cadf"`;
+
+exports[`NINTENDO DS shares only identical vertex accessors and decodes like the unshared export 1`] = `"a5741ed0b0596ff6a33d996ea9f4d83300cc6f4590b6b9dd4fd3eed0f8666d08"`;
+
+exports[`NINTENDO DSi shares only identical vertex accessors and decodes like the unshared export 1`] = `"5192f039345df6134da5889fe9664b0fe23aa5cd26a74e97be0a02294ee2c02a"`;
+
+exports[`NINTENDO 3DS shares only identical vertex accessors and decodes like the unshared export 1`] = `"da709010a6656c3bdcba664337566560efa501339e1f25d61f724166fac7f1c6"`;
+
+exports[`PSP shares only identical vertex accessors and decodes like the unshared export 1`] = `"d929cc518c0fde7091ecf867bed91b558f36917cff15901c8a0ae746a3b6cc3f"`;

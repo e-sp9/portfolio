@@ -9,7 +9,7 @@
  *   - each glTF material names its finish in extras.role, and the viewer
  *     picks the surface by that role (model-materials.ts).
  */
-import { Document, NodeIO } from '@gltf-transform/core';
+import { Document, NodeIO, type Accessor } from '@gltf-transform/core';
 import { EXTMeshoptCompression } from '@gltf-transform/extensions';
 import { MeshoptEncoder } from 'meshoptimizer';
 import * as THREE from 'three';
@@ -644,18 +644,30 @@ export async function exportGLB(parts: Part[], materials: MaterialDefs, rootName
       .setExtras({ role: def.role }));
   }
 
+  const vertexAccessors = {
+    POSITION: new Map<string, Accessor>(),
+    NORMAL: new Map<string, Accessor>(),
+  };
+  const vertexAccessor = (semantic: keyof typeof vertexAccessors, attr: THREE.BufferAttribute) => {
+    const array = new Float32Array(attr.array);
+    const key = Buffer.from(array.buffer, array.byteOffset, array.byteLength).toString('base64');
+    const cache = vertexAccessors[semantic];
+    let accessor = cache.get(key);
+    if (!accessor) {
+      accessor = doc.createAccessor().setType('VEC3').setArray(array).setBuffer(buffer);
+      cache.set(key, accessor);
+    }
+    return accessor;
+  };
+
   let triangles = 0, vertices = 0;
   for (const part of parts) {
     const geo = part.geometry;
     const posAttr = geo.getAttribute('position') as THREE.BufferAttribute;
     const norAttr = geo.getAttribute('normal') as THREE.BufferAttribute;
-    const position = doc.createAccessor().setType('VEC3')
-      .setArray(new Float32Array(posAttr.array)).setBuffer(buffer);
-    const normal = doc.createAccessor().setType('VEC3')
-      .setArray(new Float32Array(norAttr.array)).setBuffer(buffer);
     const prim = doc.createPrimitive()
-      .setAttribute('POSITION', position)
-      .setAttribute('NORMAL', normal)
+      .setAttribute('POSITION', vertexAccessor('POSITION', posAttr))
+      .setAttribute('NORMAL', vertexAccessor('NORMAL', norAttr))
       .setMaterial(mats.get(part.material)!);
     if (geo.index) {
       const arr = posAttr.count > 65535
