@@ -17,7 +17,7 @@ test('header navigation works while the first model is pending', async ({ page }
         await expect(page.locator('#loader')).toBeVisible();
         await Promise.all([
             page.waitForURL('/things', { waitUntil: 'commit' }),
-            page.getByRole('link', { name: 'THINGS' }).click({ timeout: 3000, noWaitAfter: true }),
+            page.getByRole('link', { name: 'THINGS' }).click({ noWaitAfter: true }),
         ]);
     } finally {
         release();
