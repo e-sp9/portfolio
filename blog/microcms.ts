@@ -188,11 +188,6 @@ async function refusal(response: Response, { domain, apiKey, keyName }: Access, 
     return new BlogSourceError(`microCMS answered ${response.status} for ${what}.${said}${check}`);
 }
 
-/** URL of the eyecatch of a post as microCMS returns it; null when the field is empty */
-function eyecatchOf(post: Pick<ApiPost, 'eyecatch'>): string | null {
-    return post.eyecatch?.url || null;
-}
-
 function toPost(post: ApiPost): Post {
     if (!POST_ID.test(post.id)) {
         throw new BlogSourceError(`Unexpected content ID in /${ENDPOINT}: ${JSON.stringify(post.id)}`);
@@ -210,9 +205,8 @@ function toPost(post: ApiPost): Post {
     };
 }
 
-function toEyecatch(post: ApiPost): Eyecatch | null {
-    const url = eyecatchOf(post);
-    return url === null ? null : { url, width: post.eyecatch?.width ?? 0, height: post.eyecatch?.height ?? 0 };
+function toEyecatch({ eyecatch }: Pick<ApiPost, 'eyecatch'>): Eyecatch | null {
+    return eyecatch?.url ? { url: eyecatch.url, width: eyecatch.width ?? 0, height: eyecatch.height ?? 0 } : null;
 }
 
 /** The posts the build generates an eyecatch for: those that have none. */
@@ -238,7 +232,7 @@ function everyPostAnew(): string {
 }
 
 /**
- * The eyecatch a post has at this moment: its URL, or null when it has none.
+ * The eyecatch a post has at this moment, or null when it has none.
  * Undefined when the post is not published (any more).
  *
  * It has to be what microCMS holds now, never an older answer. Reads come through a CDN, which
@@ -248,7 +242,7 @@ function everyPostAnew(): string {
  * of them and that is new each time: a URL that nobody has asked before, which only microCMS itself
  * can answer.
  */
-export async function currentEyecatch(env: Env, id: string): Promise<string | null | undefined> {
+export async function currentEyecatch(env: Env, id: string): Promise<Eyecatch | null | undefined> {
     const reader = access(env, 'MICROCMS_API_KEY');
     const filters = everyPostAnew();
     for (let offset = 0; ; ) {
@@ -264,7 +258,7 @@ export async function currentEyecatch(env: Env, id: string): Promise<string | nu
         });
         const page = (await response.json()) as { contents: Pick<ApiPost, 'id' | 'eyecatch'>[]; totalCount: number };
         const post = page.contents.find((content) => content.id === id);
-        if (post) return eyecatchOf(post);
+        if (post) return toEyecatch(post);
         offset += page.contents.length;
         if (page.contents.length === 0 || offset >= page.totalCount) return undefined;
     }
@@ -296,24 +290,23 @@ export async function uploadImage(env: Env, name: string, png: Uint8Array<ArrayB
  *
  * A PATCH replaces whatever the field holds, and microCMS has no way to ask for "only if it is still
  * empty". So the post is looked at once more right before every attempt. When it has an eyecatch by
- * then, or is no longer published, nothing is sent and the answer is false: an eyecatch set by hand
- * while the build runs stays. One set in the instant between that look and the PATCH can still be lost.
+ * then, or is no longer published, nothing is sent. Returns the image the build should render
+ * (including one set by hand), or undefined for an unpublished post. An image set in the instant
+ * between that look and the PATCH can still be lost.
  */
-export async function setEyecatch(env: Env, id: string, imageUrl: string): Promise<boolean> {
+export async function setEyecatch(env: Env, id: string, image: Eyecatch): Promise<Eyecatch | undefined> {
     const writer = access(env, 'MICROCMS_WRITE_API_KEY');
     if (!POST_ID.test(id)) throw new BlogSourceError(`Not a content ID: ${JSON.stringify(id)}`);
     const what = `PATCH /${ENDPOINT}/${id}`;
     for (let attempt = 0; ; attempt++) {
         const current = await currentEyecatch(env, id);
-        // An attempt that microCMS answered with an error can have gone through all the same
-        if (current === imageUrl) return true;
-        if (current !== null) return false;
+        if (current !== null) return current;
         const response = await send(writer, what, `https://${writer.domain}.microcms.io/api/v1/${ENDPOINT}/${id}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ eyecatch: imageUrl }),
+            body: JSON.stringify({ eyecatch: image.url }),
         });
-        if (response.ok) return true;
+        if (response.ok) return image;
         if (!(await worthAnotherTry(response, attempt))) throw await refusal(response, writer, what);
     }
 }

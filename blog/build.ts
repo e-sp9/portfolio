@@ -7,7 +7,7 @@ import { rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { picks, writeEntrance } from './entrance';
 import { EYECATCH_HEIGHT, EYECATCH_WIDTH, eyecatchPng } from './eyecatch';
-import { BlogSourceError, currentEyecatch, fetchPosts, type Post, setEyecatch, uploadImage, withoutEyecatch } from './microcms';
+import { BlogSourceError, currentEyecatch, type Eyecatch, fetchPosts, type Post, setEyecatch, uploadImage, withoutEyecatch } from './microcms';
 import { blogFiles } from './site';
 import { discoveryFiles } from '../discovery-site';
 
@@ -17,51 +17,54 @@ type Env = Record<string, string | undefined>;
 const UPLOAD_INTERVAL = 1_100;
 
 /**
- * Gives every post that has no eyecatch a generated one: draws it, uploads it to the media
- * library and sets it on the post. The post in `posts` gets it too, so the pages this build
- * writes show it. A post that has an eyecatch is left alone, and so is one
- * that is given an eyecatch by hand while this runs: the list read at the start is not what
- * decides, each post is looked at again right before anything is written for it.
+ * Gives posts without an eyecatch a generated one, and returns the posts to render.
+ * Uses any eyecatch found by the freshness checks and excludes posts those checks find unpublished.
  *
  * This is the one place where the build writes to microCMS, and it takes a key of its own.
  * Without MICROCMS_WRITE_API_KEY nothing is drawn or sent, and the build goes on.
  * A post is finished before the next one starts, so a build that fails halfway
  * picks up where it stopped the next time.
  */
-async function registerEyecatches(posts: Post[], env: Env): Promise<void> {
+async function registerEyecatches(posts: Post[], env: Env): Promise<Post[]> {
     const bare = withoutEyecatch(posts);
-    if (bare.length === 0) return;
+    if (bare.length === 0) return posts;
     if (!env.MICROCMS_WRITE_API_KEY) {
         console.log(`Posts without an eyecatch: ${bare.length}. MICROCMS_WRITE_API_KEY is not set, so none is generated.`);
-        return;
+        return posts;
     }
 
+    const unpublished = new Set<string>();
     for (const [index, post] of bare.entries()) {
         if (index > 0) await Bun.sleep(UPLOAD_INTERVAL);
-        // By its turn a post may have been given an eyecatch, or taken down. Seen before the upload,
-        // that leaves no picture behind.
-        const current = await currentEyecatch(env, post.id);
-        if (current !== null) {
-            console.log(`Left ${post.id} alone: ${current === undefined ? 'it is no longer published' : 'it has an eyecatch by now'}.`);
-            continue;
-        }
-        const name = `eyecatch-${post.id}.png`;
-        const url = await uploadImage(env, name, eyecatchPng(post.id));
-        let set: boolean;
-        try {
-            // setEyecatch looks once more, right before the PATCH
-            set = await setEyecatch(env, post.id, url);
-        } catch (error) {
-            if (!(error instanceof BlogSourceError)) throw error;
-            throw new BlogSourceError(`${error.message} The picture was uploaded and stays in the media library as ${name}.`);
-        }
-        if (set) post.eyecatch = { url, width: EYECATCH_WIDTH, height: EYECATCH_HEIGHT };
-        console.log(
-            set
-                ? `Generated an eyecatch for ${post.id}`
-                : `Left ${post.id} alone: it was given an eyecatch, or taken down, before the picture could be set. The picture stays in the media library as ${name}.`,
-        );
+        const eyecatch = await registerEyecatch(env, post.id);
+        if (eyecatch === undefined) unpublished.add(post.id);
+        else post.eyecatch = eyecatch;
     }
+    return posts.filter((post) => !unpublished.has(post.id));
+}
+
+async function registerEyecatch(env: Env, id: string): Promise<Eyecatch | undefined> {
+    // By its turn a post may have been given an eyecatch, or taken down.
+    const current = await currentEyecatch(env, id);
+    if (current !== null) {
+        console.log(`Left ${id} alone: ${current === undefined ? 'it is no longer published' : 'it has an eyecatch by now'}.`);
+        return current;
+    }
+    const name = `eyecatch-${id}.png`;
+    const url = await uploadImage(env, name, eyecatchPng(id));
+    let eyecatch: Eyecatch | undefined;
+    try {
+        eyecatch = await setEyecatch(env, id, { url, width: EYECATCH_WIDTH, height: EYECATCH_HEIGHT });
+    } catch (error) {
+        if (!(error instanceof BlogSourceError)) throw error;
+        throw new BlogSourceError(`${error.message} The picture was uploaded and stays in the media library as ${name}.`);
+    }
+    console.log(
+        eyecatch?.url === url
+            ? `Generated an eyecatch for ${id}`
+            : `Left ${id} alone: it was ${eyecatch ? 'given an eyecatch' : 'taken down'} before the picture could be set. The picture stays in the media library as ${name}.`,
+    );
+    return eyecatch;
 }
 
 /**
@@ -73,8 +76,7 @@ async function registerEyecatches(posts: Post[], env: Env): Promise<void> {
  * from GitHub Secrets, so a failure there stops the deploy and the live /blog stays as it is.
  */
 export async function buildBlog(env: Env, dist: string): Promise<void> {
-    const posts = await fetchPosts(env);
-    await registerEyecatches(posts, env);
+    const posts = await registerEyecatches(await fetchPosts(env), env);
     // A post unpublished since the last build must not linger in a reused dist/
     await rm(join(dist, 'blog'), { recursive: true, force: true });
     const files = blogFiles(posts);
