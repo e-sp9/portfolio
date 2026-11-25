@@ -13,9 +13,11 @@ agents, full referrer URLs, query strings, or visitor/session identifiers are st
 GET requests are counted only with response status 200 or 404 and Content-Type `text/html`, regardless
 of the URL extension or Accept header; `/api`, `/api/*`, and non-HTML responses are excluded.
 Stored pageview paths are `/`, `/hire`, `/things`, `/work`, `/blog`,
-`/work/<slug>` (`[a-z0-9-]+`, matching the case slugs), or `/blog/<id>`
-(`[A-Za-z0-9_-]+`, matching `POST_ID` in `blog/microcms.ts`). `.html` aliases
-and an optional trailing slash normalize to clean paths; `/index.html` becomes `/`.
+`/work/<slug>` (`[a-z0-9-]+`, matching the case slugs), `/blog/<id>`
+(`[A-Za-z0-9_-]+`, matching `POST_ID` in `blog/microcms.ts`), or `/blog/page/<n>`
+(a decimal archive page number of 2 or greater, without leading zeros; page 1 is `/blog`).
+`.html` aliases and an optional trailing slash normalize to clean paths;
+`/index.html` becomes `/`.
 All other 200 HTML paths are stored as the fixed value `unknown`. HTML 404s always
 use the fixed path `not_found`. Both preserve the referral category without storing
 the supplied path or query string. Other response statuses are not counted.
