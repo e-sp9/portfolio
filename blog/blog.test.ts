@@ -70,9 +70,9 @@ describe('article body', () => {
         const sizes = 'sizes="(min-width: 1441px) 922px, (min-width: 860px) 720px, (min-width: 769px) calc(100vw - 140px), calc(100vw - 72px)"';
         expect(html).toBe(
             '<figure><picture>' +
-            `<source type="image/avif" srcset="${at('avif', 720)} 720w, ${at('avif', 1080)} 1080w, ${at('avif', 1440)} 1440w" ${sizes}>` +
+            `<source type="image/avif" srcset="${at('avif', 360)} 360w, ${at('avif', 720)} 720w, ${at('avif', 1080)} 1080w, ${at('avif', 1440)} 1440w" ${sizes}>` +
             `<img src="${at('webp', 1440)}" alt="" width="2000" height="1000" loading="lazy" decoding="async" ` +
-            `srcset="${at('webp', 720)} 720w, ${at('webp', 1080)} 1080w, ${at('webp', 1440)} 1440w" ${sizes}>` +
+            `srcset="${at('webp', 360)} 360w, ${at('webp', 720)} 720w, ${at('webp', 1080)} 1080w, ${at('webp', 1440)} 1440w" ${sizes}>` +
             '</picture></figure>',
         );
     });
@@ -82,6 +82,12 @@ describe('article body', () => {
         expect(html).toContain('<source type="image/avif" srcset="https://images.microcms-assets.io/assets/a/b/small.webp?fm=avif&amp;w=330">');
         expect(html).toContain('src="https://images.microcms-assets.io/assets/a/b/small.webp?fm=webp&amp;w=330"');
         expect(html).not.toContain(' sizes=');
+
+        const medium = await renderArticle('<img src="https://images.microcms-assets.io/assets/a/b/small.webp" width="480" height="270">', titles);
+        const at = (format: string, w: number) => `https://images.microcms-assets.io/assets/a/b/small.webp?fm=${format}&amp;w=${w}`;
+        expect(medium).toContain(`<source type="image/avif" srcset="${at('avif', 360)} 360w, ${at('avif', 480)} 480w"`);
+        expect(medium).toContain(`src="${at('webp', 480)}"`);
+        expect(medium).toContain(`srcset="${at('webp', 360)} 360w, ${at('webp', 480)} 480w"`);
     });
 
     test('leaves GIFs and images from elsewhere as they are', async () => {

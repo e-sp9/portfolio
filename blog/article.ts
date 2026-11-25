@@ -66,7 +66,7 @@ export interface Frame {
 
 /** The text column. Below 860px it is the page less the margins of the screen and the sheet, which narrow at 768px (blog.css). */
 const COLUMN: Frame = {
-    widths: [MEASURE, MEASURE * 1.5, MEASURE * 2],
+    widths: [MEASURE / 2, MEASURE, MEASURE * 1.5, MEASURE * 2],
     sizes: `(min-width: 1441px) ${Math.ceil(MEASURE * WIDE_SCALE)}px, (min-width: 860px) ${MEASURE}px, (min-width: 769px) calc(100vw - 140px), calc(100vw - 72px)`,
 };
 
